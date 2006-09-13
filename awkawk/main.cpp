@@ -1,0 +1,133 @@
+//  Copyright (C) 2006 Peter Bright
+//  
+//  This software is provided 'as-is', without any express or implied
+//  warranty.  In no event will the authors be held liable for any damages
+//  arising from the use of this software.
+//  
+//  Permission is granted to anyone to use this software for any purpose,
+//  including commercial applications, and to alter it and redistribute it
+//  freely, subject to the following restrictions:
+//  
+//  1. The origin of this software must not be misrepresented; you must not
+//     claim that you wrote the original software. If you use this software
+//     in a product, an acknowledgment in the product documentation would be
+//     appreciated but is not required.
+//  2. Altered source versions must be plainly marked as such, and must not be
+//     misrepresented as being the original software.
+//  3. This notice may not be removed or altered from any source distribution.
+//  
+//  Peter Bright <drpizza@quiscalusmexicanus.org>
+
+#include "stdafx.h"
+
+#include "player.h"
+
+#ifdef _DEBUG 
+#define SET_CRT_DEBUG_FIELD(a) _CrtSetDbgFlag((a) | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
+#define CLEAR_CRT_DEBUG_FIELD(a) _CrtSetDbgFlag(~(a) & _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
+#define USES_MEMORY_CHECK	\
+_CrtMemState before = {0}, after = {0}, difference = {0};\
+_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);\
+_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);\
+_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);\
+_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDOUT);\
+_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);\
+_CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDOUT);\
+SET_CRT_DEBUG_FIELD(_CRTDBG_LEAK_CHECK_DF);
+
+//SET_CRT_DEBUG_FIELD(_CRTDBG_DELAY_FREE_MEM_DF);\
+//SET_CRT_DEBUG_FIELD(_CRTDBG_CHECK_EVERY_16_DF)
+
+#define MEM_CHK_BEFORE	\
+_CrtMemCheckpoint(&before)
+
+#define MEM_CHK_AFTER	\
+_CrtMemCheckpoint(&after);\
+do\
+{\
+	if(TRUE == _CrtMemDifference(&difference, &before, &after))\
+	{\
+		_CrtMemDumpStatistics(&difference);\
+	}\
+}\
+while(0)
+
+#else // _DEBUG
+#define SET_CRT_DEBUG_FIELD(a) ((void) 0)
+#define CLEAR_CRT_DEBUG_FIELD(a) ((void) 0)
+#define USES_MEMORY_CHECK
+#define MEM_CHK_BEFORE
+#define MEM_CHK_AFTER
+#endif // _DEBUG
+
+typedef BOOL (WINAPI* MINIDUMPWRITEDUMP)(HANDLE process, DWORD pid, HANDLE file, MINIDUMP_TYPE DumpType, const MINIDUMP_EXCEPTION_INFORMATION* exceptioninfo, const MINIDUMP_USER_STREAM_INFORMATION* userstreaminfo, const MINIDUMP_CALLBACK_INFORMATION* callbackinfo);
+
+LONG WINAPI exception_filter(EXCEPTION_POINTERS* exception_pointers)
+{
+	HMODULE dbghelp(::LoadLibrary(L"dbghelp.dll"));
+	if(dbghelp == NULL)
+	{
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+	MINIDUMPWRITEDUMP miniDumpWriteDump(reinterpret_cast<MINIDUMPWRITEDUMP>(::GetProcAddress(dbghelp, "MiniDumpWriteDump")));
+	if(miniDumpWriteDump == NULL)
+	{
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+	boost::scoped_array<wchar_t> temp_path(new wchar_t[_MAX_PATH + 1]);
+	::GetTempPath(_MAX_PATH, temp_path.get());
+	std::wstringstream temp_file_name;
+	std::time_t t(::time(NULL));
+	temp_file_name << temp_path.get() << L"awkawk-" << std::hex << ::GetCurrentProcessId() << L"-" << utility::settimeformat(L"%Y%m%dT%H%M%SZ") << *std::gmtime(&t) << L".dmp";
+	HANDLE dump_file(::CreateFile(temp_file_name.str().c_str(), GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL));
+	if(dump_file == INVALID_HANDLE_VALUE)
+	{
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+	ON_BLOCK_EXIT(&::CloseHandle, dump_file);
+	MINIDUMP_EXCEPTION_INFORMATION minidump_info = {0};
+	minidump_info.ThreadId = ::GetCurrentThreadId();
+	minidump_info.ExceptionPointers = exception_pointers;
+	wdout << L"Writing crash dump to: " << temp_file_name.str() << std::endl;
+	miniDumpWriteDump(::GetCurrentProcess(), ::GetCurrentProcessId(), dump_file, MiniDumpWithFullMemory, &minidump_info, NULL, NULL);
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
+int real_main(int, wchar_t**)
+{
+	::SetUnhandledExceptionFilter(&exception_filter);
+	::OleInitialize(NULL);
+	//::InitCommonControls();
+	ON_BLOCK_EXIT(&::OleUninitialize);
+	Player p;
+	p.create_ui(SW_RESTORE);
+	return p.run_ui();
+}
+
+#ifdef DEBUG
+
+int wmain(int argc, wchar_t* argv[])
+{
+#ifdef DEBUG_HEAP
+	USES_MEMORY_CHECK;
+	MEM_CHK_BEFORE;
+#endif
+	int rv(real_main(argc, argv));
+#ifdef DEBUG_HEAP
+	MEM_CHK_AFTER;
+	_CrtMemDumpAllObjectsSince(NULL);
+#endif
+	return rv;
+}
+
+#else
+
+int __stdcall wWinMain(HINSTANCE instance, HINSTANCE, const wchar_t*, int cmdShow)
+{
+	int argc(0);
+	wchar_t** argv = ::CommandLineToArgvW(::GetCommandLine(), &argc);
+	ON_BLOCK_EXIT(&::LocalFree, argv);
+	return real_main(argc, argv);
+}
+
+#endif
