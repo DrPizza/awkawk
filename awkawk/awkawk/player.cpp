@@ -319,7 +319,7 @@ void Player::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
 	FAIL_THROW(filter->QueryInterface(&surface_allocator_notify));
 
-	allocator = new surface_allocator(this, window, device);
+	allocator = new surface_allocator(this, device);
 	vmr_surface_allocator.Attach(allocator, true);
 
 	FAIL_THROW(surface_allocator_notify->AdviseSurfaceAllocator(user_id, vmr_surface_allocator));

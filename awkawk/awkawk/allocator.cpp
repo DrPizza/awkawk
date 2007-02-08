@@ -22,10 +22,9 @@
 
 #include "player.h"
 
-surface_allocator::surface_allocator(Player* player_, HWND window_, IDirect3DDevice9Ptr device_) : ref_count(0),
-                                                                                                   player(player_),
-                                                                                                   window(window_),
-                                                                                                   device(device_)
+surface_allocator::surface_allocator(Player* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
+                                                                                     player(player_),
+                                                                                     device(device_)
 {
 }
 
@@ -44,7 +43,7 @@ void surface_allocator::begin_device_loss()
 void surface_allocator::end_device_loss(IDirect3DDevice9Ptr device_)
 {
 	device = device_;
-	FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY)));
+	FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(player->get_window(), MONITOR_DEFAULTTOPRIMARY)));
 }
 
 //IVMRSurfaceAllocator9
