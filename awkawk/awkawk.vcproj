@@ -532,10 +532,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\version.h"
-				>
-			</File>
-			<File
 				RelativePath=".\window.h"
 				>
 			</File>
