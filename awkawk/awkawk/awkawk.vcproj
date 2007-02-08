@@ -492,6 +492,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\utility\debugstream.hpp"
+				>
+			</File>
+			<File
 				RelativePath=".\open_url.h"
 				>
 			</File>

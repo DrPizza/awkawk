@@ -442,6 +442,11 @@ struct Player
 		::SetWaitableTimer(render_timer, &dueTime, 1000 / static_cast<LONG>(fps), NULL, NULL, FALSE);
 	}
 
+	HWND get_window() const
+	{
+		return ui.get_window();
+	}
+
 	typedef std::list<std::wstring> playlist_type;
 
 private:

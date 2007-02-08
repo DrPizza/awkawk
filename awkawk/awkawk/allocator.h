@@ -33,7 +33,7 @@ _COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocatorNotify9, __uuidof(IVMRSurfaceAllocator
 // IVMRSurfaceAllocatorEx9
 struct surface_allocator : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, device_loss_handler
 {
-	surface_allocator(Player* player_, HWND window_, IDirect3DDevice9Ptr device_);
+	surface_allocator(Player* player_, IDirect3DDevice9Ptr device_);
 	virtual ~surface_allocator();
 
 	// IVMRSurfaceAllocator9
@@ -102,10 +102,7 @@ private:
 	std::map<DWORD_PTR, boost::shared_ptr<critical_section> > texture_locks;
 
 	Player* player;
-	HWND window;
 	DWORD render_flags;
-
-	_bstr_t filename;
 };
 
 #endif
