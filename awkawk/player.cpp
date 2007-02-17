@@ -319,6 +319,7 @@ void Player::destroy_graph()
 	video = NULL;
 
 	set_render_fps(25);
+	schedule_render();
 
 	has_video = false;
 }
@@ -527,7 +528,7 @@ void Player::create_graph()
 
 	double frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<double>(average_frame_time));
 	set_render_fps(static_cast<unsigned int>(frame_rate));
-
+	schedule_render();
 	state = stopped;
 
 	pause();
@@ -682,6 +683,7 @@ int Player::run_ui()
 	render_event = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	cancel_render = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	render_thread = utility::CreateThread(NULL, 0, this, &Player::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
+	schedule_render();
 	int rv(ui.pump_messages());
 	if(render_thread != 0)
 	{
@@ -770,10 +772,6 @@ DWORD Player::render_thread_proc(void*)
 			case WAIT_OBJECT_0 + 1:
 				try
 				{
-					LARGE_INTEGER dueTime = { 0 };
-					dueTime.QuadPart = -10000000 / static_cast<LONGLONG>(get_render_fps());
-					::SetWaitableTimer(render_timer, &dueTime, 0, NULL, NULL, FALSE);
-
 					if(needs_display_change())
 					{
 						reset_device();
@@ -793,6 +791,7 @@ DWORD Player::render_thread_proc(void*)
 				{
 					derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 				}
+				schedule_render();
 				break;
 			case WAIT_OBJECT_0 + 2:
 				continue_rendering = false;

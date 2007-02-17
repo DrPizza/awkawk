@@ -312,6 +312,10 @@ struct Player
 		{
 			size_window_from_video();
 		}
+		if(scene.get() != NULL)
+		{
+			scene->notify_window_size_change();
+		}
 	}
 
 	SIZE get_window_dimensions() const
@@ -447,8 +451,12 @@ struct Player
 	{
 		critical_section::lock l(player_cs);
 		fps = clamp(fps_, 25u, 60u);
+	}
+
+	void schedule_render() const
+	{
 		LARGE_INTEGER dueTime = { 0 };
-		dueTime.QuadPart = -10000000 / static_cast<LONGLONG>(fps);
+		dueTime.QuadPart = -10000000 / static_cast<LONGLONG>(get_render_fps());
 		::SetWaitableTimer(render_timer, &dueTime, 0, NULL, NULL, FALSE);
 	}
 
