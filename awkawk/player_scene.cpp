@@ -45,13 +45,8 @@ void player_scene::render()
 	try
 	{
 		critical_section::lock l(cs);
-		SIZE window_size(player->get_window_dimensions());
+
 		SIZE scene_size(player->get_scene_dimensions());
-
-		D3DXMATRIX ortho2D;
-		D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), 0.0f, 1.0f);
-		FAIL_THROW(device->SetTransform(D3DTS_PROJECTION, &ortho2D));
-
 		float dx((-static_cast<float>(scene_size.cx) / 2.0f));
 		float dy((-static_cast<float>(scene_size.cy) / 2.0f));
 
@@ -77,13 +72,45 @@ void player_scene::calculate_positions()
 	critical_section::lock l(cs);
 	SIZE scene_size(player->get_scene_dimensions());
 
-	video->vertices[0].position = strip::vertex::position3(0.0f                             , static_cast<float>(scene_size.cy), 0.0f);
-	video->vertices[1].position = strip::vertex::position3(0.0f                             , 0.0f                             , 0.0f);
-	video->vertices[2].position = strip::vertex::position3(static_cast<float>(scene_size.cx), static_cast<float>(scene_size.cy), 0.0f);
-	video->vertices[3].position = strip::vertex::position3(static_cast<float>(scene_size.cx), 0.0f                             , 0.0f);
+	// clockwise (front)
+	// 1 v1               v3             v5               v7
+	//    |---------------|---------------|---------------|
+	//    |   \           |   \           |   \           |
+	//    |    \          |    \          |    \          |
+	//    |     \         |     \         |     \         |
+	//    |      \        |      \        |      \        |
+	//    |       \       |       \       |       \       |
+	//    |        \      |        \      |        \      |
+	//    |         \     |         \     |         \     |
+	//    |          \    |          \    |          \    |
+	//    |---------------|---------------|---------------|
+	//   v0               v2              v4              v6
+	//                     
+	// 0                  1
 
-	video->vertices[0].tu = 0.0f; video->vertices[0].tv = 0.0f;
-	video->vertices[1].tu = 0.0f; video->vertices[1].tv = 1.0f;
-	video->vertices[2].tu = 1.0f; video->vertices[2].tv = 0.0f;
-	video->vertices[3].tu = 1.0f; video->vertices[3].tv = 1.0f;
+	// counterclockwise (back)
+	// 1 v0               v2              v4              v6
+	//    |---------------|---------------|---------------|
+	//    |          /    |          /    |          /    |
+	//    |         /     |         /     |         /     |
+	//    |        /      |        /      |        /      |
+	//    |       /       |       /       |       /       |
+	//    |      /        |      /        |      /        |
+	//    |     /         |     /         |     /         |
+	//    |    /          |    /          |    /          |
+	//    |   /           |   /           |   /           |
+	//    |---------------|---------------|---------------|
+	//   v1               v3              v5              v7
+	//                     
+	// 0                  1
+
+	video->vertices[0].position = strip::vertex::position3(0.0f                             , 0.0f                             , 0.0f);
+	video->vertices[1].position = strip::vertex::position3(0.0f                             , static_cast<float>(scene_size.cy), 0.0f);
+	video->vertices[2].position = strip::vertex::position3(static_cast<float>(scene_size.cx), 0.0f                             , 0.0f);
+	video->vertices[3].position = strip::vertex::position3(static_cast<float>(scene_size.cx), static_cast<float>(scene_size.cy), 0.0f);
+
+	video->vertices[0].tu = 0.0f; video->vertices[0].tv = 1.0f;
+	video->vertices[1].tu = 0.0f; video->vertices[1].tv = 0.0f;
+	video->vertices[2].tu = 1.0f; video->vertices[2].tv = 1.0f;
+	video->vertices[3].tu = 1.0f; video->vertices[3].tv = 0.0f;
 }
