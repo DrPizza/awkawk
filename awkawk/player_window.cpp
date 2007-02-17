@@ -116,7 +116,7 @@ void player_window::open_single_file(const std::wstring& path)
 
 void player_window::create_window(int cmd_show)
 {
-	window::create_window(WS_EX_COMPOSITED, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, 640, 480, NULL, NULL, NULL);
+	window::create_window(WS_EX_COMPOSITED, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, window_size.cx, window_size.cy, NULL, NULL, NULL);
 	if(!get_window())
 	{
 		throw std::runtime_error("Could not create window");
@@ -211,93 +211,100 @@ BOOL player_window::onEraseBackground(HWND, HDC)
 
 void player_window::onCommand(HWND, int id, HWND control, UINT event)
 {
-	switch(id)
+	try
 	{
-	case IDM_OPEN_FILE:
-	case IDM_OPEN_URL:
+		switch(id)
 		{
-			open_single_file(id == IDM_OPEN_FILE ? get_local_path() : get_remote_path());
-		}
-		break;
-	case IDM_PLAY:
-		player->play();
-		break;
-	case IDM_PAUSE:
-		player->pause();
-		break;
-	case IDM_STOP:
-		player->stop();
-		break;
-	case IDM_NEXT:
-		player->next();
-		break;
-	case IDM_PREV:
-		player->prev();
-		break;
-	case IDM_PLAYMODE_NORMAL:
-		player->set_playmode(Player::normal);
-		break;
-	case IDM_PLAYMODE_REPEATALL:
-		player->set_playmode(Player::repeat_all);
-		break;
-	case IDM_PLAYMODE_REPEATTRACK:
-		player->set_playmode(Player::repeat_single);
-		break;
-	case IDM_PLAYMODE_SHUFFLE:
-		player->set_playmode(Player::shuffle);
-		break;
-	case IDM_SIZE_50:
-		player->set_window_size_mode(Player::fifty_percent);
-		break;
-	case IDM_SIZE_100:
-		player->set_window_size_mode(Player::one_hundred_percent);
-		break;
-	case IDM_SIZE_200:
-		player->set_window_size_mode(Player::two_hundred_percent);
-		break;
-	case IDM_SIZE_FREE:
-		player->set_window_size_mode(Player::free);
-		break;
-	case IDM_AR_ORIGINAL:
-		player->set_aspect_ratio_mode(Player::original);
-		break;
-	case IDM_AR_133TO1:
-		player->set_aspect_ratio_mode(Player::onethreethree_to_one);
-		break;
-	case IDM_AR_155TO1:
-		player->set_aspect_ratio_mode(Player::onefivefive_to_one);
-		break;
-	case IDM_AR_177TO1:
-		player->set_aspect_ratio_mode(Player::onesevenseven_to_one);
-		break;
-	case IDM_AR_185TO1:
-		player->set_aspect_ratio_mode(Player::oneeightfive_to_one);
-		break;
-	case IDM_AR_240TO1:
-		player->set_aspect_ratio_mode(Player::twofourzero_to_one);
-		break;
-	case IDM_CLOSE_FILE:
-		{
-			set_window_text(app_title.c_str());
+		case IDM_OPEN_FILE:
+		case IDM_OPEN_URL:
+			{
+				open_single_file(id == IDM_OPEN_FILE ? get_local_path() : get_remote_path());
+			}
+			break;
+		case IDM_PLAY:
+			player->play();
+			break;
+		case IDM_PAUSE:
+			player->pause();
+			break;
+		case IDM_STOP:
+			player->stop();
+			break;
+		case IDM_NEXT:
+			player->next();
+			break;
+		case IDM_PREV:
+			player->prev();
+			break;
+		case IDM_PLAYMODE_NORMAL:
+			player->set_playmode(Player::normal);
+			break;
+		case IDM_PLAYMODE_REPEATALL:
+			player->set_playmode(Player::repeat_all);
+			break;
+		case IDM_PLAYMODE_REPEATTRACK:
+			player->set_playmode(Player::repeat_single);
+			break;
+		case IDM_PLAYMODE_SHUFFLE:
+			player->set_playmode(Player::shuffle);
+			break;
+		case IDM_SIZE_50:
+			player->set_window_size_mode(Player::fifty_percent);
+			break;
+		case IDM_SIZE_100:
+			player->set_window_size_mode(Player::one_hundred_percent);
+			break;
+		case IDM_SIZE_200:
+			player->set_window_size_mode(Player::two_hundred_percent);
+			break;
+		case IDM_SIZE_FREE:
+			player->set_window_size_mode(Player::free);
+			break;
+		case IDM_AR_ORIGINAL:
+			player->set_aspect_ratio_mode(Player::original);
+			break;
+		case IDM_AR_133TO1:
+			player->set_aspect_ratio_mode(Player::onethreethree_to_one);
+			break;
+		case IDM_AR_155TO1:
+			player->set_aspect_ratio_mode(Player::onefivefive_to_one);
+			break;
+		case IDM_AR_177TO1:
+			player->set_aspect_ratio_mode(Player::onesevenseven_to_one);
+			break;
+		case IDM_AR_185TO1:
+			player->set_aspect_ratio_mode(Player::oneeightfive_to_one);
+			break;
+		case IDM_AR_240TO1:
+			player->set_aspect_ratio_mode(Player::twofourzero_to_one);
+			break;
+		case IDM_CLOSE_FILE:
+			{
+				set_window_text(app_title.c_str());
+				if(player->get_state() != Player::unloaded)
+				{
+					player->stop();
+					player->close();
+					player->clear_files();
+				}
+			}
+			break;
+		case IDM_EXIT:
 			if(player->get_state() != Player::unloaded)
 			{
 				player->stop();
 				player->close();
 				player->clear_files();
 			}
+			destroy_window();
+			break;
+		default:
+			FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
 		}
-		break;
-	case IDM_EXIT:
-		if(player->get_state() != Player::unloaded)
-		{
-			player->stop();
-			player->close();
-			player->clear_files();
-		}
-		destroy_window();
-		break;
-	default:
-		FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 	}
 }
 
