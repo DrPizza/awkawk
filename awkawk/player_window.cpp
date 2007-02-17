@@ -116,7 +116,7 @@ void player_window::open_single_file(const std::wstring& path)
 
 void player_window::create_window(int cmd_show)
 {
-	window::create_window(WS_EX_COMPOSITED, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, window_size.cx, window_size.cy, NULL, NULL, NULL);
+	window::create_window(WS_EX_COMPOSITED, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, player->get_window_dimensions().cx, player->get_window_dimensions().cy, NULL, NULL, NULL);
 	if(!get_window())
 	{
 		throw std::runtime_error("Could not create window");
