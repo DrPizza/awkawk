@@ -34,6 +34,7 @@ surface_allocator::~surface_allocator()
 
 void surface_allocator::begin_device_loss()
 {
+	critical_section::lock l(cs);
 	device = NULL;
 	surfaces.clear();
 	video_textures.clear();

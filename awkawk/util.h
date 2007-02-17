@@ -112,6 +112,267 @@ inline IDirect3DTexture9Ptr load_texture_from_resource(IDirect3DDevice9Ptr devic
 	return texture;
 }
 
+template <typename T, size_t N>
+struct vector
+{
+	typedef vector<T, N> my_type;
+	typedef T* iterator;
+	typedef const T* const_iterator;
+
+	vector()
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] = T();
+		}
+	}
+
+	iterator begin()
+	{
+		return elems;
+	}
+
+	const_iterator begin() const
+	{
+		return elems;
+	}
+
+	iterator end()
+	{
+		return elems + N;
+	}
+
+	const_iterator end() const
+	{
+		return elems + N;
+	}
+
+	size_t size() const
+	{
+		return N;
+	}
+
+	T length() const
+	{
+		T l = T();
+		for(size_t i(0); i < N; ++i)
+		{
+			l += elems[i] * elems[i];
+		}
+		return std::sqrt(l);
+	}
+
+	my_type normalize() const
+	{
+		my_type rv;
+		T len(length());
+		if(len == T())
+		{
+			return rv;
+		}
+		for(size_t i(0); i < N; ++i)
+		{
+			rv.elems[i] = elems[i] / len;
+		}
+		return rv;
+	}
+
+	my_type& operator+()
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] = +elems[i];
+		}
+		return *this;
+	}
+
+	my_type& operator-()
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] = -elems[i];
+		}
+		return *this;
+	}
+
+	my_type& operator+=(const my_type& rhs)
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] += rhs.elems[i];
+		}
+		return *this;
+	}
+
+	my_type& operator-=(const my_type& rhs)
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] -= rhs.elems[i];
+		}
+		return *this;
+	}
+
+	my_type& operator*=(const my_type& rhs)
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] *= rhs.elems[i];
+		}
+		return *this;
+	}
+
+	my_type& operator*=(T rhs)
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] *= rhs;
+		}
+		return *this;
+	}
+
+	my_type& operator/=(const my_type& rhs)
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] /= rhs.elems[i];
+		}
+		return *this;
+	}
+
+	my_type& operator/=(T rhs)
+	{
+		for(size_t i(0); i < N; ++i)
+		{
+			elems[i] /= rhs;
+		}
+		return *this;
+	}
+
+	T& operator[](size_t idx)
+	{
+		return elems[idx];
+	}
+
+	const T& operator[](size_t idx) const
+	{
+		return elems[idx];
+	}
+
+private:
+	T elems[N];
+};
+
+template<typename C, typename T, size_t N>
+inline std::basic_ostream<C>& operator<<(std::basic_ostream<C>& os, const vector<T, N>& rhs)
+{
+	os << C('{');
+	os << rhs[0];
+	for(size_t idx(1); idx < N; ++idx)
+	{
+		os << C(',');
+		os << C(' ');
+		os << rhs[idx];
+	}
+	os << C('}');
+	return os;
+}
+
+template<typename T>
+vector<T, 2> normal(const vector<T, 2>& rhs)
+{
+	vector<T, 2> rv;
+	rv[0] = rhs[1];
+	rv[1] = rhs[0];
+	return rv;
+}
+
+template<typename T>
+vector<T, 3> cross(const vector<T, 3>& lhs, const vector<T, 3>& rhs)
+{
+	vector<T, 3> rv;
+	rv[0] = (lhs[1] * rhs[2]) - (lhs[2] * rhs[1]);
+	rv[1] = (lhs[0] * rhs[2]) - (lhs[0] * rhs[2]);
+	rv[2] = (lhs[0] * rhs[1]) - (lhs[0] * rhs[1]);
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator+(const vector<T, N>& lhs, const vector<T, N>& rhs)
+{
+	vector<T, N> rv(lhs);
+	rv += rhs;
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator-(const vector<T, N>& lhs, const vector<T, N>& rhs)
+{
+	vector<T, N> rv(lhs);
+	rv -= rhs;
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator*(const vector<T, N>& lhs, const vector<T, N>& rhs)
+{
+	vector<T, N> rv(lhs);
+	rv *= rhs;
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator*(const vector<T, N>& lhs, T rhs)
+{
+	vector<T, N> rv(lhs);
+	rv *= rhs;
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator*(T lhs, const vector<T, N>& rhs)
+{
+	vector<T, N> rv(rhs);
+	rv *= lhs;
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator/(const vector<T, N>& lhs, const vector<T, N>& rhs)
+{
+	vector<T, N> rv(lhs);
+	rv /= rhs;
+	return rv;
+}
+
+template<typename T, size_t N>
+vector<T, N> operator/(const vector<T, N>& lhs, T rhs)
+{
+	vector<T, N> rv(lhs);
+	rv /= rhs;
+	return rv;
+}
+
+template<typename T>
+T cos_angle(const vector<T, 2>& lhs, const vector<T, 2>& rhs)
+{
+	T divisor(lhs.length() * rhs.length());
+	if(divisor == T())
+	{
+		return divisor;
+	}
+	else
+	{
+		vector<T, 2> products(lhs * rhs);
+		return std::accumulate(products.begin(), products.end(), T()) / divisor;
+	}
+}
+
+typedef vector<double, 2> vec2d;
+typedef vector<float, 2> vec2f;
+typedef vector<double, 3> vec3d;
+typedef vector<float, 3> vec3f;
+
 struct critical_section
 {
 	critical_section() : count(0)

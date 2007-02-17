@@ -35,6 +35,44 @@
 
 #include "util.h"
 
+// why doesn't windowsx.h include these?
+
+// BOOL OnSizing(HWND hwnd, UINT edge, RECT* coords)
+#define HANDLE_WM_SIZING(hwnd, wParam, lParam, fn) \
+    (LRESULT)(DWORD)(BOOL)(fn)((hwnd), (UINT)wParam, (RECT*)(lParam))
+#define FORWARD_WM_SIZING(hwnd, edge, coords, fn) \
+    (BOOL)(DWORD)(fn)((hwnd), WM_SIZING, (WPARAM)(edge), (LPARAM)(RECT*)(coords))
+
+// BOOL OnMoving(HWND hwnd, RECT* coords)
+#define HANDLE_WM_MOVING(hwnd, wParam, lParam, fn) \
+    (LRESULT)(DWORD)(BOOL)(fn)((hwnd), (RECT*)(lParam))
+#define FORWARD_WM_MOVING(hwnd, edge, coords, fn) \
+    (BOOL)(DWORD)(fn)((hwnd), WM_MOVING, 0, (LPARAM)(RECT*)(coords))
+
+// BOOL OnMouseLeave(HWND hwnd)
+#define HANDLE_WM_MOUSELEAVE(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd)), 0L)
+#define FORWARD_WM_MOUSELEAVE(hwnd, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_MOUSELEAVE, 0UL, 0L)
+
+// BOOL OnNcMouseLeave(HWND hwnd)
+#define HANDLE_WM_NCMOUSELEAVE(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd)), 0L)
+#define FORWARD_WM_NCMOUSELEAVE(hwnd, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_NCMOUSELEAVE, 0UL, 0L)
+
+// void OnEnterSizeMove(HWND hwnd)
+#define HANDLE_WM_ENTERSIZEMOVE(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd)), 0L)
+#define FORWARD_WM_ENTERSIZEMOVE(hwnd, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_ENTERSIZEMOVE, 0UL, 0L)
+
+// void OnExitSizeMove(HWND hwnd)
+#define HANDLE_WM_EXITSIZEMOVE(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd)), 0L)
+#define FORWARD_WM_EXITSIZEMOVE(hwnd, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_EXITSIZEMOVE, 0UL, 0L)
+
 inline void print_message(UINT message)
 {
 	switch(message)
@@ -327,7 +365,7 @@ struct window : message_handler
 	{
 		switch(message)
 		{
-		case WM_NCCREATE:
+		case WM_NCCREATE: //sadly this is not actually the first message the window receives, just the first one that's useful.  user32, sucking it hardcore, as ever.
 			{
 				CREATESTRUCTW* cs(reinterpret_cast<CREATESTRUCTW*>(lParam));
 				std::pair<void*, void*>* ptrs(reinterpret_cast<std::pair<void*, void*>*>(cs->lpCreateParams));
@@ -349,7 +387,7 @@ struct window : message_handler
 		}
 	}
 
-	int APIENTRY pump_messages()
+	int pump_messages()
 	{
 		MSG msg = {0};
 		while(BOOL rv = ::GetMessageW(&msg, NULL, 0, 0))

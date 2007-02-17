@@ -46,44 +46,6 @@
 
 #include <windowsx.h>
 
-// why doesn't windowsx.h include these?
-
-// BOOL OnSizing(HWND hwnd, UINT edge, RECT* coords)
-#define HANDLE_WM_SIZING(hwnd, wParam, lParam, fn) \
-    (LRESULT)(DWORD)(BOOL)(fn)((hwnd), (UINT)wParam, (RECT*)(lParam))
-#define FORWARD_WM_SIZING(hwnd, edge, coords, fn) \
-    (BOOL)(DWORD)(fn)((hwnd), WM_SIZING, (WPARAM)(edge), (LPARAM)(RECT*)(coords))
-
-// BOOL OnMoving(HWND hwnd, RECT* coords)
-#define HANDLE_WM_MOVING(hwnd, wParam, lParam, fn) \
-    (LRESULT)(DWORD)(BOOL)(fn)((hwnd), (RECT*)(lParam))
-#define FORWARD_WM_MOVING(hwnd, edge, coords, fn) \
-    (BOOL)(DWORD)(fn)((hwnd), WM_MOVING, 0, (LPARAM)(RECT*)(coords))
-
-// BOOL OnMouseLeave(HWND hwnd)
-#define HANDLE_WM_MOUSELEAVE(hwnd, wParam, lParam, fn) \
-    ((fn)((hwnd)), 0L)
-#define FORWARD_WM_MOUSELEAVE(hwnd, fn) \
-    (void)(DWORD)(fn)((hwnd), WM_MOUSELEAVE, 0UL, 0L)
-
-// BOOL OnNcMouseLeave(HWND hwnd)
-#define HANDLE_WM_NCMOUSELEAVE(hwnd, wParam, lParam, fn) \
-    ((fn)((hwnd)), 0L)
-#define FORWARD_WM_NCMOUSELEAVE(hwnd, fn) \
-    (void)(DWORD)(fn)((hwnd), WM_NCMOUSELEAVE, 0UL, 0L)
-
-// void OnEnterSizeMove(HWND hwnd)
-#define HANDLE_WM_ENTERSIZEMOVE(hwnd, wParam, lParam, fn) \
-    ((fn)((hwnd)), 0L)
-#define FORWARD_WM_ENTERSIZEMOVE(hwnd, fn) \
-    (void)(DWORD)(fn)((hwnd), WM_ENTERSIZEMOVE, 0UL, 0L)
-
-// void OnExitSizeMove(HWND hwnd)
-#define HANDLE_WM_EXITSIZEMOVE(hwnd, wParam, lParam, fn) \
-    ((fn)((hwnd)), 0L)
-#define FORWARD_WM_EXITSIZEMOVE(hwnd, fn) \
-    (void)(DWORD)(fn)((hwnd), WM_EXITSIZEMOVE, 0UL, 0L)
-
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -95,6 +57,9 @@
 #include <locale>
 #include <limits>
 #include <cmath>
+#include <algorithm>
+#include <functional>
+#include <numeric>
 
 #include <comutil.h>
 #include <comdef.h>

@@ -21,6 +21,7 @@
 #include "stdafx.h"
 
 #include "player.h"
+#include "text.h"
 
 Player::Player() : ui(this),
                    event_thread(0),
@@ -34,28 +35,37 @@ Player::Player() : ui(this),
                    playlist_position(playlist.begin()),
                    playlist_mode(normal),
                    ar_mode(original),
-                   wnd_size_mode(free)
+                   wnd_size_mode(one_hundred_percent)
 {
 	SIZE sz = { 640, 480 };
 	window_size = sz;
 	video_size = sz;
 	scene_size = sz;
 
-//#define USE_D3D9EX
-	// I would like to use D3D9Ex where available, because it doesn't lose the device so often (WDDM)
-	// However, it makes calls to D3DXCreateText fail with D3DERR_INVALIDCALL, and until I resolve that
-	// (or work around it) then I have to stick with D3D9 even when D3D9Ex is available.
-#ifdef USE_D3D9EX
-	IDirect3D9Ex* ptr;
-	Direct3DCreate9Ex(D3D_SDK_VERSION, &ptr);
-	d3d.Attach(ptr);
-#else
-	d3d.Attach(::Direct3DCreate9(D3D_SDK_VERSION));
-#endif
-	if(d3d == NULL)
+	IDirect3D9* d3d9(NULL);
+
+	HMODULE d3d9_dll(::GetModuleHandleW(L"d3d9.dll"));
+	typedef HRESULT (WINAPI *d3dcreate9ex_proc)(UINT, IDirect3D9Ex**);
+	d3dcreate9ex_proc d3dcreate9ex(reinterpret_cast<d3dcreate9ex_proc>(::GetProcAddress(d3d9_dll, "Direct3DCreate9Ex")));
+	if(d3dcreate9ex != NULL)
+	{
+		IDirect3D9Ex* ptr;
+		if(S_OK == d3dcreate9ex(D3D_SDK_VERSION, &ptr))
+		{
+			dout << "Using D3D9Ex" << std::endl;
+			d3d9 = ptr;
+		}
+	}
+	if(d3d9 == NULL)
+	{
+		dout << "Using D3D9" << std::endl;
+		d3d9 = ::Direct3DCreate9(D3D_SDK_VERSION);
+	}
+	if(d3d9 == NULL)
 	{
 		_com_raise_error(E_FAIL);
 	}
+	d3d.Attach(d3d9);
 
 	critical_section::lock l(graph_cs);
 	FAIL_THROW(graph.CreateInstance(CLSID_FilterGraph));
@@ -451,16 +461,16 @@ void Player::create_graph()
 	case S_OK:
 		break;
 	case VFW_S_AUDIO_NOT_RENDERED:
-		dout << "Partial success; the audio was not rendered." << std::endl;
+		dout << "Partial success: The audio was not rendered." << std::endl;
 		break;
 	case VFW_S_DUPLICATE_NAME:
-		dout << "Success; the Filter Graph Manager modified the filter name to avoid duplication." << std::endl;
+		dout << "Success: The Filter Graph Manager modified the filter name to avoid duplication." << std::endl;
 		break;
 	case VFW_S_PARTIAL_RENDER:
-		dout << "Partial success;Some of the streams in this movie are in an unsupported format." << std::endl;
+		dout << "Partial success: Some of the streams in this movie are in an unsupported format." << std::endl;
 		break;
 	case VFW_S_VIDEO_NOT_RENDERED:
-		dout << "Partial success; the video was not rendered." << std::endl;
+		dout << "Partial success: The video was not rendered." << std::endl;
 		break;
 	case VFW_E_CANNOT_CONNECT:
 		dout << "Failure: No combination of intermediate filters could be found to make the connection." << std::endl;
@@ -590,6 +600,8 @@ void Player::create_device()
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 	presentation_parameters.Flags = D3DPRESENTFLAG_VIDEO;
 	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
+	presentation_parameters.EnableAutoDepthStencil = TRUE;
+	presentation_parameters.AutoDepthStencilFormat = D3DFMT_D16;
 
 	DWORD qualityLevels(0);
 	d3d->CheckDeviceMultiSampleType(device_ordinal, D3DDEVTYPE_HAL, dm.Format, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels);
@@ -597,27 +609,19 @@ void Player::create_device()
 
 	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &device));
 
-	FAIL_THROW(device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE));
+	FAIL_THROW(device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
 	FAIL_THROW(device->SetRenderState(D3DRS_LIGHTING, FALSE));
 	FAIL_THROW(device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE));
 	FAIL_THROW(device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
 	FAIL_THROW(device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
+	FAIL_THROW(device->SetRenderState(D3DRS_ZENABLE, TRUE));
+	FAIL_THROW(device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE));
 
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR));
-
-	FAIL_THROW(device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE));
-	FAIL_THROW(device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE));
-
-	FAIL_THROW(device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE));
-
-	FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE));
-	FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE));
-
-	FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE));
 
 	scene->on_device_created(device);
 	scene->on_device_reset();
@@ -738,6 +742,9 @@ void Player::render()
 		{
 			FAIL_THROW(device->BeginScene());
 			ON_BLOCK_EXIT_OBJ(*device, &IDirect3DDevice9::EndScene);
+			D3DXMATRIX ortho2D;
+			D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), -1000.0f, 1000.0f);
+			FAIL_THROW(device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			scene->render();
 		}
 		FAIL_THROW(device->Present(NULL, NULL, NULL, NULL));
