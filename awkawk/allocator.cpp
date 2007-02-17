@@ -164,7 +164,7 @@ STDMETHODIMP surface_allocator::PresentImage(DWORD_PTR id, VMR9PresentationInfo*
 		FAIL_THROW(static_cast<IDirect3DTexture9Ptr&>(video_textures[id])->GetSurfaceLevel(0, &surf));
 		critical_section::lock l(get_cs(id));
 		FAIL_THROW(device->StretchRect(presentation_info->lpSurf, NULL, surf, NULL, D3DTEXF_NONE));
-
+		player->signal_new_frame();
 		return S_OK;
 	}
 	catch(_com_error& ce)
