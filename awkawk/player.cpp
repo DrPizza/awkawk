@@ -677,9 +677,10 @@ void Player::reset_device()
 
 int Player::run_ui()
 {
-	render_timer = ::CreateWaitableTimer(NULL, FALSE, NULL);
+	render_timer = ::CreateWaitableTimerW(NULL, TRUE, NULL);
 	set_render_fps(25);
-	cancel_render = ::CreateEvent(NULL, FALSE, FALSE, NULL);
+	render_event = ::CreateEventW(NULL, FALSE, FALSE, NULL);
+	cancel_render = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	render_thread = utility::CreateThread(NULL, 0, this, &Player::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
 	int rv(ui.pump_messages());
 	if(render_thread != 0)
@@ -688,6 +689,8 @@ int Player::run_ui()
 		::WaitForSingleObject(render_thread, INFINITE);
 		::CloseHandle(cancel_render);
 		cancel_render = 0;
+		::CloseHandle(render_timer);
+		render_timer = 0;
 		::CloseHandle(render_timer);
 		render_timer = 0;
 		render_thread = 0;
@@ -735,9 +738,6 @@ void Player::render()
 			scene->set_playback_position(get_playback_position());
 		}
 
-		IDirect3DSurface9Ptr back_buffer;
-		FAIL_THROW(device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer));
-		FAIL_THROW(device->SetRenderTarget(0, back_buffer));
 		FAIL_THROW(device->Clear(0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0xff, 0, 0, 0), 1.0f, 0L));
 		{
 			FAIL_THROW(device->BeginScene());
@@ -760,29 +760,43 @@ DWORD Player::render_thread_proc(void*)
 	try
 	{
 		create_device();
-		HANDLE evts[] = { render_timer, cancel_render };
-		while(::WaitForMultipleObjects(2, evts, FALSE, INFINITE) == WAIT_OBJECT_0)
+		HANDLE evts[] = { render_event, render_timer, cancel_render };
+		bool continue_rendering(true);
+		while(continue_rendering)
 		{
-			try
+			switch(::WaitForMultipleObjects(sizeof(evts) / sizeof(evts[0]), evts, FALSE, INFINITE))
 			{
-				if(needs_display_change())
+			case WAIT_OBJECT_0:
+			case WAIT_OBJECT_0 + 1:
+				try
 				{
-					reset_device();
+					LARGE_INTEGER dueTime = { 0 };
+					dueTime.QuadPart = -10000000 / static_cast<LONGLONG>(get_render_fps());
+					::SetWaitableTimer(render_timer, &dueTime, 0, NULL, NULL, FALSE);
+
+					if(needs_display_change())
+					{
+						reset_device();
+					}
+					reset();
+					if(allocator != NULL && allocator->rendering(user_id))
+					{
+						critical_section::lock l(allocator->get_cs(user_id));
+						render();
+					}
+					else
+					{
+						render();
+					}
 				}
-				reset();
-				if(allocator != NULL && allocator->rendering(user_id))
+				catch(_com_error& ce)
 				{
-					critical_section::lock l(allocator->get_cs(user_id));
-					render();
+					derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 				}
-				else
-				{
-					render();
-				}
-			}
-			catch(_com_error& ce)
-			{
-				derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+				break;
+			case WAIT_OBJECT_0 + 2:
+				continue_rendering = false;
+				break;
 			}
 		}
 		destroy_device();

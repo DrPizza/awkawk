@@ -154,6 +154,8 @@ struct Player
 	{
 		critical_section::lock l(player_cs);
 		ar_mode = mode;
+		update_window_dimensions();
+		update_scene_dimensions();
 	}
 
 	enum window_size_mode
@@ -242,6 +244,14 @@ struct Player
 			{
 				SIZE new_size = { static_cast<LONG>(static_cast<double>(video_size.cx) * get_size_multiplier()),
 				                  static_cast<LONG>(static_cast<double>(video_size.cy) * get_size_multiplier()) };
+				if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) > get_aspect_ratio())
+				{
+					new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / get_aspect_ratio());
+				}
+				else if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) < get_aspect_ratio())
+				{
+					new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * get_aspect_ratio());
+				}
 				window_size = new_size;
 				ui.resize_window(window_size.cx, window_size.cy);
 			}
@@ -267,7 +277,7 @@ struct Player
 	{
 		critical_section::lock l(player_cs);
 		float window_ar(static_cast<float>(window_size.cx) / window_size.cy);
-		float video_ar(static_cast<float>(video_size.cx) / video_size.cy);
+		float video_ar(static_cast<float>(get_aspect_ratio()));
 		if(window_ar > video_ar)
 		{
 			scene_size.cx = static_cast<LONG>(static_cast<float>(window_size.cy) * video_ar);
@@ -433,18 +443,28 @@ struct Player
 		return *playlist_position;
 	}
 
-	void set_render_fps(unsigned int fps)
+	void set_render_fps(unsigned int fps_)
 	{
 		critical_section::lock l(player_cs);
-		fps = clamp(fps, 25u, 60u);
+		fps = clamp(fps_, 25u, 60u);
 		LARGE_INTEGER dueTime = { 0 };
 		dueTime.QuadPart = -10000000 / static_cast<LONGLONG>(fps);
-		::SetWaitableTimer(render_timer, &dueTime, 1000 / static_cast<LONG>(fps), NULL, NULL, FALSE);
+		::SetWaitableTimer(render_timer, &dueTime, 0, NULL, NULL, FALSE);
+	}
+
+	unsigned int get_render_fps() const
+	{
+		return fps;
 	}
 
 	HWND get_window() const
 	{
 		return ui.get_window();
+	}
+
+	void signal_new_frame() const
+	{
+		::SetEvent(render_event);
 	}
 
 	typedef std::list<std::wstring> playlist_type;
@@ -469,9 +489,11 @@ private:
 
 	// rendering
 	HANDLE render_timer;
+	HANDLE render_event;
 	HANDLE cancel_render;
 	HANDLE render_thread;
 	DWORD render_thread_proc(void*);
+	unsigned int fps;
 
 	// ROT registration
 	DWORD rot_key;
