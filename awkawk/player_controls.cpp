@@ -650,7 +650,6 @@ void player_controls::calculate_positions()
 	caption->vertices[5].tu = 1.0f - ((skin.caption.window_control_width + skin.caption.right_padding) / static_cast<float>(caption_texture_info.Width)); caption->vertices[5].tv = 0.0f;
 	caption->vertices[6].tu = 1.0f;                                                                                                                       caption->vertices[6].tv = 1.0f;
 	caption->vertices[7].tu = 1.0f;                                                                                                                       caption->vertices[7].tv = 0.0f;
-
 }
 
 void player_controls::set_compact_filename()
