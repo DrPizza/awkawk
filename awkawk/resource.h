@@ -52,6 +52,7 @@
 #define IDM_4_TO_3_ORIGINAL             32847
 #define IDM_14_TO_9_ORIGINAL            32848
 #define IDM_16_TO_9_ORIGINAL            32850
+#define ID_DUMMYPOPUP_FILTERS           32851
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -60,7 +61,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        154
-#define _APS_NEXT_COMMAND_VALUE         32851
+#define _APS_NEXT_COMMAND_VALUE         32852
 #define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           110
 #endif

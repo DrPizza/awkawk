@@ -116,6 +116,7 @@ BEGIN
             MENUITEM "14:9 Original",               IDM_14_TO_9_ORIGINAL
             MENUITEM "16:9 Original",               IDM_16_TO_9_ORIGINAL
         END
+        MENUITEM "&Filters",                    65535
         MENUITEM "&Close File\tCtrl+W",         IDM_CLOSE_FILE
         MENUITEM "E&xit",                       IDM_EXIT
     END

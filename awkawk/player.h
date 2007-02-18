@@ -126,6 +126,38 @@ struct Player
 	void reset_device();
 	bool needs_display_change() const;
 
+	std::vector<CAdapt<IBaseFilterPtr> > get_filters();
+	std::vector<std::wstring> get_filter_names()
+	{
+		std::vector<CAdapt<IBaseFilterPtr> > filters(get_filters());
+		std::vector<std::wstring> rv;
+		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
+		{
+			FILTER_INFO fi = {0};
+			static_cast<IBaseFilterPtr&>(*it)->QueryFilterInfo(&fi);
+			IFilterGraphPtr ptr(fi.pGraph, false);
+			rv.push_back(fi.achName);
+		}
+		return rv;
+	}
+
+	std::vector<std::wstring> get_filter_vendor_info()
+	{
+		std::vector<CAdapt<IBaseFilterPtr> > filters(get_filters());
+		std::vector<std::wstring> rv;
+		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
+		{
+			wchar_t* info(NULL);
+			static_cast<IBaseFilterPtr&>(*it)->QueryVendorInfo(&info);
+			ON_BLOCK_EXIT(::CoTaskMemFree, info);
+			if(info != NULL)
+			{
+				rv.push_back(info);
+			}
+		}
+		return rv;
+	}
+
 	void set_cursor_position(const POINT& pos)
 	{
 		critical_section::attempt_lock l(player_cs);
