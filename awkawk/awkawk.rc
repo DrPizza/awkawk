@@ -110,6 +110,11 @@ BEGIN
             MENUITEM "16:9",                        IDM_AR_177TO1
             MENUITEM "1.85:1",                      IDM_AR_185TO1
             MENUITEM "2.40:1",                      IDM_AR_240TO1
+            MENUITEM SEPARATOR
+            MENUITEM "&No Letterboxing",            IDM_NOLETTERBOXING
+            MENUITEM "4:3 Original",                IDM_4_TO_3_ORIGINAL
+            MENUITEM "14:9 Original",               IDM_14_TO_9_ORIGINAL
+            MENUITEM "16:9 Original",               IDM_16_TO_9_ORIGINAL
         END
         MENUITEM "&Close File\tCtrl+W",         IDM_CLOSE_FILE
         MENUITEM "E&xit",                       IDM_EXIT

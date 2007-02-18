@@ -154,8 +154,7 @@ struct Player
 	{
 		critical_section::lock l(player_cs);
 		ar_mode = mode;
-		update_window_dimensions();
-		update_scene_dimensions();
+		apply_sizing_policy();
 	}
 
 	enum window_size_mode
@@ -175,8 +174,27 @@ struct Player
 	{
 		critical_section::lock l(player_cs);
 		wnd_size_mode = mode;
-		update_window_dimensions();
-		update_scene_dimensions();
+		apply_sizing_policy();
+	}
+
+	enum letterbox_mode
+	{
+		no_letterboxing,
+		four_to_three_original,
+		fourteen_to_nine_original,
+		sixteen_to_nine_original
+	};
+
+	letterbox_mode get_letterbox_mode() const
+	{
+		return ltrbx_mode;
+	}
+
+	void set_letterbox_mode(letterbox_mode mode)
+	{
+		critical_section::lock l(player_cs);
+		ltrbx_mode = mode;
+		apply_sizing_policy();
 	}
 
 	double get_size_multiplier() const
@@ -223,39 +241,62 @@ struct Player
 		if(window_size.cx != sz.cx || window_size.cy != sz.cy)
 		{
 			window_size = sz;
-			update_scene_dimensions();
-			if(scene.get() != NULL)
-			{
-				scene->notify_window_size_change();
-			}
+			apply_sizing_policy();
 		}
 	}
 
 	void size_window_from_video()
 	{
 		critical_section::lock l(player_cs);
-		switch(get_window_size_mode())
+		SIZE new_size = { static_cast<LONG>(static_cast<double>(video_size.cx) * get_size_multiplier()),
+		                  static_cast<LONG>(static_cast<double>(video_size.cy) * get_size_multiplier()) };
+
+		if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) > get_aspect_ratio())
 		{
-		case free:
-			if((static_cast<double>(window_size.cx) / static_cast<double>(window_size.cy)) != get_aspect_ratio())
-		case fifty_percent:
-		case one_hundred_percent:
-		case two_hundred_percent:
-			{
-				SIZE new_size = { static_cast<LONG>(static_cast<double>(video_size.cx) * get_size_multiplier()),
-				                  static_cast<LONG>(static_cast<double>(video_size.cy) * get_size_multiplier()) };
-				if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) > get_aspect_ratio())
-				{
-					new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / get_aspect_ratio());
-				}
-				else if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) < get_aspect_ratio())
-				{
-					new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * get_aspect_ratio());
-				}
-				window_size = new_size;
-				ui.resize_window(window_size.cx, window_size.cy);
-			}
+			new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / get_aspect_ratio());
 		}
+		else if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) < get_aspect_ratio())
+		{
+			new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * get_aspect_ratio());
+		}
+		switch(get_letterbox_mode())
+		{
+		case no_letterboxing:
+			break;
+		case four_to_three_original:
+			if(get_aspect_ratio() > 4.0 / 3.0)
+			{
+				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (4.0f / 3.0f));
+			}
+			else
+			{
+				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (4.0f / 3.0f));
+			}
+			break;
+		case fourteen_to_nine_original:
+			if(get_aspect_ratio() > 14.0 / 9.0)
+			{
+				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (14.0f / 9.0f));
+			}
+			else
+			{
+				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (14.0f / 9.0f));
+			}
+			break;
+		case sixteen_to_nine_original:
+			if(get_aspect_ratio() > 16.0 / 9.0)
+			{
+				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (16.0f / 9.0f));
+			}
+			else
+			{
+				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (16.0f / 9.0f));
+			}
+			break;
+			break;
+		}
+		window_size = new_size;
+		ui.resize_window(window_size.cx, window_size.cy);
 	}
 
 	void size_window_from_screen()
@@ -276,8 +317,22 @@ struct Player
 	void size_scene_from_screen()
 	{
 		critical_section::lock l(player_cs);
-		float window_ar(static_cast<float>(window_size.cx) / window_size.cy);
+		float window_ar(static_cast<float>(window_size.cx) / static_cast<float>(window_size.cy));
 		float video_ar(static_cast<float>(get_aspect_ratio()));
+		switch(get_letterbox_mode())
+		{
+		case no_letterboxing:
+			break;
+		case four_to_three_original:
+			video_ar = 4.0f / 3.0f;
+			break;
+		case fourteen_to_nine_original:
+			video_ar = 14.0f / 9.0f;
+			break;
+		case sixteen_to_nine_original:
+			video_ar = 16.0f / 9.0f;
+			break;
+		}
 		if(window_ar > video_ar)
 		{
 			scene_size.cx = static_cast<LONG>(static_cast<float>(window_size.cy) * video_ar);
@@ -288,6 +343,7 @@ struct Player
 			scene_size.cx = static_cast<LONG>(window_size.cx);
 			scene_size.cy = static_cast<LONG>(static_cast<float>(window_size.cx) / video_ar);
 		}
+		
 	}
 
 	void update_scene_dimensions()
@@ -299,6 +355,41 @@ struct Player
 		else
 		{
 			size_scene_from_window();
+		}
+		switch(get_letterbox_mode())
+		{
+		case no_letterboxing:
+			break;
+		case four_to_three_original:
+			if(get_aspect_ratio() > 4.0 / 3.0)
+			{
+				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
+			}
+			else
+			{
+				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
+			}
+			break;
+		case fourteen_to_nine_original:
+			if(get_aspect_ratio() > 14.0 / 9.0)
+			{
+				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
+			}
+			else
+			{
+				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
+			}
+			break;
+		case sixteen_to_nine_original:
+			if(get_aspect_ratio() > 16.0 / 9.0)
+			{
+				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
+			}
+			else
+			{
+				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
+			}
+			break;
 		}
 	}
 
@@ -312,6 +403,12 @@ struct Player
 		{
 			size_window_from_video();
 		}
+	}
+
+	void apply_sizing_policy()
+	{
+		update_window_dimensions();
+		update_scene_dimensions();
 		if(scene.get() != NULL)
 		{
 			scene->notify_window_size_change();
@@ -340,8 +437,7 @@ struct Player
 		if(video_size.cx != sz.cx || video_size.cy != sz.cy)
 		{
 			video_size = sz;
-			update_window_dimensions();
-			update_scene_dimensions();
+			apply_sizing_policy();
 		}
 	}
 
@@ -506,8 +602,6 @@ private:
 	// ROT registration
 	DWORD rot_key;
 
-	//_bstr_t movie;
-
 	// DirectShow gubbins
 	mutable critical_section graph_cs;
 
@@ -543,6 +637,7 @@ private:
 
 	window_size_mode wnd_size_mode;
 	aspect_ratio_mode ar_mode;
+	letterbox_mode ltrbx_mode;
 
 	bool fullscreen;
 
