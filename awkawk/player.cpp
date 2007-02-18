@@ -53,13 +53,11 @@ Player::Player() : ui(this),
 		IDirect3D9Ex* ptr;
 		if(S_OK == d3dcreate9ex(D3D_SDK_VERSION, &ptr))
 		{
-			dout << "Using D3D9Ex" << std::endl;
 			d3d9 = ptr;
 		}
 	}
 	if(d3d9 == NULL)
 	{
-		dout << "Using D3D9" << std::endl;
 		d3d9 = ::Direct3DCreate9(D3D_SDK_VERSION);
 	}
 	if(d3d9 == NULL)
@@ -385,7 +383,6 @@ REFERENCE_TIME Player::get_average_frame_time(IFilterGraphPtr grph) const
 	return 0;
 }
 
-
 SIZE Player::get_video_size(IFilterGraphPtr grph) const
 {
 	IEnumFiltersPtr filtEn;
@@ -444,15 +441,20 @@ void Player::create_graph()
 	FAIL_THROW(vmr9->QueryInterface(&filter_config));
 	FAIL_THROW(filter_config->SetRenderingMode(VMR9Mode_Renderless));
 	set_allocator_presenter(vmr9, ui.get_window());
-	// this sets mixing mode
-	//FAIL_THROW(filter_config->SetNumberOfStreams(1));
-	//IVMRMixerControl9Ptr mixer_control;
-	//FAIL_THROW(vmr9->QueryInterface(&mixer_control));
-	//DWORD mixing_prefs(0);
-	//FAIL_THROW(mixer_control->GetMixingPrefs(&mixing_prefs));
-	//mixing_prefs &= ~MixerPref9_RenderTargetMask;
-	//mixing_prefs |= MixerPref9_RenderTargetYUV;
-	//FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
+	// Note that we MUST use YUV mixing mode (or no mixing mode at all)
+	// because if we don't, VMR9 can change the state of the D3D device
+	// part-way through our render (and it doesn't tell us it's going to,
+	// so we have no opportunity to protect ourselves from its stupidity)
+	// when it performs colour space conversions.
+	FAIL_THROW(filter_config->SetNumberOfStreams(1));
+	IVMRMixerControl9Ptr mixer_control;
+	FAIL_THROW(vmr9->QueryInterface(&mixer_control));
+	DWORD mixing_prefs(0);
+	FAIL_THROW(mixer_control->GetMixingPrefs(&mixing_prefs));
+	mixing_prefs &= ~MixerPref9_RenderTargetMask;
+	mixing_prefs |= MixerPref9_RenderTargetYUV;
+	mixing_prefs &= ~MixerPref9_DynamicMask;
+	FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
 
 	FAIL_THROW(graph->AddFilter(vmr9, L"Video Mixing Renderer 9"));
 
@@ -529,10 +531,21 @@ void Player::create_graph()
 
 	double frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<double>(average_frame_time));
 	set_render_fps(static_cast<unsigned int>(frame_rate));
-	schedule_render();
 	state = stopped;
 
 	pause();
+}
+
+std::vector<CAdapt<IBaseFilterPtr> > Player::get_filters()
+{
+	std::vector<CAdapt<IBaseFilterPtr> > rv;
+	IEnumFiltersPtr filtEn;
+	graph->EnumFilters(&filtEn);
+	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
+	{
+		rv.push_back(flt);
+	}
+	return rv;
 }
 
 void Player::register_graph(IUnknownPtr unknown)
@@ -733,15 +746,18 @@ void Player::render()
 	try
 	{
 		{
-			critical_section::lock l(graph_cs);
-			// any property that the scene requires that also requires the graph lock
-			// must be passed in now, and cannot be retrieved later
-			scene->set_video_texture(has_video ? allocator->get_video_texture(user_id) : NULL);
-			scene->set_volume(get_linear_volume());
-			scene->set_playback_position(get_playback_position());
+			critical_section::attempt_lock l(graph_cs);
+			if(l.succeeded)
+			{
+				// any property that the scene requires that also requires the graph lock
+				// must be passed in now, and cannot be retrieved later
+				scene->set_video_texture(has_video ? allocator->get_video_texture(user_id) : NULL);
+				scene->set_volume(get_linear_volume());
+				scene->set_playback_position(get_playback_position());
+			}
 		}
 
-		FAIL_THROW(device->Clear(0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0xff, 0, 0, 0), 1.0f, 0L));
+		FAIL_THROW(device->Clear(0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0xff, 0, 0, 0), 1.0f, 0));
 		{
 			FAIL_THROW(device->BeginScene());
 			ON_BLOCK_EXIT_OBJ(*device, &IDirect3DDevice9::EndScene);
@@ -778,15 +794,12 @@ DWORD Player::render_thread_proc(void*)
 						reset_device();
 					}
 					reset();
+					std::auto_ptr<critical_section::lock> l;
 					if(allocator != NULL && allocator->rendering(user_id))
 					{
-						critical_section::lock l(allocator->get_cs(user_id));
-						render();
+						l.reset(new critical_section::lock(allocator->get_cs(user_id)));
 					}
-					else
-					{
-						render();
-					}
+					render();
 				}
 				catch(_com_error& ce)
 				{
@@ -795,6 +808,7 @@ DWORD Player::render_thread_proc(void*)
 				schedule_render();
 				break;
 			case WAIT_OBJECT_0 + 2:
+			default:
 				continue_rendering = false;
 				break;
 			}
@@ -813,12 +827,12 @@ DWORD Player::event_thread_proc(void*)
 	HANDLE evts[] = { event, cancel_event };
 	while(::WaitForMultipleObjects(2, evts, FALSE, INFINITE) == WAIT_OBJECT_0)
 	{
-		long eventCode;
+		long event_code;
 		LONG_PTR param1;
 		LONG_PTR param2;
-		FAIL_THROW(events->GetEvent(&eventCode, &param1, &param2, INFINITE));
-		ON_BLOCK_EXIT_OBJ(*events, &IMediaEvent::FreeEventParams, eventCode, param1, param2);
-		switch(eventCode)
+		FAIL_THROW(events->GetEvent(&event_code, &param1, &param2, INFINITE));
+		ON_BLOCK_EXIT_OBJ(*events, &IMediaEvent::FreeEventParams, event_code, param1, param2);
+		switch(event_code)
 		{
 		case EC_COMPLETE:
 			{
@@ -1023,7 +1037,7 @@ DWORD Player::event_thread_proc(void*)
 		//case EC_DVD_KARAOKE_MODE: dout << "EC_DVD_KARAOKE_MODE" << std::endl; break;
 		//// Parameters: ( BOOL, reserved ) 
 		//default:
-		//	dout << "unknown event: " << eventCode << std::endl;
+		//	dout << "unknown event: " << event_code << std::endl;
 		}
 	}
 	return 0;

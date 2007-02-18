@@ -28,16 +28,18 @@
 player_window::player_window(Player* player_) : window(L"awkawk class", CS_DBLCLKS, ::LoadIconW(instance, MAKEINTRESOURCEW(IDI_PLAYER)), ::LoadCursorW(NULL, MAKEINTRESOURCEW(IDC_ARROW)), static_cast<HBRUSH>(::GetStockObject(BLACK_BRUSH)), NULL, MAKEINTRESOURCEW(IDR_ACCELERATORS)),
                                                 player(player_),
                                                 tracking(false),
-                                                dragging(false)
+                                                dragging(false),
+                                                context_menu(::LoadMenuW(instance, MAKEINTRESOURCEW(IDC_PLAYER))),
+                                                filter_menu(::CreateMenu())
 {
 	boost::scoped_array<wchar_t> buffer(new wchar_t[256]);
 	::LoadStringW(instance, IDS_APP_TITLE, buffer.get(), 256);
 	app_title = buffer.get();
-	context_menu = ::LoadMenuW(instance, MAKEINTRESOURCEW(IDC_PLAYER));
 }
 
 player_window::~player_window()
 {
+	::DestroyMenu(filter_menu);
 	::DestroyMenu(context_menu);
 }
 
@@ -209,7 +211,7 @@ BOOL player_window::onEraseBackground(HWND, HDC)
 	return FALSE;
 }
 
-void player_window::onCommand(HWND, int id, HWND control, UINT event)
+void player_window::onCommand(HWND wnd, int id, HWND control, UINT event)
 {
 	try
 	{
@@ -311,12 +313,94 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			destroy_window();
 			break;
 		default:
-			FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
+			if(id > WM_USER)
+			{
+				std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
+				size_t chosen(id - (WM_USER + 1));
+				if(id < filters.size())
+				{
+					FILTER_INFO fi = {0};
+					IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
+					filter->QueryFilterInfo(&fi);
+					IFilterGraphPtr ptr(fi.pGraph, false);
+					
+					ISpecifyPropertyPagesPtr spp;
+					filter->QueryInterface(&spp);
+					if(spp)
+					{
+						IUnknownPtr unk;
+						filter->QueryInterface(&unk);
+						IUnknown* unks[] = { unk.GetInterfacePtr() };
+						CAUUID uuids;
+						spp->GetPages(&uuids);
+						ON_BLOCK_EXIT(&CoTaskMemFree, uuids.pElems);
+						::OleCreatePropertyFrame(get_window(), 0, 0, fi.achName, 1, unks, uuids.cElems, uuids.pElems, 0, 0, NULL);
+					}
+				}
+				else
+				{
+					FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
+				}
+			}
+			else
+			{
+				FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
+			}
 		}
 	}
 	catch(_com_error& ce)
 	{
 		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	}
+}
+
+void player_window::build_filter_menu(HMENU parent_menu, UINT position)
+{
+	int count(::GetMenuItemCount(filter_menu));
+	for(int i(0); i < count; ++i)
+	{
+		::RemoveMenu(filter_menu, 0, MF_BYPOSITION);
+	}
+	if(player->get_state() != Player::unloaded)
+	{
+		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
+		
+		UINT flt_id(WM_USER + 1);
+		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
+		{
+			FILTER_INFO fi = {0};
+			IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(*it));
+			filter->QueryFilterInfo(&fi);
+			IFilterGraphPtr ptr(fi.pGraph, false);
+			
+			ISpecifyPropertyPagesPtr spp;
+			filter->QueryInterface(&spp);
+			DWORD state(MFS_ENABLED);
+			if(!spp)
+			{
+				state = MFS_DISABLED;
+			}
+			
+			MENUITEMINFOW info = { sizeof(MENUITEMINFOW) };
+			info.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
+			info.wID = flt_id;
+			info.dwTypeData = fi.achName;
+			info.fState = state;
+			::InsertMenuItemW(filter_menu, flt_id++, TRUE, &info);
+		}
+		MENUITEMINFOW info = { sizeof(MENUITEMINFOW) };
+		::GetMenuItemInfoW(parent_menu, position, TRUE, &info);
+		info.fMask = MIIM_SUBMENU;
+		info.hSubMenu = filter_menu;
+		::SetMenuItemInfoW(parent_menu, position, TRUE, &info);
+	}
+	else
+	{
+		MENUITEMINFOW info = { sizeof(MENUITEMINFOW) };
+		::GetMenuItemInfoW(parent_menu, position, TRUE, &info);
+		info.fMask = MIIM_SUBMENU;
+		info.hSubMenu = 0;
+		::SetMenuItemInfoW(parent_menu, position, TRUE, &info);
 	}
 }
 
@@ -336,6 +420,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 			::EnableMenuItem(play_menu, IDM_PAUSE, MF_GRAYED);
 			::EnableMenuItem(play_menu, IDM_STOP, MF_GRAYED);
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_GRAYED);
+		::EnableMenuItem(main_menu, 5, MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
 		break;
 	case Player::stopped:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
@@ -345,6 +430,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 			::EnableMenuItem(play_menu, IDM_PAUSE, MF_GRAYED);
 			::EnableMenuItem(play_menu, IDM_STOP, MF_GRAYED);
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
+		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
 		break;
 	case Player::playing:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
@@ -354,6 +440,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 			::EnableMenuItem(play_menu, IDM_PAUSE, MF_ENABLED);
 			::EnableMenuItem(play_menu, IDM_STOP, MF_ENABLED);
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
+		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
 		break;
 	case Player::paused:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
@@ -363,8 +450,11 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 			::EnableMenuItem(play_menu, IDM_PAUSE, MF_ENABLED);
 			::EnableMenuItem(play_menu, IDM_STOP, MF_ENABLED);
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
+		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
 		break;
 	}
+
+	build_filter_menu(main_menu, 5);
 
 	::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_GRAYED);
 

@@ -27,6 +27,7 @@
 
 _COM_SMARTPTR_TYPEDEF(IDropTarget, __uuidof(IDropTarget));
 _COM_SMARTPTR_TYPEDEF(IDataObject, __uuidof(IDataObject));
+_COM_SMARTPTR_TYPEDEF(ISpecifyPropertyPages, __uuidof(ISpecifyPropertyPages));
 
 struct Player;
 
@@ -39,6 +40,7 @@ struct player_window : window
 
 	std::wstring get_local_path() const;
 	std::wstring get_remote_path() const;
+	void build_filter_menu(HMENU parent_menu, UINT position);
 
 	void open_single_file(const std::wstring& path);
 
@@ -98,6 +100,7 @@ private:
 	// window, message loop and associated paraphernalia
 	std::wstring app_title;
 	HMENU context_menu;
+	HMENU filter_menu;
 
 	// mouse position tracking
 	bool tracking;
