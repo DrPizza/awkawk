@@ -35,7 +35,8 @@ Player::Player() : ui(this),
                    playlist_position(playlist.begin()),
                    playlist_mode(normal),
                    ar_mode(original),
-                   wnd_size_mode(one_hundred_percent)
+                   wnd_size_mode(one_hundred_percent),
+                   ltrbx_mode(no_letterboxing)
 {
 	SIZE sz = { 640, 480 };
 	window_size = sz;

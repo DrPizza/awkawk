@@ -278,6 +278,18 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 		case IDM_AR_240TO1:
 			player->set_aspect_ratio_mode(Player::twofourzero_to_one);
 			break;
+		case IDM_NOLETTERBOXING:
+			player->set_letterbox_mode(Player::no_letterboxing);
+			break;
+		case IDM_4_TO_3_ORIGINAL:
+			player->set_letterbox_mode(Player::four_to_three_original);
+			break;
+		case IDM_14_TO_9_ORIGINAL:
+			player->set_letterbox_mode(Player::fourteen_to_nine_original);
+			break;
+		case IDM_16_TO_9_ORIGINAL:
+			player->set_letterbox_mode(Player::sixteen_to_nine_original);
+			break;
 		case IDM_CLOSE_FILE:
 			{
 				set_window_text(app_title.c_str());
@@ -388,6 +400,14 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 		::CheckMenuItem(size_menu, IDM_AR_185TO1, player->get_aspect_ratio_mode() == Player::oneeightfive_to_one ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_AR_240TO1, MF_ENABLED);
 		::CheckMenuItem(size_menu, IDM_AR_240TO1, player->get_aspect_ratio_mode() == Player::twofourzero_to_one ? MF_CHECKED : MF_UNCHECKED);
+		::EnableMenuItem(size_menu, IDM_NOLETTERBOXING, MF_ENABLED);
+		::CheckMenuItem(size_menu, IDM_NOLETTERBOXING, player->get_letterbox_mode() == Player::no_letterboxing ? MF_CHECKED : MF_UNCHECKED);
+		::EnableMenuItem(size_menu, IDM_4_TO_3_ORIGINAL, MF_ENABLED);
+		::CheckMenuItem(size_menu, IDM_4_TO_3_ORIGINAL, player->get_letterbox_mode() == Player::four_to_three_original ? MF_CHECKED : MF_UNCHECKED);
+		::EnableMenuItem(size_menu, IDM_14_TO_9_ORIGINAL, MF_ENABLED);
+		::CheckMenuItem(size_menu, IDM_14_TO_9_ORIGINAL, player->get_letterbox_mode() == Player::fourteen_to_nine_original ? MF_CHECKED : MF_UNCHECKED);
+		::EnableMenuItem(size_menu, IDM_16_TO_9_ORIGINAL, MF_ENABLED);
+		::CheckMenuItem(size_menu, IDM_16_TO_9_ORIGINAL, player->get_letterbox_mode() == Player::sixteen_to_nine_original ? MF_CHECKED : MF_UNCHECKED);
 
 	::EnableMenuItem(main_menu, IDM_EXIT, MF_ENABLED);
 
