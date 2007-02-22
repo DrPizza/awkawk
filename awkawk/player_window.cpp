@@ -292,6 +292,12 @@ void player_window::onCommand(HWND wnd, int id, HWND control, UINT event)
 		case IDM_16_TO_9_ORIGINAL:
 			player->set_letterbox_mode(Player::sixteen_to_nine_original);
 			break;
+		case IDM_185_TO_1_ORIGINAL:
+			player->set_letterbox_mode(Player::oneeightfive_to_one_original);
+			break;
+		case IDM_240_TO_1_ORIGINAL:
+			player->set_letterbox_mode(Player::twofourzero_to_one_original);
+			break;
 		case IDM_CLOSE_FILE:
 			{
 				set_window_text(app_title.c_str());
@@ -313,36 +319,7 @@ void player_window::onCommand(HWND wnd, int id, HWND control, UINT event)
 			destroy_window();
 			break;
 		default:
-			if(id > WM_USER)
-			{
-				std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
-				size_t chosen(id - (WM_USER + 1));
-				if(id < filters.size())
-				{
-					FILTER_INFO fi = {0};
-					IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
-					filter->QueryFilterInfo(&fi);
-					IFilterGraphPtr ptr(fi.pGraph, false);
-					
-					ISpecifyPropertyPagesPtr spp;
-					filter->QueryInterface(&spp);
-					if(spp)
-					{
-						IUnknownPtr unk;
-						filter->QueryInterface(&unk);
-						IUnknown* unks[] = { unk.GetInterfacePtr() };
-						CAUUID uuids;
-						spp->GetPages(&uuids);
-						ON_BLOCK_EXIT(&CoTaskMemFree, uuids.pElems);
-						::OleCreatePropertyFrame(get_window(), 0, 0, fi.achName, 1, unks, uuids.cElems, uuids.pElems, 0, 0, NULL);
-					}
-				}
-				else
-				{
-					FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
-				}
-			}
-			else
+			if(id < WM_USER || !show_filter_properties(id - (WM_USER + 1)))
 			{
 				FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
 			}
@@ -354,7 +331,34 @@ void player_window::onCommand(HWND wnd, int id, HWND control, UINT event)
 	}
 }
 
-void player_window::build_filter_menu(HMENU parent_menu, UINT position)
+bool player_window::show_filter_properties(size_t chosen) const
+{
+	std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
+	if(chosen < filters.size())
+	{
+		FILTER_INFO fi = {0};
+		IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
+		filter->QueryFilterInfo(&fi);
+		IFilterGraphPtr ptr(fi.pGraph, false);
+
+		ISpecifyPropertyPagesPtr spp;
+		filter->QueryInterface(&spp);
+		if(spp)
+		{
+			IUnknownPtr unk;
+			filter->QueryInterface(&unk);
+			IUnknown* unks[] = { unk.GetInterfacePtr() };
+			CAUUID uuids;
+			spp->GetPages(&uuids);
+			ON_BLOCK_EXIT(&CoTaskMemFree, uuids.pElems);
+			::OleCreatePropertyFrame(get_window(), 0, 0, fi.achName, 1, unks, uuids.cElems, uuids.pElems, 0, 0, NULL);
+			return true;
+		}
+	}
+	return false;
+}
+
+void player_window::build_filter_menu(HMENU parent_menu, UINT position) const
 {
 	int count(::GetMenuItemCount(filter_menu));
 	for(int i(0); i < count; ++i)
@@ -460,44 +464,34 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 
 	::EnableMenuItem(main_menu, 3, MF_ENABLED | MF_BYPOSITION);
 		::EnableMenuItem(playmode_menu, IDM_PLAYMODE_NORMAL, MF_ENABLED);
-		::CheckMenuItem(playmode_menu, IDM_PLAYMODE_NORMAL, player->get_playmode() == Player::normal ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(playmode_menu, IDM_PLAYMODE_REPEATALL, MF_ENABLED);
-		::CheckMenuItem(playmode_menu, IDM_PLAYMODE_REPEATALL, player->get_playmode() == Player::repeat_all ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(playmode_menu, IDM_PLAYMODE_REPEATTRACK, MF_ENABLED);
-		::CheckMenuItem(playmode_menu, IDM_PLAYMODE_REPEATTRACK, player->get_playmode() == Player::repeat_single ? MF_CHECKED : MF_UNCHECKED);
 		//::EnableMenuItem(playmode_menu, IDM_PLAYMODE_SHUFFLE, MF_ENABLED);
 		::EnableMenuItem(playmode_menu, IDM_PLAYMODE_SHUFFLE, MF_GRAYED);
-		::CheckMenuItem(playmode_menu, IDM_PLAYMODE_SHUFFLE, player->get_playmode() == Player::shuffle ? MF_CHECKED : MF_UNCHECKED);
+		::CheckMenuRadioItem(playmode_menu, IDM_PLAYMODE_NORMAL, IDM_PLAYMODE_SHUFFLE, player->get_playmode(), MF_BYCOMMAND);
 
 	::EnableMenuItem(main_menu, 4, MF_ENABLED | MF_BYPOSITION);
 		::EnableMenuItem(size_menu, IDM_SIZE_50, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_SIZE_50, player->get_window_size_mode() == Player::fifty_percent ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_SIZE_100, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_SIZE_100, player->get_window_size_mode() == Player::one_hundred_percent ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_SIZE_200, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_SIZE_200, player->get_window_size_mode() == Player::two_hundred_percent ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_SIZE_FREE, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_SIZE_FREE, player->get_window_size_mode() == Player::free ? MF_CHECKED : MF_UNCHECKED);
+		::CheckMenuRadioItem(size_menu, IDM_SIZE_50, IDM_SIZE_FREE, player->get_window_size_mode(), MF_BYCOMMAND);
+
 		::EnableMenuItem(size_menu, IDM_AR_ORIGINAL, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_AR_ORIGINAL, player->get_aspect_ratio_mode() == Player::original ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_AR_133TO1, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_AR_133TO1, player->get_aspect_ratio_mode() == Player::onethreethree_to_one ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_AR_155TO1, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_AR_155TO1, player->get_aspect_ratio_mode() == Player::onefivefive_to_one ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_AR_177TO1, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_AR_177TO1, player->get_aspect_ratio_mode() == Player::onesevenseven_to_one ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_AR_185TO1, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_AR_185TO1, player->get_aspect_ratio_mode() == Player::oneeightfive_to_one ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_AR_240TO1, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_AR_240TO1, player->get_aspect_ratio_mode() == Player::twofourzero_to_one ? MF_CHECKED : MF_UNCHECKED);
+		::CheckMenuRadioItem(size_menu, IDM_AR_ORIGINAL, IDM_AR_240TO1, player->get_aspect_ratio_mode(), MF_BYCOMMAND);
+
 		::EnableMenuItem(size_menu, IDM_NOLETTERBOXING, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_NOLETTERBOXING, player->get_letterbox_mode() == Player::no_letterboxing ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_4_TO_3_ORIGINAL, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_4_TO_3_ORIGINAL, player->get_letterbox_mode() == Player::four_to_three_original ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_14_TO_9_ORIGINAL, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_14_TO_9_ORIGINAL, player->get_letterbox_mode() == Player::fourteen_to_nine_original ? MF_CHECKED : MF_UNCHECKED);
 		::EnableMenuItem(size_menu, IDM_16_TO_9_ORIGINAL, MF_ENABLED);
-		::CheckMenuItem(size_menu, IDM_16_TO_9_ORIGINAL, player->get_letterbox_mode() == Player::sixteen_to_nine_original ? MF_CHECKED : MF_UNCHECKED);
+		::EnableMenuItem(size_menu, IDM_185_TO_1_ORIGINAL, MF_ENABLED);
+		::EnableMenuItem(size_menu, IDM_240_TO_1_ORIGINAL, MF_ENABLED);
+		::CheckMenuRadioItem(size_menu, IDM_NOLETTERBOXING, IDM_240_TO_1_ORIGINAL, player->get_letterbox_mode(), MF_BYCOMMAND);
 
 	::EnableMenuItem(main_menu, IDM_EXIT, MF_ENABLED);
 

@@ -43,6 +43,7 @@ void surface_allocator::begin_device_loss()
 
 void surface_allocator::end_device_loss(IDirect3DDevice9Ptr device_)
 {
+	critical_section::lock l(cs);
 	device = device_;
 	FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(player->get_window(), MONITOR_DEFAULTTOPRIMARY)));
 }
@@ -50,7 +51,6 @@ void surface_allocator::end_device_loss(IDirect3DDevice9Ptr device_)
 //IVMRSurfaceAllocator9
 STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInfo* allocation_info, DWORD* buffer_count)
 {
-	critical_section::lock l(cs);
 	if(buffer_count == NULL)
 	{
 		return E_POINTER;
@@ -63,6 +63,7 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 
 	try
 	{
+		critical_section::lock l(cs);
 		if(allocation_info->dwFlags & VMR9AllocFlag_3DRenderTarget)
 		{
 			allocation_info->dwFlags |= VMR9AllocFlag_TextureSurface;
@@ -72,6 +73,8 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 		raw_surfaces.resize(*buffer_count);
 
 		FAIL_THROW(surface_allocator_notify->AllocateSurfaceHelper(allocation_info, buffer_count, &raw_surfaces[0]));
+		texture_locks[id].reset(new critical_section());
+		critical_section::lock stream_lock(get_cs(id));
 		surfaces[id].clear();
 		surfaces[id].resize(raw_surfaces.size());
 		for(size_t i(0); i < raw_surfaces.size(); ++i)
@@ -81,7 +84,6 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 		IDirect3DTexture9Ptr txtr;
 		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &txtr, NULL));
 		video_textures[id] = txtr;
-		texture_locks[id].reset(new critical_section());
 	}
 	catch(_com_error& ce)
 	{
@@ -94,6 +96,10 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 STDMETHODIMP surface_allocator::TerminateDevice(DWORD_PTR id)
 {
 	critical_section::lock l(cs);
+	if(surfaces.find(id) == surfaces.end())
+	{
+		return E_FAIL;
+	}
 	surfaces.erase(id);
 	video_textures.erase(id);
 	texture_locks.erase(id);
@@ -102,12 +108,16 @@ STDMETHODIMP surface_allocator::TerminateDevice(DWORD_PTR id)
 
 STDMETHODIMP surface_allocator::GetSurface(DWORD_PTR id, DWORD surface_index, DWORD, IDirect3DSurface9** surface)
 {
-	critical_section::lock l(cs);
 	if(surface == NULL)
 	{
 		return E_POINTER;
 	}
 
+	critical_section::lock l(cs);
+	if(surfaces.find(id) == surfaces.end())
+	{
+		return E_FAIL;
+	}
 	if(surface_index >= surfaces[id].size())
 	{
 		return E_FAIL;
@@ -123,18 +133,27 @@ STDMETHODIMP surface_allocator::AdviseNotify(IVMRSurfaceAllocatorNotify9* surfac
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::StartPresenting(DWORD_PTR)
+STDMETHODIMP surface_allocator::StartPresenting(DWORD_PTR id)
 {
 	critical_section::lock l(cs);
 	if(device == NULL)
 	{
 		return E_FAIL;
 	}
+	if(surfaces.find(id) == surfaces.end())
+	{
+		return E_FAIL;
+	}
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::StopPresenting(DWORD_PTR)
+STDMETHODIMP surface_allocator::StopPresenting(DWORD_PTR id)
 {
+	critical_section::lock l(cs);
+	if(surfaces.find(id) == surfaces.end())
+	{
+		return E_FAIL;
+	}
 	return S_OK;
 }
 
@@ -147,6 +166,11 @@ STDMETHODIMP surface_allocator::PresentImage(DWORD_PTR id, VMR9PresentationInfo*
 	if(presentation_info->lpSurf == NULL)
 	{
 		return E_POINTER;
+	}
+	critical_section::lock allocator_lock(cs);
+	if(surfaces.find(id) == surfaces.end())
+	{
+		return E_FAIL;
 	}
 
 	try
@@ -162,7 +186,7 @@ STDMETHODIMP surface_allocator::PresentImage(DWORD_PTR id, VMR9PresentationInfo*
 
 		IDirect3DSurface9Ptr surf;
 		FAIL_THROW(static_cast<IDirect3DTexture9Ptr&>(video_textures[id])->GetSurfaceLevel(0, &surf));
-		critical_section::lock l(get_cs(id));
+		critical_section::lock stream_lock(get_cs(id));
 		FAIL_THROW(device->StretchRect(presentation_info->lpSurf, NULL, surf, NULL, D3DTEXF_NONE));
 		player->signal_new_frame();
 		return S_OK;

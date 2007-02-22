@@ -92,10 +92,10 @@ struct Player
 
 	enum play_mode
 	{
-		normal, // advance through playlist, stop & rewind when the last file is played
-		repeat_all, // advance through the playlist, rewind & continue playing when the last file is played
-		repeat_single, // do not advance through playlist, rewind track & continue playing
-		shuffle // advance through playlist randomly, no concept of a "last file"
+		normal = IDM_PLAYMODE_NORMAL, // advance through playlist, stop & rewind when the last file is played
+		repeat_all = IDM_PLAYMODE_REPEATALL, // advance through the playlist, rewind & continue playing when the last file is played
+		repeat_single = IDM_PLAYMODE_REPEATTRACK, // do not advance through playlist, rewind track & continue playing
+		shuffle = IDM_PLAYMODE_SHUFFLE // advance through playlist randomly, no concept of a "last file"
 	};
 
 	play_mode get_playmode() const
@@ -169,12 +169,12 @@ struct Player
 
 	enum aspect_ratio_mode
 	{
-		original,
-		onethreethree_to_one,
-		onefivefive_to_one,
-		onesevenseven_to_one,
-		oneeightfive_to_one,
-		twofourzero_to_one
+		original = IDM_AR_ORIGINAL,
+		onethreethree_to_one = IDM_AR_133TO1,
+		onefivefive_to_one = IDM_AR_155TO1,
+		onesevenseven_to_one = IDM_AR_177TO1,
+		oneeightfive_to_one = IDM_AR_185TO1,
+		twofourzero_to_one = IDM_AR_240TO1
 	};
 
 	aspect_ratio_mode get_aspect_ratio_mode() const
@@ -191,10 +191,10 @@ struct Player
 
 	enum window_size_mode
 	{
-		free,
-		fifty_percent,
-		one_hundred_percent,
-		two_hundred_percent
+		free = IDM_SIZE_FREE,
+		fifty_percent = IDM_SIZE_50,
+		one_hundred_percent = IDM_SIZE_100,
+		two_hundred_percent = IDM_SIZE_200
 	};
 
 	window_size_mode get_window_size_mode() const
@@ -211,10 +211,12 @@ struct Player
 
 	enum letterbox_mode
 	{
-		no_letterboxing,
-		four_to_three_original,
-		fourteen_to_nine_original,
-		sixteen_to_nine_original
+		no_letterboxing = IDM_NOLETTERBOXING,
+		four_to_three_original = IDM_4_TO_3_ORIGINAL,
+		fourteen_to_nine_original = IDM_14_TO_9_ORIGINAL,
+		sixteen_to_nine_original = IDM_16_TO_9_ORIGINAL,
+		oneeightfive_to_one_original = IDM_185_TO_1_ORIGINAL,
+		twofourzero_to_one_original = IDM_240_TO_1_ORIGINAL
 	};
 
 	letterbox_mode get_letterbox_mode() const
@@ -325,7 +327,27 @@ struct Player
 				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (16.0f / 9.0f));
 			}
 			break;
+		case oneeightfive_to_one_original:
+			if(get_aspect_ratio() > 1.85)
+			{
+				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (1.85f));
+			}
+			else
+			{
+				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (1.85f));
+			}
 			break;
+		case twofourzero_to_one_original:
+			if(get_aspect_ratio() > 2.40)
+			{
+				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (2.40f));
+			}
+			else
+			{
+				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (2.40f));
+			}
+			break;
+
 		}
 		window_size = new_size;
 		ui.resize_window(window_size.cx, window_size.cy);
@@ -363,6 +385,12 @@ struct Player
 			break;
 		case sixteen_to_nine_original:
 			video_ar = 16.0f / 9.0f;
+			break;
+		case oneeightfive_to_one_original:
+			video_ar = 1.85f;
+			break;
+		case twofourzero_to_one_original:
+			video_ar = 2.40f;
 			break;
 		}
 		if(window_ar > video_ar)
@@ -414,6 +442,26 @@ struct Player
 			break;
 		case sixteen_to_nine_original:
 			if(get_aspect_ratio() > 16.0 / 9.0)
+			{
+				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
+			}
+			else
+			{
+				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
+			}
+			break;
+		case oneeightfive_to_one_original:
+			if(get_aspect_ratio() > 1.85)
+			{
+				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
+			}
+			else
+			{
+				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
+			}
+			break;
+		case twofourzero_to_one_original:
+			if(get_aspect_ratio() > 2.40)
 			{
 				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
 			}

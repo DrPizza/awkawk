@@ -604,6 +604,17 @@ void Player::create_device()
 	D3DDISPLAYMODE dm;
 	FAIL_THROW(d3d->GetAdapterDisplayMode(device_ordinal, &dm));
 
+	D3DCAPS9 caps;
+	d3d->GetDeviceCaps(device_ordinal, D3DDEVTYPE_HAL, &caps);
+	if(caps.TextureCaps & D3DPTEXTURECAPS_POW2)
+	{
+		::MessageBoxW(ui.get_window(), L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
+	}
+	if(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
+	{
+		::MessageBoxW(ui.get_window(), L"The device does not support non-square textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
+	}
+
 	std::memset(&presentation_parameters, 0, sizeof(D3DPRESENT_PARAMETERS));
 	presentation_parameters.Windowed = TRUE;
 	presentation_parameters.hDeviceWindow = ui.get_window();
