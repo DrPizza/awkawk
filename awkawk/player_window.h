@@ -40,7 +40,8 @@ struct player_window : window
 
 	std::wstring get_local_path() const;
 	std::wstring get_remote_path() const;
-	void build_filter_menu(HMENU parent_menu, UINT position);
+	void build_filter_menu(HMENU parent_menu, UINT position) const;
+	bool show_filter_properties(size_t chosen) const;
 
 	void open_single_file(const std::wstring& path);
 

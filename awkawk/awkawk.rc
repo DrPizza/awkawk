@@ -115,6 +115,8 @@ BEGIN
             MENUITEM "4:3 Original",                IDM_4_TO_3_ORIGINAL
             MENUITEM "14:9 Original",               IDM_14_TO_9_ORIGINAL
             MENUITEM "16:9 Original",               IDM_16_TO_9_ORIGINAL
+            MENUITEM "1.85:1 Original",             IDM_185_TO_1_ORIGINAL
+            MENUITEM "2.40:1 Original",             IDM_240_TO_1_ORIGINAL
         END
         MENUITEM "&Filters",                    65535
         MENUITEM "&Close File\tCtrl+W",         IDM_CLOSE_FILE
