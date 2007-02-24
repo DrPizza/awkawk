@@ -26,7 +26,7 @@
 
 player_scene::player_scene(Player* player_, window* parent_) : message_handler(parent_),
                                                                player(player_),
-                                                               controls(player, parent),
+                                                               controls(new player_controls(player, parent)),
                                                                video(new strip(4)),
                                                                video_texture(NULL)
 {
@@ -59,7 +59,7 @@ void player_scene::render()
 		video->copy_to_buffer();
 		// TODO resize the video texture using bicubic resize, possibly with pixel shaders?
 		video->draw(video_texture != NULL ? video_texture : default_video_texture);
-		controls.render();
+		controls->render();
 	}
 	catch(_com_error& ce)
 	{

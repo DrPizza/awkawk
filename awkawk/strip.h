@@ -57,7 +57,7 @@ struct strip : direct3d_object
 	// create D3DPOOL_DEFAULT resources
 	virtual HRESULT on_device_reset()
 	{
-		device->CreateVertexBuffer(static_cast<UINT>(sizeof(vertex) * vertices.size()), D3DUSAGE_WRITEONLY, strip::vertex::format, D3DPOOL_DEFAULT, &vertex_buffer, NULL);
+		FAIL_THROW(device->CreateVertexBuffer(static_cast<UINT>(sizeof(vertex) * vertices.size()), D3DUSAGE_WRITEONLY, strip::vertex::format, D3DPOOL_DEFAULT, &vertex_buffer, NULL));
 		return S_OK;
 	}
 	// destroy D3DPOOL_DEFAULT resources

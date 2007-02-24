@@ -24,7 +24,7 @@
 #include "stdafx.h"
 
 #define FAIL_THROW(x) do { HRESULT CREATE_NAME(hr); if(FAILED(CREATE_NAME(hr) = ( x ))) { _com_raise_error(CREATE_NAME(hr)); } } while(0)
-#define FAIL_RET(x) do { if(FAILED(hr = ( x ))) { return hr; } } while(0)
+#define FAIL_RET(x) do { HRESULT CREATE_NAME(hr); if(FAILED(CREATE_NAME(hr) = ( x ))) { return CREATE_NAME(hr); } } while(0)
 #define CREATE_NAME(name) CREATE_NAME_IND(name, __LINE__)
 #define CREATE_NAME_IND(first, second) PASTE_2(first, second)
 #define PASTE_2(a, b) a ## b
@@ -108,7 +108,7 @@ inline IDirect3DTexture9Ptr load_texture_from_resource(IDirect3DDevice9Ptr devic
 	HGLOBAL glob(::LoadResource(::GetModuleHandle(NULL), res));
 	void* data(::LockResource(glob));
 	IDirect3DTexture9Ptr texture;
-	FAIL_THROW(D3DXCreateTextureFromFileInMemoryEx(device, data, size, D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT, 0, D3DFMT_FROM_FILE, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, info, NULL, &texture));
+	FAIL_THROW(D3DXCreateTextureFromFileInMemoryEx(device, data, size, D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, D3DFMT_FROM_FILE, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, info, NULL, &texture));
 	return texture;
 }
 

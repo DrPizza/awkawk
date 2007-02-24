@@ -605,52 +605,58 @@ void Player::create_device()
 	FAIL_THROW(d3d->GetAdapterDisplayMode(device_ordinal, &dm));
 
 	D3DCAPS9 caps;
-	d3d->GetDeviceCaps(device_ordinal, D3DDEVTYPE_HAL, &caps);
-	if(caps.TextureCaps & D3DPTEXTURECAPS_POW2)
+	FAIL_THROW(d3d->GetDeviceCaps(device_ordinal, D3DDEVTYPE_HAL, &caps));
+	if((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL))
 	{
 		::MessageBoxW(ui.get_window(), L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
+		throw std::runtime_error("The device does not support non-power of 2 textures.  awkawk cannot continue.");
 	}
 	if(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
 	{
 		::MessageBoxW(ui.get_window(), L"The device does not support non-square textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
+		throw std::runtime_error("The device does not support non-square textures.  awkawk cannot continue.");
 	}
 
 	std::memset(&presentation_parameters, 0, sizeof(D3DPRESENT_PARAMETERS));
-	presentation_parameters.Windowed = TRUE;
-	presentation_parameters.hDeviceWindow = ui.get_window();
-	presentation_parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	presentation_parameters.BackBufferFormat = dm.Format;
-	presentation_parameters.BackBufferHeight = dm.Height;
 	presentation_parameters.BackBufferWidth = dm.Width;
+	presentation_parameters.BackBufferHeight = dm.Height;
+	presentation_parameters.BackBufferFormat = dm.Format;
 	presentation_parameters.BackBufferCount = 1;
-	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+
+	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONE;
+	presentation_parameters.MultiSampleQuality = 0;
+	//presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
+	//DWORD qualityLevels(0);
+	//FAIL_THROW(d3d->CheckDeviceMultiSampleType(device_ordinal, D3DDEVTYPE_HAL, dm.Format, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels));
+	//presentation_parameters.MultiSampleQuality = qualityLevels - 1;
+
+	presentation_parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
+	presentation_parameters.hDeviceWindow = ui.get_window();
+	presentation_parameters.Windowed = TRUE;
+	//presentation_parameters.EnableAutoDepthStencil = TRUE;
+	//presentation_parameters.AutoDepthStencilFormat = D3DFMT_D16;
 	presentation_parameters.Flags = D3DPRESENTFLAG_VIDEO;
-	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
-	presentation_parameters.EnableAutoDepthStencil = TRUE;
-	presentation_parameters.AutoDepthStencilFormat = D3DFMT_D16;
+	presentation_parameters.FullScreen_RefreshRateInHz = 0;
+	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
-	DWORD qualityLevels(0);
-	d3d->CheckDeviceMultiSampleType(device_ordinal, D3DDEVTYPE_HAL, dm.Format, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels);
-	presentation_parameters.MultiSampleQuality = qualityLevels - 1;
-
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &device));
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_MIXED_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &device));
 
 	FAIL_THROW(device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
 	FAIL_THROW(device->SetRenderState(D3DRS_LIGHTING, FALSE));
 	FAIL_THROW(device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE));
 	FAIL_THROW(device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
 	FAIL_THROW(device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
-	FAIL_THROW(device->SetRenderState(D3DRS_ZENABLE, TRUE));
+	FAIL_THROW(device->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE));
 	FAIL_THROW(device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE));
 
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR));
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR));
-	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR));
+	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE /*D3DTEXF_LINEAR*/));
 
-	scene->on_device_created(device);
-	scene->on_device_reset();
+	FAIL_THROW(scene->on_device_created(device));
+	FAIL_THROW(scene->on_device_reset());
 }
 
 void Player::destroy_device()
@@ -666,7 +672,7 @@ void Player::reset_device()
 	{
 		allocator->begin_device_loss();
 	}
-	scene->on_device_lost();
+	FAIL_THROW(scene->on_device_lost());
 
 #if 0
 	// this doesn't seem to work satisfactorily; it says it resets OK, but nothing works.
@@ -694,7 +700,7 @@ void Player::reset_device()
 	create_device();
 #endif
 
-	scene->on_device_reset();
+	FAIL_THROW(scene->on_device_reset());
 	if(allocator)
 	{
 		allocator->end_device_loss(device);
@@ -767,8 +773,9 @@ void Player::render()
 				scene->set_playback_position(get_playback_position());
 			}
 		}
-
-		FAIL_THROW(device->Clear(0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0xff, 0, 0, 0), 1.0f, 0));
+		static D3DCOLOR col(D3DCOLOR_ARGB(0xff, 0, 0, 0));
+		//col = col == D3DCOLOR_ARGB(0xff, 0, 0xff, 0) ? D3DCOLOR_ARGB(0xff, 0xff, 0, 0) : D3DCOLOR_ARGB(0xff, 0, 0xff, 0);
+		FAIL_THROW(device->Clear(0L, NULL, D3DCLEAR_TARGET, col, 1.0f, 0));
 		{
 			FAIL_THROW(device->BeginScene());
 			ON_BLOCK_EXIT_OBJ(*device, &IDirect3DDevice9::EndScene);
@@ -829,6 +836,10 @@ DWORD Player::render_thread_proc(void*)
 	catch(_com_error& ce)
 	{
 		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	}
+	catch(std::exception& e)
+	{
+		derr << e.what() << std::endl;
 	}
 	return 0;
 }
