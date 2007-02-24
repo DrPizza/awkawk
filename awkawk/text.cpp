@@ -379,9 +379,9 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 	};
 
 	ID3DXMeshPtr msh;
-	D3DXCreateMeshFVF(static_cast<DWORD>(extruder.indices.size() / 3), static_cast<DWORD>(extruder.vertices.size()), D3DXMESH_32BIT | D3DXMESH_NPATCHES, mesh_fvf, device, &msh);
+	FAIL_RET(D3DXCreateMeshFVF(static_cast<DWORD>(extruder.indices.size() / 3), static_cast<DWORD>(extruder.vertices.size()), D3DXMESH_32BIT | D3DXMESH_NPATCHES, mesh_fvf, device, &msh));
 	mesh_vertex* vertices(NULL);
-	msh->LockVertexBuffer(0, reinterpret_cast<void**>(&vertices));
+	FAIL_RET(msh->LockVertexBuffer(0, reinterpret_cast<void**>(&vertices)));
 	for(size_t i(0); i < extruder.vertices.size(); ++i)
 	{
 		vertices[i].position[0] = static_cast<float>(extruder.vertices[i].position[0]);
@@ -393,27 +393,27 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 		vertices[i].tu       = static_cast<float>(extruder.vertices[i].tu);
 		vertices[i].tv       = static_cast<float>(extruder.vertices[i].tv);
 	}
-	msh->UnlockVertexBuffer();
+	FAIL_RET(msh->UnlockVertexBuffer());
 	DWORD* indices(NULL);
-	msh->LockIndexBuffer(0, reinterpret_cast<void**>(&indices));
+	FAIL_RET(msh->LockIndexBuffer(0, reinterpret_cast<void**>(&indices)));
 	for(size_t i(0); i < extruder.indices.size(); ++i)
 	{
 		indices[i] = static_cast<DWORD>(extruder.indices[i]);
 	}
-	msh->UnlockIndexBuffer();
+	FAIL_RET(msh->UnlockIndexBuffer());
 	//D3DXComputeNormals(msh, NULL);
 	ID3DXBufferPtr buffer;
-	D3DXCreateBuffer(3 * msh->GetNumFaces() * sizeof(DWORD), &buffer);
-	msh->GenerateAdjacency(deviation, static_cast<DWORD*>(buffer->GetBufferPointer()));
-	msh->OptimizeInplace(D3DXMESHOPT_COMPACT | D3DXMESHOPT_ATTRSORT | D3DXMESHOPT_VERTEXCACHE, static_cast<const DWORD*>(buffer->GetBufferPointer()), NULL, NULL, NULL);
+	FAIL_RET(D3DXCreateBuffer(3 * msh->GetNumFaces() * sizeof(DWORD), &buffer));
+	FAIL_RET(msh->GenerateAdjacency(deviation, static_cast<DWORD*>(buffer->GetBufferPointer())));
+	FAIL_RET(msh->OptimizeInplace(D3DXMESHOPT_COMPACT | D3DXMESHOPT_ATTRSORT | D3DXMESHOPT_VERTEXCACHE, static_cast<const DWORD*>(buffer->GetBufferPointer()), NULL, NULL, NULL));
 
 	*mesh = msh;
 	(*mesh)->AddRef();
 	if(adjacency != NULL)
 	{
 		ID3DXBufferPtr buffer;
-		D3DXCreateBuffer(3 * msh->GetNumFaces() * sizeof(DWORD), &buffer);
-		msh->GenerateAdjacency(deviation, static_cast<DWORD*>(buffer->GetBufferPointer()));
+		FAIL_RET(D3DXCreateBuffer(3 * msh->GetNumFaces() * sizeof(DWORD), &buffer));
+		FAIL_RET(msh->GenerateAdjacency(deviation, static_cast<DWORD*>(buffer->GetBufferPointer())));
 		*adjacency = buffer;
 		(*adjacency)->AddRef();
 	}

@@ -422,7 +422,7 @@ void player_controls::render()
 
 		FAIL_THROW(device->SetTransform(D3DTS_WORLD, &caption_transform));
 		FAIL_THROW(device->SetTexture(0, black_texture));
-		caption_mesh->DrawSubset(0);
+		FAIL_THROW(caption_mesh->DrawSubset(0));
 		FAIL_THROW(device->SetTexture(0, NULL));
 	}
 	catch(_com_error& ce)
@@ -441,7 +441,7 @@ void player_controls::calculate_caption()
 	HGDIOBJ original_object(::SelectObject(dc, font));
 	ON_BLOCK_EXIT(&::SelectObject, dc, original_object);
 
-	CreateTextMesh(device, dc, compact_caption_text.c_str(), 0.001f, 216.0f, &caption_mesh, NULL);
+	FAIL_THROW(CreateTextMesh(device, dc, compact_caption_text.c_str(), 0.001f, 216.0f, &caption_mesh, NULL));
 
 	D3DXVECTOR3 bottomLeft(FLT_MIN, FLT_MIN, FLT_MIN), topRight(FLT_MAX, FLT_MAX, FLT_MAX);
 	void* buff(NULL);

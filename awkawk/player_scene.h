@@ -44,23 +44,23 @@ struct player_scene : message_handler, direct3d_object
 	virtual HRESULT on_device_created(IDirect3DDevice9Ptr new_device)
 	{
 		device = new_device;
-		controls.on_device_created(device);
-		video->on_device_created(device);
+		FAIL_RET(controls->on_device_created(device));
+		FAIL_RET(video->on_device_created(device));
 		return S_OK;
 	}
 	// create D3DPOOL_DEFAULT resources
 	virtual HRESULT on_device_reset()
 	{
 		default_video_texture = load_texture_from_resource(device, IDR_BACKGROUND, &default_video_texture_info);
-		controls.on_device_reset();
-		video->on_device_reset();
+		FAIL_RET(controls->on_device_reset());
+		FAIL_RET(video->on_device_reset());
 		return S_OK;
 	}
 	// destroy D3DPOOL_DEFAULT resources
 	virtual HRESULT on_device_lost()
 	{
-		controls.on_device_lost();
-		video->on_device_lost();
+		FAIL_RET(controls->on_device_lost());
+		FAIL_RET(video->on_device_lost());
 		default_video_texture = NULL;
 		return S_OK;
 	}
@@ -68,30 +68,30 @@ struct player_scene : message_handler, direct3d_object
 	virtual void on_device_destroyed()
 	{
 		video->on_device_destroyed();
-		controls.on_device_destroyed();
+		controls->on_device_destroyed();
 		device = NULL;
 	}
 
 	bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		return controls.handles_message(wnd, message, wParam, lParam);
+		return controls->handles_message(wnd, message, wParam, lParam);
 	}
 
 	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		return controls.message_proc(wnd, message, wParam, lParam);
+		return controls->message_proc(wnd, message, wParam, lParam);
 	}
 
 	void set_cursor_position(POINT pt)
 	{
 		critical_section::lock l(cs);
-		controls.set_cursor_position(pt);
+		controls->set_cursor_position(pt);
 	}
 
 	void set_filename(const std::wstring& name)
 	{
 		critical_section::lock l(cs);
-		controls.set_filename(name);
+		controls->set_filename(name);
 	}
 
 	void set_video_texture(IDirect3DTexture9Ptr video_texture_)
@@ -102,17 +102,17 @@ struct player_scene : message_handler, direct3d_object
 
 	void notify_window_size_change()
 	{
-		controls.notify_window_size_change();
+		controls->notify_window_size_change();
 	}
 
 	void set_volume(float vol_)
 	{
-		controls.set_volume(vol_);
+		controls->set_volume(vol_);
 	}
 
 	void set_playback_position(float pos_)
 	{
-		controls.set_playback_position(pos_);
+		controls->set_playback_position(pos_);
 	}
 
 private:
@@ -131,7 +131,7 @@ private:
 	IDirect3DTexture9Ptr video_texture;
 
 	Player* player;
-	player_controls controls;
+	std::auto_ptr<player_controls> controls;
 };
 
 #endif

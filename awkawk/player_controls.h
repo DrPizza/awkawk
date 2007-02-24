@@ -156,12 +156,12 @@ struct player_controls : message_handler, direct3d_object
 	{
 		device = new_device;
 
-		controls->on_device_created(device);
-		trackbar->on_device_created(device);
-		position_tracker->on_device_created(device);
-		shadowed_position_tracker->on_device_created(device);
-		volume_tracker->on_device_created(device);
-		caption->on_device_created(device);
+		FAIL_RET(controls->on_device_created(device));
+		FAIL_RET(trackbar->on_device_created(device));
+		FAIL_RET(position_tracker->on_device_created(device));
+		FAIL_RET(shadowed_position_tracker->on_device_created(device));
+		FAIL_RET(volume_tracker->on_device_created(device));
+		FAIL_RET(caption->on_device_created(device));
 
 		return S_OK;
 	}
@@ -175,37 +175,37 @@ struct player_controls : message_handler, direct3d_object
 		volume_tracker_texture = load_texture_from_resource(device, IDR_VOLUME_TIP, &volume_tracker_texture_info);
 		caption_texture = load_texture_from_resource(device, IDR_BACKGROUND_CAPTION, &caption_texture_info);
 
-		device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &white_texture, NULL);
+		FAIL_RET(device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &white_texture, NULL));
 		D3DLOCKED_RECT lr = {0};
-		white_texture->LockRect(0, &lr, NULL, 0);
+		FAIL_RET(white_texture->LockRect(0, &lr, NULL, 0));
 		*reinterpret_cast<DWORD*>(lr.pBits) = D3DCOLOR_ARGB(255, 255, 255, 255);
-		white_texture->UnlockRect(0);
+		FAIL_RET(white_texture->UnlockRect(0));
 
-		device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &black_texture, NULL);
+		FAIL_RET(device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &black_texture, NULL));
 		lr.pBits = 0;
 		lr.Pitch = 0;
-		black_texture->LockRect(0, &lr, NULL, 0);
+		FAIL_RET(black_texture->LockRect(0, &lr, NULL, 0));
 		*reinterpret_cast<DWORD*>(lr.pBits) = D3DCOLOR_ARGB(255, 0, 0, 0);
-		black_texture->UnlockRect(0);
+		FAIL_RET(black_texture->UnlockRect(0));
 
-		controls->on_device_reset();
-		trackbar->on_device_reset();
-		position_tracker->on_device_reset();
-		shadowed_position_tracker->on_device_reset();
-		volume_tracker->on_device_reset();
-		caption->on_device_reset();
+		FAIL_RET(controls->on_device_reset());
+		FAIL_RET(trackbar->on_device_reset());
+		FAIL_RET(position_tracker->on_device_reset());
+		FAIL_RET(shadowed_position_tracker->on_device_reset());
+		FAIL_RET(volume_tracker->on_device_reset());
+		FAIL_RET(caption->on_device_reset());
 
 		return S_OK;
 	}
 	// destroy D3DPOOL_DEFAULT resources
 	virtual HRESULT on_device_lost()
 	{
-		controls->on_device_lost();
-		trackbar->on_device_lost();
-		position_tracker->on_device_lost();
-		shadowed_position_tracker->on_device_lost();
-		volume_tracker->on_device_lost();
-		caption->on_device_lost();
+		FAIL_RET(controls->on_device_lost());
+		FAIL_RET(trackbar->on_device_lost());
+		FAIL_RET(position_tracker->on_device_lost());
+		FAIL_RET(shadowed_position_tracker->on_device_lost());
+		FAIL_RET(volume_tracker->on_device_lost());
+		FAIL_RET(caption->on_device_lost());
 
 		controls_texture = NULL;
 		trackbar_texture = NULL;
