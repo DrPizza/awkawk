@@ -99,24 +99,24 @@ BEGIN
         END
         POPUP "&Size"
         BEGIN
-            MENUITEM "&50%",                        IDM_SIZE_50
-            MENUITEM "&100%",                       IDM_SIZE_100
-            MENUITEM "&200%",                       IDM_SIZE_200
-            MENUITEM "&Free",                       IDM_SIZE_FREE
+            MENUITEM "&50%\tAlt+1",                 IDM_SIZE_50
+            MENUITEM "&100%\tAlt+2",                IDM_SIZE_100
+            MENUITEM "&200%\tAlt+3",                IDM_SIZE_200
+            MENUITEM "&Free\tAlt+4",                IDM_SIZE_FREE
             MENUITEM SEPARATOR
-            MENUITEM "&Original AR",                IDM_AR_ORIGINAL
-            MENUITEM "4:3",                         IDM_AR_133TO1
-            MENUITEM "14:9",                        IDM_AR_155TO1
-            MENUITEM "16:9",                        IDM_AR_177TO1
-            MENUITEM "1.85:1",                      IDM_AR_185TO1
-            MENUITEM "2.40:1",                      IDM_AR_240TO1
+            MENUITEM "&Original AR\tShift+1",       IDM_AR_ORIGINAL
+            MENUITEM "4:3\tShift+2",                IDM_AR_133TO1
+            MENUITEM "14:9\tShift+3",               IDM_AR_155TO1
+            MENUITEM "16:9\tShift+4",               IDM_AR_177TO1
+            MENUITEM "1.85:1\tShift+5",             IDM_AR_185TO1
+            MENUITEM "2.40:1\tShift+6",             IDM_AR_240TO1
             MENUITEM SEPARATOR
-            MENUITEM "&No Letterboxing",            IDM_NOLETTERBOXING
-            MENUITEM "4:3 Original",                IDM_4_TO_3_ORIGINAL
-            MENUITEM "14:9 Original",               IDM_14_TO_9_ORIGINAL
-            MENUITEM "16:9 Original",               IDM_16_TO_9_ORIGINAL
-            MENUITEM "1.85:1 Original",             IDM_185_TO_1_ORIGINAL
-            MENUITEM "2.40:1 Original",             IDM_240_TO_1_ORIGINAL
+            MENUITEM "&No Letterboxing\tCtrl+1",    IDM_NOLETTERBOXING
+            MENUITEM "4:3 Original\tCtrl+2",        IDM_4_TO_3_ORIGINAL
+            MENUITEM "14:9 Original\tCtrl+3",       IDM_14_TO_9_ORIGINAL
+            MENUITEM "16:9 Original\tCtrl+4",       IDM_16_TO_9_ORIGINAL
+            MENUITEM "1.85:1 Original\tCtrl+5",     IDM_185_TO_1_ORIGINAL
+            MENUITEM "2.40:1 Original\tCtrl+6",     IDM_240_TO_1_ORIGINAL
         END
         MENUITEM "&Filters",                    65535
         MENUITEM "&Close File\tCtrl+W",         IDM_CLOSE_FILE
@@ -184,10 +184,26 @@ END
 
 IDR_ACCELERATORS ACCELERATORS 
 BEGIN
-    "O",            IDM_OPEN_FILE,          VIRTKEY, CONTROL, NOINVERT
-    VK_SPACE,       IDM_PAUSE,              VIRTKEY, NOINVERT
     "W",            IDM_CLOSE_FILE,         VIRTKEY, CONTROL, NOINVERT
+    "O",            IDM_OPEN_FILE,          VIRTKEY, CONTROL, NOINVERT
     "U",            IDM_OPEN_URL,           VIRTKEY, CONTROL, NOINVERT
+    VK_SPACE,       IDM_PAUSE,              VIRTKEY, NOINVERT
+    "1",            IDM_SIZE_50,            VIRTKEY, ALT, NOINVERT
+    "2",            IDM_SIZE_100,           VIRTKEY, ALT, NOINVERT
+    "3",            IDM_SIZE_200,           VIRTKEY, ALT, NOINVERT
+    "4",            IDM_SIZE_FREE,          VIRTKEY, ALT, NOINVERT
+    "1",            IDM_AR_ORIGINAL,        VIRTKEY, SHIFT, NOINVERT
+    "2",            IDM_AR_133TO1,          VIRTKEY, SHIFT, NOINVERT
+    "3",            IDM_AR_155TO1,          VIRTKEY, SHIFT, NOINVERT
+    "4",            IDM_AR_177TO1,          VIRTKEY, SHIFT, NOINVERT
+    "5",            IDM_AR_185TO1,          VIRTKEY, SHIFT, NOINVERT
+    "6",            IDM_AR_240TO1,          VIRTKEY, SHIFT, NOINVERT
+    "1",            IDM_NOLETTERBOXING,     VIRTKEY, CONTROL, NOINVERT
+    "2",            IDM_4_TO_3_ORIGINAL,    VIRTKEY, CONTROL, NOINVERT
+    "3",            IDM_14_TO_9_ORIGINAL,   VIRTKEY, CONTROL, NOINVERT
+    "4",            IDM_16_TO_9_ORIGINAL,   VIRTKEY, CONTROL, NOINVERT
+    "5",            IDM_185_TO_1_ORIGINAL,  VIRTKEY, CONTROL, NOINVERT
+    "6",            IDM_AR_240TO1,          VIRTKEY, CONTROL, NOINVERT
 END
 
 
