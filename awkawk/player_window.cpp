@@ -197,13 +197,13 @@ void player_window::onSysCommand(HWND wnd, UINT command, int x, int y)
 	switch(command)
 	{
 	case SC_MAXIMIZE:
-	case SC_RESTORE:
-		player->toggle_fullscreen();
-		FORWARD_WM_SYSCOMMAND(get_window(), command, x, y, &::DefWindowProcW);
+		player->set_fullscreen(true);
 		break;
-	default:
-		FORWARD_WM_SYSCOMMAND(get_window(), command, x, y, &::DefWindowProcW);
+	case SC_RESTORE:
+		player->set_fullscreen(false);
+		break;
 	}
+	FORWARD_WM_SYSCOMMAND(get_window(), command, x, y, &::DefWindowProcW);
 }
 
 BOOL player_window::onEraseBackground(HWND, HDC)

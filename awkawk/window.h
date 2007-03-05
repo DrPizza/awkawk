@@ -449,14 +449,7 @@ struct window : message_handler
 
 	void set_on_top(bool ontop)
 	{
-		if(ontop)
-		{
-			::SetWindowPos(get_window(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING);
-		}
-		else
-		{
-			::SetWindowPos(get_window(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING);
-		}
+		::SetWindowPos(get_window(), ontop ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING);
 	}
 
 	void move_window(int x, int y)

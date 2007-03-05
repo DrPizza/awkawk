@@ -27,7 +27,7 @@
 player_controls::player_controls(Player* player_, window* parent_) : message_handler(parent_),
                                                                      ui_reveal_percentage(0.0f),
                                                                      text_size(14.0f),
-                                                                     caption_text(L"<no file loaded>"),
+                                                                     caption_text(L"<(@) awkawk (@)>"),
                                                                      chosen_image(normal),
                                                                      dragging_position_tracker(false),
                                                                      position_drag_percentage(0.0f),
@@ -676,7 +676,7 @@ void player_controls::set_filename(const std::wstring& name)
 	{
 		return;
 	}
-	caption_text = name.size() != 0 ? name : L"<no file loaded>";
+	caption_text = name.size() != 0 ? name : L"<(@) awkawk (@)>";
 	caption_mesh = NULL;
 	set_compact_filename();
 }

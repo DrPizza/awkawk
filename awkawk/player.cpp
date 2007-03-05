@@ -43,29 +43,6 @@ Player::Player() : ui(this),
 	video_size = sz;
 	scene_size = sz;
 
-	IDirect3D9* d3d9(NULL);
-
-	HMODULE d3d9_dll(::GetModuleHandleW(L"d3d9.dll"));
-	typedef HRESULT (WINAPI *d3dcreate9ex_proc)(UINT, IDirect3D9Ex**);
-	d3dcreate9ex_proc d3dcreate9ex(reinterpret_cast<d3dcreate9ex_proc>(::GetProcAddress(d3d9_dll, "Direct3DCreate9Ex")));
-	if(d3dcreate9ex != NULL)
-	{
-		IDirect3D9Ex* ptr;
-		if(S_OK == d3dcreate9ex(D3D_SDK_VERSION, &ptr))
-		{
-			d3d9 = ptr;
-		}
-	}
-	if(d3d9 == NULL)
-	{
-		d3d9 = ::Direct3DCreate9(D3D_SDK_VERSION);
-	}
-	if(d3d9 == NULL)
-	{
-		_com_raise_error(E_FAIL);
-	}
-	d3d.Attach(d3d9);
-
 	critical_section::lock l(graph_cs);
 	FAIL_THROW(graph.CreateInstance(CLSID_FilterGraph));
 	FAIL_THROW(graph->QueryInterface(&events));
@@ -102,6 +79,37 @@ Player::~Player()
 	}
 	events = NULL;
 	graph = NULL;
+}
+
+void Player::create_d3d()
+{
+	IDirect3D9* d3d9(NULL);
+
+	HMODULE d3d9_dll(::GetModuleHandleW(L"d3d9.dll"));
+	typedef HRESULT (WINAPI *d3dcreate9ex_proc)(UINT, IDirect3D9Ex**);
+	d3dcreate9ex_proc d3dcreate9ex(reinterpret_cast<d3dcreate9ex_proc>(::GetProcAddress(d3d9_dll, "Direct3DCreate9Ex")));
+	if(d3dcreate9ex != NULL)
+	{
+		IDirect3D9Ex* ptr;
+		if(S_OK == d3dcreate9ex(D3D_SDK_VERSION, &ptr))
+		{
+			d3d9 = ptr;
+		}
+	}
+	if(d3d9 == NULL)
+	{
+		d3d9 = ::Direct3DCreate9(D3D_SDK_VERSION);
+	}
+	if(d3d9 == NULL)
+	{
+		_com_raise_error(E_FAIL);
+	}
+	d3d.Attach(d3d9);
+}
+
+void Player::destroy_d3d()
+{
+	d3d = NULL;
 }
 
 void Player::stop()
@@ -446,6 +454,7 @@ void Player::create_graph()
 	// part-way through our render (and it doesn't tell us it's going to,
 	// so we have no opportunity to protect ourselves from its stupidity)
 	// when it performs colour space conversions.
+#ifdef USE_MIXING_MODE
 	FAIL_THROW(filter_config->SetNumberOfStreams(1));
 	IVMRMixerControl9Ptr mixer_control;
 	FAIL_THROW(vmr9->QueryInterface(&mixer_control));
@@ -455,6 +464,7 @@ void Player::create_graph()
 	mixing_prefs |= MixerPref9_RenderTargetYUV;
 	mixing_prefs &= ~MixerPref9_DynamicMask;
 	FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
+#endif
 
 	FAIL_THROW(graph->AddFilter(vmr9, L"Video Mixing Renderer 9"));
 
@@ -536,18 +546,6 @@ void Player::create_graph()
 	pause();
 }
 
-std::vector<CAdapt<IBaseFilterPtr> > Player::get_filters()
-{
-	std::vector<CAdapt<IBaseFilterPtr> > rv;
-	IEnumFiltersPtr filtEn;
-	graph->EnumFilters(&filtEn);
-	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
-	{
-		rv.push_back(flt);
-	}
-	return rv;
-}
-
 void Player::register_graph(IUnknownPtr unknown)
 {
 	IRunningObjectTablePtr rot;
@@ -623,13 +621,15 @@ void Player::create_device()
 	presentation_parameters.BackBufferFormat = dm.Format;
 	presentation_parameters.BackBufferCount = 1;
 
+#ifdef USE_MULTISAMPLING
+	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
+	DWORD qualityLevels(0);
+	FAIL_THROW(d3d->CheckDeviceMultiSampleType(device_ordinal, D3DDEVTYPE_HAL, presentation_parameters.BackBufferFormat, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels));
+	presentation_parameters.MultiSampleQuality = qualityLevels - 1;
+#else
 	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONE;
 	presentation_parameters.MultiSampleQuality = 0;
-	//presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
-	//DWORD qualityLevels(0);
-	//FAIL_THROW(d3d->CheckDeviceMultiSampleType(device_ordinal, D3DDEVTYPE_HAL, dm.Format, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels));
-	//presentation_parameters.MultiSampleQuality = qualityLevels - 1;
-
+#endif
 	presentation_parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	presentation_parameters.hDeviceWindow = ui.get_window();
 	presentation_parameters.Windowed = TRUE;
@@ -780,7 +780,7 @@ void Player::render()
 			FAIL_THROW(device->BeginScene());
 			ON_BLOCK_EXIT_OBJ(*device, &IDirect3DDevice9::EndScene);
 			D3DXMATRIX ortho2D;
-			D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), -1000.0f, 1000.0f);
+			D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), 0.0f, 1.0f);
 			FAIL_THROW(device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			scene->render();
 		}
@@ -796,6 +796,7 @@ DWORD Player::render_thread_proc(void*)
 {
 	try
 	{
+		create_d3d();
 		create_device();
 		HANDLE evts[] = { render_event, render_timer, cancel_render };
 		bool continue_rendering(true);
@@ -832,6 +833,7 @@ DWORD Player::render_thread_proc(void*)
 			}
 		}
 		destroy_device();
+		destroy_d3d();
 	}
 	catch(_com_error& ce)
 	{

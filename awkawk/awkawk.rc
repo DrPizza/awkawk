@@ -214,7 +214,7 @@ END
 
 STRINGTABLE 
 BEGIN
-    IDS_APP_TITLE           "awkawk"
+    IDS_APP_TITLE           "<(@) awkawk (@)>"
     IDC_PLAYER              "awkawk"
 END
 
