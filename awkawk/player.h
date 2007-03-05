@@ -121,39 +121,21 @@ struct Player
 	void reset();
 
 	// D3D methods
+	void create_d3d();
+	void destroy_d3d();
 	void create_device();
 	void destroy_device();
 	void reset_device();
 	bool needs_display_change() const;
 
-	std::vector<CAdapt<IBaseFilterPtr> > get_filters();
-	std::vector<std::wstring> get_filter_names()
+	std::vector<CAdapt<IBaseFilterPtr> > get_filters()
 	{
-		std::vector<CAdapt<IBaseFilterPtr> > filters(get_filters());
-		std::vector<std::wstring> rv;
-		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
+		std::vector<CAdapt<IBaseFilterPtr> > rv;
+		IEnumFiltersPtr filtEn;
+		graph->EnumFilters(&filtEn);
+		for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
 		{
-			FILTER_INFO fi = {0};
-			static_cast<IBaseFilterPtr&>(*it)->QueryFilterInfo(&fi);
-			IFilterGraphPtr ptr(fi.pGraph, false);
-			rv.push_back(fi.achName);
-		}
-		return rv;
-	}
-
-	std::vector<std::wstring> get_filter_vendor_info()
-	{
-		std::vector<CAdapt<IBaseFilterPtr> > filters(get_filters());
-		std::vector<std::wstring> rv;
-		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
-		{
-			wchar_t* info(NULL);
-			static_cast<IBaseFilterPtr&>(*it)->QueryVendorInfo(&info);
-			ON_BLOCK_EXIT(::CoTaskMemFree, info);
-			if(info != NULL)
-			{
-				rv.push_back(info);
-			}
+			rv.push_back(flt);
 		}
 		return rv;
 	}
@@ -612,10 +594,15 @@ struct Player
 		return fullscreen;
 	}
 
-	void toggle_fullscreen()
+	void set_fullscreen(bool fullscreen_)
 	{
 		critical_section::lock l(player_cs);
-		fullscreen = !fullscreen;
+		fullscreen = fullscreen_;
+	}
+
+	void toggle_fullscreen()
+	{
+		set_fullscreen(!is_fullscreen());
 	}
 
 	std::wstring get_file_name() const

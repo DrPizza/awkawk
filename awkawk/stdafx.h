@@ -36,12 +36,6 @@
 #include <windows.h>
 #include <uxtheme.h>
 
-// dbghelp.h needs a newer specstrings.h/sal.h than actually
-// ships from MS.  So it won't compile unless I use this #define
-// which is pretty fucking shoddy.
-#ifndef __out_xcount
-#define __out_xcount(size)                            __allowed(on_parameter)
-#endif
 #include <dbghelp.h>
 
 #include <windowsx.h>
