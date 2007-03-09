@@ -620,7 +620,6 @@ void Player::create_device()
 	presentation_parameters.BackBufferHeight = dm.Height;
 	presentation_parameters.BackBufferFormat = dm.Format;
 	presentation_parameters.BackBufferCount = 1;
-
 #ifdef USE_MULTISAMPLING
 	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
 	DWORD qualityLevels(0);
@@ -633,13 +632,13 @@ void Player::create_device()
 	presentation_parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	presentation_parameters.hDeviceWindow = ui.get_window();
 	presentation_parameters.Windowed = TRUE;
-	//presentation_parameters.EnableAutoDepthStencil = TRUE;
-	//presentation_parameters.AutoDepthStencilFormat = D3DFMT_D16;
+	presentation_parameters.EnableAutoDepthStencil = TRUE;
+	presentation_parameters.AutoDepthStencilFormat = D3DFMT_D16;
 	presentation_parameters.Flags = D3DPRESENTFLAG_VIDEO;
 	presentation_parameters.FullScreen_RefreshRateInHz = 0;
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_MIXED_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &device));
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &device));
 
 	FAIL_THROW(device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
 	FAIL_THROW(device->SetRenderState(D3DRS_LIGHTING, FALSE));
@@ -806,6 +805,7 @@ DWORD Player::render_thread_proc(void*)
 			{
 			case WAIT_OBJECT_0:
 			case WAIT_OBJECT_0 + 1:
+				schedule_render();
 				try
 				{
 					if(needs_display_change())
@@ -824,7 +824,6 @@ DWORD Player::render_thread_proc(void*)
 				{
 					derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 				}
-				schedule_render();
 				break;
 			case WAIT_OBJECT_0 + 2:
 			default:
