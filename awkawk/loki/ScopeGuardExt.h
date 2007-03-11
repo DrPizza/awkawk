@@ -1,5 +1,8 @@
 #include "scopeguard.h"
 
+#ifndef SCOPEGUARDEXT__H
+#define SCOPEGUARDEXT__H
+
 namespace Loki
 {
     template <class Obj, typename MemFun, typename P1, typename P2, typename P3>
@@ -53,3 +56,5 @@ namespace Loki
 
 #define ON_BLOCK_EXIT      Loki::ScopeGuard LOKI_ANONYMOUS_VARIABLE(scopeGuard) = Loki::MakeGuard
 #define ON_BLOCK_EXIT_OBJ  Loki::ScopeGuard LOKI_ANONYMOUS_VARIABLE(scopeGuard) = Loki::MakeObjGuard
+
+#endif

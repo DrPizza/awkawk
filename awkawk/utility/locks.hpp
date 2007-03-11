@@ -1,0 +1,381 @@
+// utility/locks.hpp
+
+//  Copyright (C) 2002-2007 Peter Bright
+//
+//  This software is provided 'as-is', without any express or implied
+//  warranty.  In no event will the authors be held liable for any damages
+//  arising from the use of this software.
+//
+//  Permission is granted to anyone to use this software for any purpose,
+//  including commercial applications, and to alter it and redistribute it
+//  freely, subject to the following restrictions:
+//
+//  1. The origin of this software must not be misrepresented; you must not
+//     claim that you wrote the original software. If you use this software
+//     in a product, an acknowledgment in the product documentation would be
+//     appreciated but is not required.
+//  2. Altered source versions must be plainly marked as such, and must not be
+//     misrepresented as being the original software.
+//  3. This notice may not be removed or altered from any source distribution.
+//
+//  Peter Bright <drpizza@quiscalusmexicanus.org>
+
+#ifndef LOCKS_HPP
+#define LOCKS_HPP
+
+#define NOMINMAX
+#define STRICT
+#include <windows.h>
+
+#include <list>
+#include <map>
+#include <set>
+#include <boost/shared_ptr.hpp>
+
+#include "debug.hpp"
+#include "iterator.hpp"
+#include "loki/ScopeGuard.h"
+#include "loki/ScopeGuardExt.h"
+
+namespace utility
+{
+
+struct lock_tracker
+{
+	struct lock_manipulation
+	{
+		void* return_address;
+		void* address_of_return_address;
+
+		const CRITICAL_SECTION* section;
+		enum lock_operation
+		{
+			acquire,
+			release
+		};
+		lock_operation operation;
+		long depth;
+
+		lock_manipulation(void* return_address_, void* address_of_return_address_, const CRITICAL_SECTION* section_, lock_operation operation_, long depth_) : return_address(return_address_),
+		                                                                                                                                                       address_of_return_address(address_of_return_address_),
+		                                                                                                                                                       section(section_),
+		                                                                                                                                                       operation(operation_),
+		                                                                                                                                                       depth(depth_)
+		{
+		}
+		lock_manipulation()
+		{
+		}
+		bool operator==(const lock_manipulation& rhs) const
+		{
+			return return_address == rhs.return_address && address_of_return_address == rhs.address_of_return_address && section == rhs.section && operation == rhs.operation && depth == rhs.depth;
+		}
+		template<typename T>
+		friend std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, const lock_tracker::lock_manipulation& lm);
+	};
+
+	struct lock_info
+	{
+		lock_tracker* tracker;
+		CRITICAL_SECTION cs;
+		std::list<lock_manipulation> current_sequence;
+		long outstanding_locks;
+
+		lock_info(lock_tracker* tracker_) : tracker(tracker_), outstanding_locks(0)
+		{
+			::InitializeCriticalSection(&cs);
+		}
+		~lock_info()
+		{
+			::DeleteCriticalSection(&cs);
+		}
+		void add_entry(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section, lock_manipulation::lock_operation operation)
+		{
+			current_sequence.push_back(lock_manipulation(return_address, address_of_return_address, section, operation, outstanding_locks));
+		}
+		void add_acquire(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		{
+			::EnterCriticalSection(&cs);
+			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
+			add_entry(return_address, address_of_return_address, section, lock_manipulation::acquire);
+			::InterlockedIncrement(&outstanding_locks);
+		}
+		void add_release(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		{
+			::EnterCriticalSection(&cs);
+			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
+			::InterlockedDecrement(&outstanding_locks);
+			add_entry(return_address, address_of_return_address, section, lock_manipulation::release);
+			if(outstanding_locks == 0)
+			{
+				tracker->add_sequence(current_sequence);
+				current_sequence.clear();
+			}
+		}
+	private:
+		lock_info(const lock_info&);
+	};
+
+	std::map<DWORD, boost::shared_ptr<lock_info> > info;
+	std::list<std::list<lock_manipulation> > lock_sequences;
+	CRITICAL_SECTION cs;
+
+	lock_info& get_lock_info()
+	{
+		::EnterCriticalSection(&cs);
+		ON_BLOCK_EXIT(&::LeaveCriticalSection, &cs);
+		if(info[::GetCurrentThreadId()].get() == NULL)
+		{
+			info[::GetCurrentThreadId()].reset(new lock_info(this));
+		}
+		return *info[::GetCurrentThreadId()];
+	}
+
+	void lock(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	{
+		lock_info& info(get_lock_info());
+		info.add_acquire(return_address, address_of_return_address, section);
+	}
+
+	void unlock(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	{
+		lock_info& info(get_lock_info());
+		info.add_release(return_address, address_of_return_address, section);
+	}
+
+	void add_sequence(const std::list<lock_manipulation>& seq)
+	{
+		::EnterCriticalSection(&cs);
+		ON_BLOCK_EXIT(&::LeaveCriticalSection, &cs);
+		if(lock_sequences.end() == std::find(lock_sequences.begin(), lock_sequences.end(), seq))
+		{
+			lock_sequences.push_back(seq);
+		}
+	}
+
+	lock_tracker()
+	{
+		::InitializeCriticalSection(&cs);
+		::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_CASE_INSENSITIVE);
+		::SymInitialize(::GetCurrentProcess(), NULL, TRUE);
+	}
+
+	~lock_tracker()
+	{
+		::SymCleanup(::GetCurrentProcess());
+		::DeleteCriticalSection(&cs);
+	}
+
+	struct cs_sequence
+	{
+		std::list<const CRITICAL_SECTION*> sequence;
+		const std::list<lock_tracker::lock_manipulation>* manipulations;
+
+		cs_sequence(std::list<const CRITICAL_SECTION*> sequence_, const std::list<lock_tracker::lock_manipulation>* manipulations_) : sequence(sequence_),
+		                                                                                                                              manipulations(manipulations_)
+		{
+		}
+		cs_sequence()
+		{
+		}
+		bool operator==(const cs_sequence& rhs) const
+		{
+			return sequence == rhs.sequence;
+		}
+		bool operator<(const cs_sequence& rhs) const
+		{
+			return sequence < rhs.sequence;
+		}
+	};
+
+	std::set<std::pair<cs_sequence, cs_sequence> > analyze_deadlocks()
+	{
+		::EnterCriticalSection(&cs);
+		ON_BLOCK_EXIT(&::LeaveCriticalSection, &cs);
+		std::set<cs_sequence> lock_seq;
+		for(std::list<std::list<lock_tracker::lock_manipulation> >::iterator it(lock_sequences.begin()), end(lock_sequences.end()); it != end; ++it)
+		{
+			std::list<const CRITICAL_SECTION*> current_sequence;
+			for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(it->begin()), lend(it->end()); lit != lend; ++lit)
+			{
+				switch(lit->operation)
+				{
+				case lock_tracker::lock_manipulation::acquire:
+					current_sequence.push_back(lit->section);
+					break;
+				case lock_tracker::lock_manipulation::release:
+					{
+						current_sequence.erase(--(std::find(current_sequence.rbegin(), current_sequence.rend(), lit->section).base()));
+					}
+					break;
+				}
+				lock_seq.insert(cs_sequence(current_sequence, &*it));
+			}
+		}
+
+		std::set<cs_sequence> cleaned_sequences;
+		// remove recursively held locks, because for deadlock detection, they don't matter.
+		for(std::set<cs_sequence>::iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
+		{
+			for(std::list<const CRITICAL_SECTION*>::iterator it(needle->sequence.begin()); it != needle->sequence.end() && utility::advance(it, 1) != needle->sequence.end();)
+			{
+				std::list<const CRITICAL_SECTION*>::iterator next(utility::advance(it, 1));
+				std::list<const CRITICAL_SECTION*>::iterator pos(std::find(next, needle->sequence.end(), *it));
+				if(pos != needle->sequence.end())
+				{
+					needle->sequence.erase(pos);
+				}
+				else
+				{
+					++it;
+				}
+			}
+			cleaned_sequences.insert(*needle);
+		}
+		lock_seq.swap(cleaned_sequences);
+
+		std::set<std::pair<cs_sequence, cs_sequence> > deadlocks;
+		for(std::set<cs_sequence>::const_iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
+		{
+			for(std::set<cs_sequence>::const_iterator haystack(needle), hend(lock_seq.end()); haystack != nend; ++haystack)
+			{
+				for(std::list<const CRITICAL_SECTION*>::const_iterator lit(needle->sequence.begin()), lend(needle->sequence.end()); lit != lend; ++lit)
+				{
+					std::list<const CRITICAL_SECTION*>::const_iterator midpoint(std::find(haystack->sequence.begin(), haystack->sequence.end(), *lit));
+					if(midpoint != haystack->sequence.end())
+					{
+						if(std::find_first_of(midpoint, haystack->sequence.end(), needle->sequence.begin(), lit) != haystack->sequence.end())
+						{
+							deadlocks.insert(std::pair<cs_sequence, cs_sequence>(*needle, *haystack));
+						}
+					}
+				}
+			}
+		}
+		return deadlocks;
+	}
+
+private:
+	lock_tracker(const lock_tracker&);
+};
+
+template<typename T>
+std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, const lock_tracker::lock_manipulation& lm)
+{
+	for(long i(0); i < lm.depth; ++i)
+	{
+		os << T(' ');
+	}
+	utility::print_caller_info(os, lm.return_address, lm.address_of_return_address);
+	os << T(':') << T(' ');
+	switch(lm.operation)
+	{
+	case lock_tracker::lock_manipulation::acquire:
+		os << T('a') << T('c') << T('q') << T('u') << T('i') << T('r') << T('e');
+		break;
+	case lock_tracker::lock_manipulation::release:
+		os << T('r') << T('e') << T('l') << T('e') << T('a') << T('s') << T('e');
+		break;
+	}
+	os << T(' ') << lm.section;
+	return os;
+}
+
+extern utility::lock_tracker tracker;
+
+struct critical_section
+{
+	critical_section() : count(0)
+	{
+		::InitializeCriticalSection(&cs);
+	}
+
+	~critical_section()
+	{
+		::DeleteCriticalSection(&cs);
+	}
+
+	void enter(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
+	{
+		::EnterCriticalSection(&cs);
+		::InterlockedIncrement(&count);
+#ifdef TRACK_LOCKS
+		tracker.lock(return_address, address_of_return_address, &cs);
+#endif
+	}
+
+	bool attempt_enter(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
+	{
+		if(TRUE == ::TryEnterCriticalSection(&cs))
+		{
+			::InterlockedIncrement(&count);
+#ifdef TRACK_LOCKS
+			tracker.lock(return_address, address_of_return_address, &cs);
+#endif
+			return true;
+		}
+		return false;
+	}
+
+	void leave(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
+	{
+		::InterlockedDecrement(&count);
+		::LeaveCriticalSection(&cs);
+#ifdef TRACK_LOCKS
+		tracker.unlock(return_address, address_of_return_address, &cs);
+#endif
+	}
+
+	struct lock
+	{
+		lock(critical_section& crit_) : crit(&crit_), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress())
+		{
+			crit->enter(return_address, address_of_return_address);
+		}
+		lock(const lock& rhs) : crit(rhs.crit), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress())
+		{
+			crit->enter(return_address, address_of_return_address);
+		}
+		~lock()
+		{
+			crit->leave(return_address, address_of_return_address);
+		}
+		void* return_address;
+		void* address_of_return_address;
+		critical_section* crit;
+	};
+
+	struct attempt_lock
+	{
+		attempt_lock(critical_section& crit_) : crit(&crit_), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress()), succeeded(crit->attempt_enter(return_address, address_of_return_address))
+		{
+		}
+		~attempt_lock()
+		{
+			if(succeeded)
+			{
+				crit->leave(return_address, address_of_return_address);
+			}
+		}
+		attempt_lock(const attempt_lock& rhs) : crit(rhs.crit), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress()), succeeded(crit->attempt_enter(return_address, address_of_return_address))
+		{
+		}
+		void* return_address;
+		void* address_of_return_address;
+		critical_section* crit;
+		bool succeeded;
+	};
+
+	volatile LONG count;
+	CRITICAL_SECTION cs;
+private:
+	critical_section(const critical_section&);
+};
+
+#define LOCK(cs) utility::critical_section::lock CREATE_NAME(lck)((cs))
+#define CREATE_LOCK(cs) utility::critical_section::lock ((cs))
+#define ATTEMPT_LOCK(cs, succ) utility::critical_section::attempt_lock CREATE_NAME(lck)((cs)); (succ) = CREATE_NAME(lck).succeeded
+
+}
+
+#endif // #ifndef LOCKS_HPP

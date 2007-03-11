@@ -366,7 +366,7 @@ void player_controls::render()
 	}
 	try
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 
 		SIZE window_size(player->get_window_dimensions());
 		float dx((-static_cast<float>(window_size.cx) / 2.0f) - 0.0f);
@@ -433,7 +433,7 @@ void player_controls::render()
 
 void player_controls::calculate_caption()
 {
-	critical_section::lock l(cs);
+	LOCK(cs);
 	HDC dc(::CreateCompatibleDC(NULL));
 	ON_BLOCK_EXIT(&::DeleteDC, dc);
 	HFONT font(::CreateFontW(216, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Verdana"));
@@ -458,7 +458,7 @@ void player_controls::calculate_caption()
 
 void player_controls::calculate_positions()
 {
-	critical_section::lock l(cs);
+	LOCK(cs);
 
 	SIZE window_size(player->get_window_dimensions());
 
@@ -654,7 +654,7 @@ void player_controls::calculate_positions()
 
 void player_controls::set_compact_filename()
 {
-	critical_section::lock l(cs);
+	LOCK(cs);
 	HDC dc(::CreateCompatibleDC(NULL));
 	ON_BLOCK_EXIT(&::DeleteDC, dc);
 	HFONT font(::CreateFontW(static_cast<int>(text_size), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Verdana"));
@@ -671,7 +671,7 @@ void player_controls::set_compact_filename()
 
 void player_controls::set_filename(const std::wstring& name)
 {
-	critical_section::lock l(cs);
+	LOCK(cs);
 	if(caption_text == name)
 	{
 		return;

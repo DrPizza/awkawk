@@ -22,7 +22,7 @@
 
 #include "player.h"
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
 #define SET_CRT_DEBUG_FIELD(a) _CrtSetDbgFlag((a) | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
 #define CLEAR_CRT_DEBUG_FIELD(a) _CrtSetDbgFlag(~(a) & _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
 #define USES_MEMORY_CHECK	\
@@ -60,8 +60,6 @@ while(0)
 #define MEM_CHK_AFTER
 #endif // _DEBUG
 
-typedef BOOL (WINAPI* MINIDUMPWRITEDUMP)(HANDLE process, DWORD pid, HANDLE file, MINIDUMP_TYPE DumpType, const MINIDUMP_EXCEPTION_INFORMATION* exceptioninfo, const MINIDUMP_USER_STREAM_INFORMATION* userstreaminfo, const MINIDUMP_CALLBACK_INFORMATION* callbackinfo);
-
 LONG WINAPI exception_filter(EXCEPTION_POINTERS* exception_pointers)
 {
 	HMODULE dbghelp(::LoadLibraryW(L"dbghelp.dll"));
@@ -69,8 +67,9 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS* exception_pointers)
 	{
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
-	MINIDUMPWRITEDUMP miniDumpWriteDump(reinterpret_cast<MINIDUMPWRITEDUMP>(::GetProcAddress(dbghelp, "MiniDumpWriteDump")));
-	if(miniDumpWriteDump == NULL)
+	typedef BOOL (WINAPI* MINIDUMPWRITEDUMP)(HANDLE process, DWORD pid, HANDLE file, MINIDUMP_TYPE dump_type, const MINIDUMP_EXCEPTION_INFORMATION*, const MINIDUMP_USER_STREAM_INFORMATION*, const MINIDUMP_CALLBACK_INFORMATION*);
+	MINIDUMPWRITEDUMP mini_dump_write_dump(reinterpret_cast<MINIDUMPWRITEDUMP>(::GetProcAddress(dbghelp, "MiniDumpWriteDump")));
+	if(mini_dump_write_dump == NULL)
 	{
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
@@ -89,7 +88,7 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS* exception_pointers)
 	minidump_info.ThreadId = ::GetCurrentThreadId();
 	minidump_info.ExceptionPointers = exception_pointers;
 	wdout << L"Writing crash dump to: " << temp_file_name.str() << std::endl;
-	miniDumpWriteDump(::GetCurrentProcess(), ::GetCurrentProcessId(), dump_file, MiniDumpWithFullMemory, &minidump_info, NULL, NULL);
+	mini_dump_write_dump(::GetCurrentProcess(), ::GetCurrentProcessId(), dump_file, MiniDumpWithFullMemory, &minidump_info, NULL, NULL);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -104,6 +103,8 @@ int real_main(int, wchar_t**)
 	return p.run_ui();
 }
 
+#define DEBUG_HEAP
+
 #ifdef DEBUG
 
 int wmain(int argc, wchar_t* argv[])
@@ -115,7 +116,26 @@ int wmain(int argc, wchar_t* argv[])
 	int rv(real_main(argc, argv));
 #ifdef DEBUG_HEAP
 	MEM_CHK_AFTER;
-	_CrtMemDumpAllObjectsSince(NULL);
+#endif
+
+#ifdef TRACK_LOCKS
+	std::set<std::pair<utility::lock_tracker::cs_sequence, utility::lock_tracker::cs_sequence> > deadlocks(utility::tracker.analyze_deadlocks());
+	for(std::set<std::pair<utility::lock_tracker::cs_sequence, utility::lock_tracker::cs_sequence> >::const_iterator it(deadlocks.begin()), end(deadlocks.end()); it != end; ++it)
+	{
+		dout << "potential deadlock found" << std::endl;
+		dout << "the sequences" << std::endl;
+		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->first.manipulations->begin()), end1(it->first.manipulations->end()); it1 != end1; ++it1)
+		{
+			dout << *it1 << std::endl;
+		}
+		dout << "and" << std::endl;
+		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->second.manipulations->begin()), end1(it->second.manipulations->end()); it1 != end1; ++it1)
+		{
+			dout << *it1 << std::endl;
+		}
+		dout << "can deadlock" << std::endl;
+	}
+
 #endif
 	return rv;
 }
