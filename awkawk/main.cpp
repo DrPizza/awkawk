@@ -134,6 +134,7 @@ int wmain(int argc, wchar_t* argv[])
 			dout << *it1 << std::endl;
 		}
 		dout << "can deadlock" << std::endl;
+		dout << std::endl;
 	}
 
 #endif
