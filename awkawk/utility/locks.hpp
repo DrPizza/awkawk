@@ -293,11 +293,15 @@ struct critical_section
 
 	struct lock
 	{
-		lock(critical_section& crit_) : crit(&crit_), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress())
+		lock(critical_section& crit_) : crit(&crit_),
+		                                return_address(_ReturnAddress()),
+		                                address_of_return_address(_AddressOfReturnAddress())
 		{
 			crit->enter(return_address, address_of_return_address);
 		}
-		lock(const lock& rhs) : crit(rhs.crit), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress())
+		lock(const lock& rhs) : crit(rhs.crit),
+		                        return_address(_ReturnAddress()),
+		                        address_of_return_address(_AddressOfReturnAddress())
 		{
 			crit->enter(return_address, address_of_return_address);
 		}
@@ -312,7 +316,10 @@ struct critical_section
 
 	struct attempt_lock
 	{
-		attempt_lock(critical_section& crit_) : crit(&crit_), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress()), succeeded(crit->attempt_enter(return_address, address_of_return_address))
+		attempt_lock(critical_section& crit_) : crit(&crit_),
+		                                        return_address(_ReturnAddress()),
+		                                        address_of_return_address(_AddressOfReturnAddress()),
+		                                        succeeded(crit->attempt_enter(return_address, address_of_return_address))
 		{
 		}
 		~attempt_lock()
@@ -322,7 +329,10 @@ struct critical_section
 				crit->leave(return_address, address_of_return_address);
 			}
 		}
-		attempt_lock(const attempt_lock& rhs) : crit(rhs.crit), return_address(_ReturnAddress()), address_of_return_address(_AddressOfReturnAddress()), succeeded(crit->attempt_enter(return_address, address_of_return_address))
+		attempt_lock(const attempt_lock& rhs) : crit(rhs.crit),
+		                                        return_address(_ReturnAddress()),
+		                                        address_of_return_address(_AddressOfReturnAddress()),
+		                                        succeeded(crit->attempt_enter(return_address, address_of_return_address))
 		{
 		}
 		void* return_address;

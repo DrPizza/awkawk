@@ -49,9 +49,7 @@ namespace tchar
 #endif
 
 	template<typename T>
-	struct SYMBOL_INFO
-	{
-	};
+	struct SYMBOL_INFO;
 
 	template<>
 	struct SYMBOL_INFO<wchar_t> : ::SYMBOL_INFOW
@@ -96,9 +94,7 @@ namespace tchar
 #endif
 
 	template<typename T>
-	struct IMAGEHLP_LINE64
-	{
-	};
+	struct IMAGEHLP_LINE64;
 
 	template<>
 	struct IMAGEHLP_LINE64<wchar_t> : ::IMAGEHLP_LINEW64
@@ -250,6 +246,8 @@ void print_caller_info(std::basic_ostream<T>& os, void* address, void* address_o
 	context.Rip = reinterpret_cast<DWORD64>(address);
 	context.Rbp = reinterpret_cast<DWORD64>(address_of_return_address) + sizeof(void*);
 	context.Rsp = reinterpret_cast<DWORD64>(&context) - (sizeof(CONTEXT) + sizeof(STACKFRAME64) + sizeof(DWORD) + sizeof(SymbolInfo<T>) + sizeof(SymbolInfo<T>) + sizeof(ImageLine<T>));
+#else
+#error Unsupported architecture
 #endif
 	STACKFRAME64 stackFrame = {0};
 	stackFrame.AddrPC.Offset = reinterpret_cast<DWORD64>(address);
@@ -262,6 +260,8 @@ void print_caller_info(std::basic_ostream<T>& os, void* address, void* address_o
 	DWORD machine_type(IMAGE_FILE_MACHINE_I386);
 #elif defined(_M_X64)
 	DWORD machine_type(IMAGE_FILE_MACHINE_AMD64);
+#else
+#error Unsupported architecture
 #endif
 	if(FALSE != ::StackWalk64(machine_type, ::GetCurrentProcess(), ::GetCurrentThread(), &stackFrame, &context, 0, &SymFunctionTableAccess64, &SymGetModuleBase64, 0)
 	&& stackFrame.AddrFrame.Offset != 0)
