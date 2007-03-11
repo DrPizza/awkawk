@@ -65,7 +65,7 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 		}
 	}
 
-	std::vector<cs_sequence> cleaned_sequences;
+	std::list<cs_sequence> cleaned_sequences;
 	// remove recursively held locks, because for deadlock detection, they don't matter.
 	for(std::set<cs_sequence>::iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
 	{
@@ -86,9 +86,9 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 	}
 
 	std::set<std::pair<cs_sequence, cs_sequence> > deadlocks;
-	for(std::vector<cs_sequence>::const_iterator needle(cleaned_sequences.begin()), nend(cleaned_sequences.end()); needle != nend; ++needle)
+	for(std::list<cs_sequence>::const_iterator needle(cleaned_sequences.begin()), nend(cleaned_sequences.end()); needle != nend; ++needle)
 	{
-		for(std::vector<cs_sequence>::const_iterator haystack(needle), hend(cleaned_sequences.end()); haystack != nend; ++haystack)
+		for(std::list<cs_sequence>::const_iterator haystack(needle), hend(cleaned_sequences.end()); haystack != nend; ++haystack)
 		{
 			for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(needle->sequence.begin()), lend(needle->sequence.end()); lit != lend; ++lit)
 			{
