@@ -238,7 +238,7 @@ struct player_controls : message_handler, direct3d_object
 
 	void set_cursor_position(POINT pt)
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		cursor_position.x = pt.x;
 		cursor_position.y = pt.y;
 	}
@@ -262,7 +262,7 @@ private:
 
 	void calculate_caption();
 
-	critical_section cs;
+	utility::critical_section cs;
 
 	IDirect3DDevice9Ptr device;
 

@@ -44,7 +44,7 @@ void player_scene::render()
 	}
 	try
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 
 		SIZE scene_size(player->get_scene_dimensions());
 		float dx((-static_cast<float>(scene_size.cx) / 2.0f));
@@ -69,7 +69,7 @@ void player_scene::render()
 
 void player_scene::calculate_positions()
 {
-	critical_section::lock l(cs);
+	LOCK(cs);
 	SIZE scene_size(player->get_scene_dimensions());
 
 	// clockwise (front)

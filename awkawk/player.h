@@ -45,6 +45,7 @@ _COM_SMARTPTR_TYPEDEF(IEnumFilters, __uuidof(IEnumFilters));
 _COM_SMARTPTR_TYPEDEF(IEnumPins, __uuidof(IEnumPins));
 _COM_SMARTPTR_TYPEDEF(IPin, __uuidof(IPin));
 _COM_SMARTPTR_TYPEDEF(IMediaEventEx, __uuidof(IMediaEventEx));
+_COM_SMARTPTR_TYPEDEF(IVMRDeinterlaceControl9, __uuidof(IVMRDeinterlaceControl9));
 
 struct Player
 {
@@ -142,7 +143,7 @@ struct Player
 
 	void set_cursor_position(const POINT& pos)
 	{
-		critical_section::attempt_lock l(player_cs);
+		utility::critical_section::attempt_lock l(player_cs);
 		if(l.succeeded && scene.get() != NULL)
 		{
 			scene->set_cursor_position(pos);
@@ -166,7 +167,7 @@ struct Player
 
 	void set_aspect_ratio_mode(aspect_ratio_mode mode)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		ar_mode = mode;
 		apply_sizing_policy();
 	}
@@ -186,7 +187,7 @@ struct Player
 
 	void set_window_size_mode(window_size_mode mode)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		wnd_size_mode = mode;
 		apply_sizing_policy();
 	}
@@ -208,7 +209,7 @@ struct Player
 
 	void set_letterbox_mode(letterbox_mode mode)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		ltrbx_mode = mode;
 		apply_sizing_policy();
 	}
@@ -253,7 +254,7 @@ struct Player
 
 	void set_window_dimensions(SIZE sz)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		if(window_size.cx != sz.cx || window_size.cy != sz.cy)
 		{
 			window_size = sz;
@@ -263,7 +264,7 @@ struct Player
 
 	void size_window_from_video()
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		SIZE new_size = { static_cast<LONG>(static_cast<double>(video_size.cx) * get_size_multiplier()),
 		                  static_cast<LONG>(static_cast<double>(video_size.cy) * get_size_multiplier()) };
 
@@ -337,7 +338,7 @@ struct Player
 
 	void size_window_from_screen()
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		WINDOWPLACEMENT placement(ui.get_placement());
 		placement.rcNormalPosition.right = placement.rcNormalPosition.left + video_size.cx;
 		placement.rcNormalPosition.bottom = placement.rcNormalPosition.top + video_size.cy;
@@ -346,13 +347,13 @@ struct Player
 
 	void size_scene_from_window()
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		scene_size = window_size;
 	}
 
 	void size_scene_from_screen()
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		float window_ar(static_cast<float>(window_size.cx) / static_cast<float>(window_size.cy));
 		float video_ar(static_cast<float>(get_aspect_ratio()));
 		switch(get_letterbox_mode())
@@ -484,7 +485,7 @@ struct Player
 
 	void set_scene_dimensions(SIZE sz)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		scene_size = sz;
 	}
 
@@ -495,7 +496,7 @@ struct Player
 
 	void set_video_dimensions(SIZE sz)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		if(video_size.cx != sz.cx || video_size.cy != sz.cy)
 		{
 			video_size = sz;
@@ -512,7 +513,7 @@ struct Player
 	{
 		if(get_state() != unloaded)
 		{
-			critical_section::lock l(graph_cs);
+			LOCK(graph_cs);
 			LONGLONG end(0);
 			seeking->GetStopPosition(&end);
 			LONGLONG position(static_cast<LONGLONG>(percentage * static_cast<float>(end) / 100.0f));
@@ -524,7 +525,7 @@ struct Player
 	{
 		try
 		{
-			critical_section::lock l(graph_cs);
+			LOCK(graph_cs);
 			if(get_state() != unloaded)
 			{
 				LONGLONG current(0), duration(0);
@@ -552,7 +553,7 @@ struct Player
 	{
 		if(get_state() != unloaded)
 		{
-			critical_section::lock l(graph_cs);
+			LOCK(graph_cs);
 			LONG volume(0);
 			audio->get_Volume(&volume);
 			return (static_cast<float>(volume) / static_cast<float>(100));
@@ -564,7 +565,7 @@ struct Player
 	{
 		if(get_state() != unloaded)
 		{
-			critical_section::lock l(graph_cs);
+			LOCK(graph_cs);
 			LONG volume(static_cast<LONG>(vol * static_cast<float>(100)));
 			audio->put_Volume(volume);
 		}
@@ -596,7 +597,7 @@ struct Player
 
 	void set_fullscreen(bool fullscreen_)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		fullscreen = fullscreen_;
 	}
 
@@ -612,7 +613,7 @@ struct Player
 
 	void set_render_fps(unsigned int fps_)
 	{
-		critical_section::lock l(player_cs);
+		LOCK(player_cs);
 		fps = clamp(fps_, 25u, 60u);
 	}
 
@@ -646,7 +647,7 @@ private:
 	void destroy_graph();
 
 	REFERENCE_TIME get_average_frame_time(IFilterGraphPtr grph) const;
-	SIZE get_video_size(IFilterGraphPtr grph) const;
+	SIZE get_video_size() const;
 
 	void register_graph(IUnknownPtr unknown);
 	void unregister_graph();
@@ -670,7 +671,7 @@ private:
 	DWORD rot_key;
 
 	// DirectShow gubbins
-	mutable critical_section graph_cs;
+	mutable utility::critical_section graph_cs;
 
 	DWORD_PTR user_id;
 	IFilterGraph2Ptr graph;
@@ -696,7 +697,7 @@ private:
 	std::auto_ptr<player_scene> scene;
 
 	// video stats needed for controlling the window
-	mutable critical_section player_cs;
+	mutable utility::critical_section player_cs;
 
 	SIZE video_size; // true size of the video
 	SIZE scene_size; // size of the actual scene; in windowed mode, the same as the window size, in full-screen potentially smaller

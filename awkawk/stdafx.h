@@ -36,7 +36,9 @@
 #include <windows.h>
 #include <uxtheme.h>
 
+#define DBGHELP_TRANSLATE_TCHAR
 #include <dbghelp.h>
+#pragma comment(lib, "dbghelp.lib")
 
 #include <windowsx.h>
 
@@ -74,8 +76,12 @@
 #if defined DEBUG || defined _DEBUG
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
-#define DEBUG_CLIENTBLOCK   new( _CLIENT_BLOCK, __FILE__, __LINE__)
+#define DEBUG_CLIENTBLOCK new(_CLIENT_BLOCK, __FILE__, __LINE__)
 #define new DEBUG_CLIENTBLOCK
+#endif
+
+#if defined DEBUG || defined _DEBUG
+#define TRACK_LOCKS
 #endif
 
 // ATL
@@ -103,6 +109,9 @@ using namespace ATL;
 #include <boost/ptr_container/ptr_container.hpp>
 #include "loki/ScopeGuard.h"
 #include "loki/ScopeGuardExt.h"
+#include "utility/debug.hpp"
+#include "utility/locks.hpp"
+#include "utility/iterator.hpp"
 #include "utility/threads.hpp"
 #include "utility/formattime.hpp"
 #include "utility/debugstream.hpp"

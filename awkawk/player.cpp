@@ -43,7 +43,7 @@ Player::Player() : ui(this),
 	video_size = sz;
 	scene_size = sz;
 
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	FAIL_THROW(graph.CreateInstance(CLSID_FilterGraph));
 	FAIL_THROW(graph->QueryInterface(&events));
 	HANDLE evt(0);
@@ -55,7 +55,7 @@ Player::Player() : ui(this),
 
 Player::~Player()
 {
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	if(get_state() != Player::unloaded)
 	{
 		try
@@ -118,7 +118,7 @@ void Player::stop()
 	{
 		return;
 	}
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	OAFilterState movie_state;
 	media_control->GetState(0, &movie_state);
 	while(movie_state != State_Stopped)
@@ -136,7 +136,7 @@ void Player::play()
 	{
 		return;
 	}
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	ui.set_on_top(true);
 	FAIL_THROW(media_control->Run());
 	state = playing;
@@ -148,7 +148,7 @@ void Player::pause()
 	{
 		return;
 	}
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	if(state == paused)
 	{
 		play();
@@ -172,13 +172,13 @@ void Player::ffwd()
 	{
 		return;
 	}
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	// TODO
 }
 
 void Player::next()
 {
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	if(playlist.empty())
 	{
 		return;
@@ -235,14 +235,14 @@ void Player::rwnd()
 	{
 		return;
 	}
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	// TODO
 }
 
 void Player::prev()
 {
 
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	if(playlist.empty())
 	{
 		return;
@@ -280,7 +280,7 @@ void Player::prev()
 
 void Player::load()
 {
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	try
 	{
 		scene->set_filename(*playlist_position);
@@ -299,7 +299,7 @@ void Player::close()
 	{
 		return;
 	}
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	destroy_graph();
 	scene->set_filename(L"");
 	state = unloaded;
@@ -307,7 +307,7 @@ void Player::close()
 
 void Player::destroy_graph()
 {
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	unregister_graph();
 
 	IEnumFiltersPtr filtEn;
@@ -333,7 +333,7 @@ void Player::destroy_graph()
 
 void Player::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 {
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
 	FAIL_THROW(filter->QueryInterface(&surface_allocator_notify));
 
@@ -391,50 +391,45 @@ REFERENCE_TIME Player::get_average_frame_time(IFilterGraphPtr grph) const
 	return 0;
 }
 
-SIZE Player::get_video_size(IFilterGraphPtr grph) const
+SIZE Player::get_video_size() const
 {
-	IEnumFiltersPtr filtEn;
-	grph->EnumFilters(&filtEn);
-	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
+	IEnumPinsPtr pinEn;
+	vmr9->EnumPins(&pinEn);
+	for(IPinPtr pin; S_OK == pinEn->Next(1, &pin, NULL);)
 	{
-		IEnumPinsPtr pinEn;
-		flt->EnumPins(&pinEn);
-		for(IPinPtr pin; S_OK == pinEn->Next(1, &pin, NULL);)
+		AM_MEDIA_TYPE mt;
+		pin->ConnectionMediaType(&mt);
+		ON_BLOCK_EXIT(&FreeMediaType, Loki::ByRef(mt));
+		if(mt.majortype == MEDIATYPE_Video)
 		{
-			AM_MEDIA_TYPE mt;
-			pin->ConnectionMediaType(&mt);
-			ON_BLOCK_EXIT(&FreeMediaType, Loki::ByRef(mt));
-			if(mt.majortype == MEDIATYPE_Video)
+			SIZE sz = {0};
+			if(mt.formattype == FORMAT_MPEGVideo)
 			{
-				SIZE sz = {0};
-				if(mt.formattype == FORMAT_MPEGVideo)
-				{
-					MPEG1VIDEOINFO* info(reinterpret_cast<MPEG1VIDEOINFO*>(mt.pbFormat));
-					sz.cx = info->hdr.bmiHeader.biWidth;
-					sz.cy = info->hdr.bmiHeader.biHeight;
-				}
-				else if(mt.formattype == FORMAT_MPEG2Video)
-				{
-					MPEG2VIDEOINFO* info(reinterpret_cast<MPEG2VIDEOINFO*>(mt.pbFormat));
-					sz.cy = info->hdr.bmiHeader.biHeight;
-					sz.cx = (sz.cy * info->hdr.dwPictAspectRatioX) / info->hdr.dwPictAspectRatioY;
-				}
-				else if(mt.formattype == FORMAT_VideoInfo)
-				{
-					VIDEOINFOHEADER* info(reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat));
-					sz.cx = info->bmiHeader.biWidth;
-					sz.cy = info->bmiHeader.biHeight;
-				}
-				else if(mt.formattype == FORMAT_VideoInfo2)
-				{
-					VIDEOINFOHEADER2* info(reinterpret_cast<VIDEOINFOHEADER2*>(mt.pbFormat));
-					sz.cy = info->bmiHeader.biHeight;
-					sz.cx = (sz.cy * info->dwPictAspectRatioX) / info->dwPictAspectRatioY;
-				}
-				if(sz.cx != 0 && sz.cy != 0)
-				{
-					return sz;
-				}
+				MPEG1VIDEOINFO* info(reinterpret_cast<MPEG1VIDEOINFO*>(mt.pbFormat));
+				sz.cx = info->hdr.bmiHeader.biWidth;
+				sz.cy = info->hdr.bmiHeader.biHeight;
+			}
+			else if(mt.formattype == FORMAT_MPEG2Video)
+			{
+				MPEG2VIDEOINFO* info(reinterpret_cast<MPEG2VIDEOINFO*>(mt.pbFormat));
+				sz.cy = info->hdr.bmiHeader.biHeight;
+				sz.cx = (sz.cy * info->hdr.dwPictAspectRatioX) / info->hdr.dwPictAspectRatioY;
+			}
+			else if(mt.formattype == FORMAT_VideoInfo)
+			{
+				VIDEOINFOHEADER* info(reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat));
+				sz.cx = info->bmiHeader.biWidth;
+				sz.cy = info->bmiHeader.biHeight;
+			}
+			else if(mt.formattype == FORMAT_VideoInfo2)
+			{
+				VIDEOINFOHEADER2* info(reinterpret_cast<VIDEOINFOHEADER2*>(mt.pbFormat));
+				sz.cy = info->bmiHeader.biHeight;
+				sz.cx = (sz.cy * info->dwPictAspectRatioX) / info->dwPictAspectRatioY;
+			}
+			if(sz.cx != 0 && sz.cy != 0)
+			{
+				return sz;
 			}
 		}
 	}
@@ -454,6 +449,9 @@ void Player::create_graph()
 	// part-way through our render (and it doesn't tell us it's going to,
 	// so we have no opportunity to protect ourselves from its stupidity)
 	// when it performs colour space conversions.
+	// Further, if we do not use mixing mode then we cannot use VMR deinterlacing.
+	// It's all rather sad.
+#define USE_MIXING_MODE
 #ifdef USE_MIXING_MODE
 	FAIL_THROW(filter_config->SetNumberOfStreams(1));
 	IVMRMixerControl9Ptr mixer_control;
@@ -533,9 +531,13 @@ void Player::create_graph()
 		pin->ConnectionMediaType(&mt);
 		ON_BLOCK_EXIT(&FreeMediaType, Loki::ByRef(mt));
 		has_video = has_video || (mt.formattype != FORMAT_None) && (mt.formattype != GUID_NULL);
+
 	}
 
-	set_video_dimensions(get_video_size(graph));
+	if(has_video)
+	{
+		set_video_dimensions(get_video_size());
+	}
 
 	REFERENCE_TIME average_frame_time(get_average_frame_time(graph));
 
@@ -666,7 +668,7 @@ void Player::destroy_device()
 
 void Player::reset_device()
 {
-	critical_section::lock l(graph_cs);
+	LOCK(graph_cs);
 	if(allocator)
 	{
 		allocator->begin_device_loss();
@@ -762,7 +764,7 @@ void Player::render()
 	try
 	{
 		{
-			critical_section::attempt_lock l(graph_cs);
+			utility::critical_section::attempt_lock l(graph_cs);
 			if(l.succeeded)
 			{
 				// any property that the scene requires that also requires the graph lock
@@ -781,6 +783,11 @@ void Player::render()
 			D3DXMATRIX ortho2D;
 			D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), 0.0f, 1.0f);
 			FAIL_THROW(device->SetTransform(D3DTS_PROJECTION, &ortho2D));
+			std::auto_ptr<utility::critical_section::lock> l;
+			if(allocator != NULL && allocator->rendering(user_id))
+			{
+				l.reset(new utility::critical_section::lock(allocator->get_cs(user_id)));
+			}
 			scene->render();
 		}
 		FAIL_THROW(device->Present(NULL, NULL, NULL, NULL));
@@ -813,11 +820,6 @@ DWORD Player::render_thread_proc(void*)
 						reset_device();
 					}
 					reset();
-					std::auto_ptr<critical_section::lock> l;
-					if(allocator != NULL && allocator->rendering(user_id))
-					{
-						l.reset(new critical_section::lock(allocator->get_cs(user_id)));
-					}
 					render();
 				}
 				catch(_com_error& ce)
@@ -911,157 +913,240 @@ DWORD Player::event_thread_proc(void*)
 				}
 			}
 			break;
-		//// ( HRESULT, void ) : defaulted (special)
-		//case EC_USERABORT: dout << "EC_USERABORT" << std::endl; break;
-		//// ( void, void ) : application
-		//case EC_ERRORABORT: dout << "EC_ERRORABORT" << std::endl; break;
-		//// ( HRESULT, void ) : application
-		//case EC_TIME: dout << "EC_TIME" << std::endl; break;
-		//// ( DWORD, DWORD ) : application
-		//case EC_REPAINT: dout << "EC_REPAINT" << std::endl; break;
-		//// ( IPin * (could be NULL), void ) : defaulted
-		//case EC_STREAM_ERROR_STOPPED: dout << "EC_STREAM_ERROR_STOPPED" << std::endl; break;
-		//case EC_STREAM_ERROR_STILLPLAYING: dout << "EC_STREAM_ERROR_STILLPLAYING" << std::endl; break;
-		//// ( HRESULT, DWORD ) : application
-		//case EC_ERROR_STILLPLAYING: dout << "EC_ERROR_STILLPLAYING" << std::endl; break;
-		//// ( HRESULT, void ) : application
-		//case EC_PALETTE_CHANGED: dout << "EC_PALETTE_CHANGED" << std::endl; break;
-		//// ( void, void ) : application
-		//case EC_VIDEO_SIZE_CHANGED: dout << "EC_VIDEO_SIZE_CHANGED" << std::endl; break;
-		//// ( DWORD, void ) : application
-		//// LOWORD of the DWORD is the new width, HIWORD is the new height.
-		//case EC_QUALITY_CHANGE: dout << "EC_QUALITY_CHANGE" << std::endl; break;
-		//// ( void, void ) : application
-		//case EC_SHUTTING_DOWN: dout << "EC_SHUTTING_DOWN" << std::endl; break;
-		//// ( void, void ) : internal
-		//case EC_CLOCK_CHANGED: dout << "EC_CLOCK_CHANGED" << std::endl; break;
-		//// ( void, void ) : application
-		//case EC_PAUSED: dout << "EC_PAUSED" << std::endl; break;
-		//// ( HRESULT, void ) : application
-		//case EC_OPENING_FILE: dout << "EC_OPENING_FILE" << std::endl; break;
-		//case EC_BUFFERING_DATA: dout << "EC_BUFFERING_DATA" << std::endl; break;
-		//// ( BOOL, void ) : application
-		//case EC_FULLSCREEN_LOST: dout << "EC_FULLSCREEN_LOST" << std::endl; break;
-		//// ( void, IBaseFilter * ) : application
-		//case EC_ACTIVATE: dout << "EC_ACTIVATE" << std::endl; break;
-		//// ( BOOL, IBaseFilter * ) : internal
-		//case EC_NEED_RESTART: dout << "EC_NEED_RESTART" << std::endl; break;
-		//// ( void, void ) : defaulted
-		//case EC_WINDOW_DESTROYED: dout << "EC_WINDOW_DESTROYED" << std::endl; break;
-		//// ( IBaseFilter *, void ) : internal
-		//case EC_DISPLAY_CHANGED: dout << "EC_DISPLAY_CHANGED" << std::endl; break;
-		//// ( IPin *, void ) : internal
-		//case EC_STARVATION: dout << "EC_STARVATION" << std::endl; break;
-		//// ( void, void ) : defaulted
-		//case EC_OLE_EVENT: dout << "EC_OLE_EVENT" << std::endl; break;
-		//// ( BSTR, BSTR ) : application
-		//case EC_NOTIFY_WINDOW: dout << "EC_NOTIFY_WINDOW" << std::endl; break;
-		//// ( HWND, void ) : internal
-		//case EC_STREAM_CONTROL_STOPPED: dout << "EC_STREAM_CONTROL_STOPPED" << std::endl; break;
-		//// ( IPin * pSender, DWORD dwCookie )
-		//case EC_STREAM_CONTROL_STARTED: dout << "EC_STREAM_CONTROL_STARTED" << std::endl; break;
-		//// ( IPin * pSender, DWORD dwCookie )
-		//case EC_END_OF_SEGMENT: dout << "EC_END_OF_SEGMENT" << std::endl; break;
-		//// ( const REFERENCE_TIME *pStreamTimeAtEndOfSegment, DWORD dwSegmentNumber )
-		//case EC_SEGMENT_STARTED: dout << "EC_SEGMENT_STARTED" << std::endl; break;
-		//// ( const REFERENCE_TIME *pStreamTimeAtStartOfSegment, DWORD dwSegmentNumber)
-		//case EC_LENGTH_CHANGED: dout << "EC_LENGTH_CHANGED" << std::endl; break;
-		//// (void, void)
-		//case EC_DEVICE_LOST: dout << "EC_DEVICE_LOST" << std::endl; break;
-		//// (IUnknown, 0)
-		//case EC_STEP_COMPLETE: dout << "EC_STEP_COMPLETE" << std::endl; break;
-		//// (BOOL bCacelled, void)
-		//case EC_TIMECODE_AVAILABLE: dout << "EC_TIMECODE_AVAILABLE" << std::endl; break;
-		//// Param1 has a pointer to the sending object
-		//// Param2 has the device ID of the sending object
-		//case EC_EXTDEVICE_MODE_CHANGE: dout << "EC_EXTDEVICE_MODE_CHANGE" << std::endl; break;
-		//// Param1 has the new mode
-		//// Param2 has the device ID of the sending object
-		//case EC_STATE_CHANGE: dout << "EC_STATE_CHANGE" << std::endl; break;
-		//// ( FILTER_STATE, BOOL bInternal)
-		//case EC_GRAPH_CHANGED: dout << "EC_GRAPH_CHANGED" << std::endl; break;
-		//// Sent by filter to notify interesting graph changes
-		//case EC_CLOCK_UNSET: dout << "EC_CLOCK_UNSET" << std::endl; break;
-		//// ( void, void ) : application
-		//case EC_VMR_RENDERDEVICE_SET: dout << "EC_VMR_RENDERDEVICE_SET" << std::endl; break;
-		//// (Render_Device type, void)
-		//case EC_VMR_SURFACE_FLIPPED: dout << "EC_VMR_SURFACE_FLIPPED" << std::endl; break;
-		//// (hr - Flip return code, void)
-		//case EC_VMR_RECONNECTION_FAILED: dout << "EC_VMR_RECONNECTION_FAILED" << std::endl; break;
-		//// (hr - ReceiveConnection return code, void)
-		//case EC_PREPROCESS_COMPLETE: dout << "EC_PREPROCESS_COMPLETE" << std::endl; break;
-		//// Param1 = 0, Param2 = IBaseFilter ptr of sending filter
-		//case EC_CODECAPI_EVENT: dout << "EC_CODECAPI_EVENT" << std::endl; break;
-		//// Param1 = UserDataPointer, Param2 = VOID* Data
-		//case EC_WMT_INDEX_EVENT: dout << "EC_WMT_INDEX_EVENT" << std::endl; break;
-		//// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
-		//// lParam2 is specific to the lParam event
-		//case EC_WMT_EVENT: dout << "EC_WMT_EVENT" << std::endl; break;
-		//// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
-		//// lParam2 is a pointer an AM_WMT_EVENT_DATA structure where,
-		////                          hrStatus is the status code sent by the wmsdk
-		////                          pData is specific to the lParam1 event
-		//case EC_BUILT: dout << "EC_BUILT" << std::endl; break;
-		//// Sent to notify transition from unbuilt to built state
-		//case EC_UNBUILT: dout << "EC_UNBUILT" << std::endl; break;
-		//// Sent to notify transtion from built to unbuilt state
-		//case EC_DVD_DOMAIN_CHANGE: dout << "EC_DVD_DOMAIN_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, void ) 
-		//case EC_DVD_TITLE_CHANGE: dout << "EC_DVD_TITLE_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, void ) 
-		//case EC_DVD_CHAPTER_START: dout << "EC_DVD_CHAPTER_START" << std::endl; break;
-		//// Parameters: ( DWORD, void ) 
-		//case EC_DVD_AUDIO_STREAM_CHANGE: dout << "EC_DVD_AUDIO_STREAM_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, void ) 
-		//case EC_DVD_SUBPICTURE_STREAM_CHANGE: dout << "EC_DVD_SUBPICTURE_STREAM_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, BOOL ) 
-		//case EC_DVD_ANGLE_CHANGE: dout << "EC_DVD_ANGLE_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, DWORD ) 
-		//case EC_DVD_BUTTON_CHANGE: dout << "EC_DVD_BUTTON_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, DWORD ) 
-		//case EC_DVD_VALID_UOPS_CHANGE: dout << "EC_DVD_VALID_UOPS_CHANGE" << std::endl; break;
-		//// Parameters: ( DWORD, void ) 
-		//case EC_DVD_STILL_ON: dout << "EC_DVD_STILL_ON" << std::endl; break;
-		//// Parameters: ( BOOL, DWORD ) 
-		//case EC_DVD_STILL_OFF: dout << "EC_DVD_STILL_OFF" << std::endl; break;
-		//// Parameters: ( void, void ) 
-		//case EC_DVD_CURRENT_TIME: dout << "EC_DVD_CURRENT_TIME" << std::endl; break;
-		//// Parameters: ( DWORD, BOOL ) 
-		//case EC_DVD_ERROR: dout << "EC_DVD_ERROR" << std::endl; break;
-		//// Parameters: ( DWORD, void) 
-		//case EC_DVD_WARNING: dout << "EC_DVD_WARNING" << std::endl; break;
-		//// Parameters: ( DWORD, DWORD) 
-		//case EC_DVD_CHAPTER_AUTOSTOP: dout << "EC_DVD_CHAPTER_AUTOSTOP" << std::endl; break;
-		//// Parameters: (BOOL, void)
-		//case EC_DVD_NO_FP_PGC: dout << "EC_DVD_NO_FP_PGC" << std::endl; break;
-		////  Parameters : (void, void)
-		//case EC_DVD_PLAYBACK_RATE_CHANGE: dout << "EC_DVD_PLAYBACK_RATE_CHANGE" << std::endl; break;
-		////  Parameters : (LONG, void)
-		//case EC_DVD_PARENTAL_LEVEL_CHANGE: dout << "EC_DVD_PARENTAL_LEVEL_CHANGE" << std::endl; break;
-		////  Parameters : (LONG, void)
-		//case EC_DVD_PLAYBACK_STOPPED: dout << "EC_DVD_PLAYBACK_STOPPED" << std::endl; break;
-		////  Parameters : (DWORD, void)
-		//case EC_DVD_ANGLES_AVAILABLE: dout << "EC_DVD_ANGLES_AVAILABLE" << std::endl; break;
-		////  Parameters : (BOOL, void)
-		//case EC_DVD_PLAYPERIOD_AUTOSTOP: dout << "EC_DVD_PLAYPERIOD_AUTOSTOP" << std::endl; break;
-		//// Parameters: (void, void)
-		//case EC_DVD_BUTTON_AUTO_ACTIVATED: dout << "EC_DVD_BUTTON_AUTO_ACTIVATED" << std::endl; break;
-		//// Parameters: (DWORD button, void)
-		//case EC_DVD_CMD_START: dout << "EC_DVD_CMD_START" << std::endl; break;
-		//// Parameters: (CmdID, HRESULT)
-		//case EC_DVD_CMD_END: dout << "EC_DVD_CMD_END" << std::endl; break;
-		//// Parameters: (CmdID, HRESULT)
-		//case EC_DVD_DISC_EJECTED: dout << "EC_DVD_DISC_EJECTED" << std::endl; break;
-		//// Parameters: none
-		//case EC_DVD_DISC_INSERTED: dout << "EC_DVD_DISC_INSERTED" << std::endl; break;
-		//// Parameters: none
-		//case EC_DVD_CURRENT_HMSF_TIME: dout << "EC_DVD_CURRENT_HMSF_TIME" << std::endl; break;
-		//// Parameters: ( ULONG, ULONG ) 
-		//case EC_DVD_KARAOKE_MODE: dout << "EC_DVD_KARAOKE_MODE" << std::endl; break;
-		//// Parameters: ( BOOL, reserved ) 
-		//default:
-		//	dout << "unknown event: " << event_code << std::endl;
+		// ( HRESULT, void ) : defaulted (special)
+		case EC_USERABORT: dout << "EC_USERABORT" << std::endl; break;
+		// ( void, void ) : application
+		case EC_ERRORABORT: dout << "EC_ERRORABORT" << std::endl; break;
+		// ( HRESULT, void ) : application
+		case EC_TIME: dout << "EC_TIME" << std::endl; break;
+		// ( DWORD, DWORD ) : application
+		case EC_REPAINT: dout << "EC_REPAINT" << std::endl; break;
+		// ( IPin * (could be NULL), void ) : defaulted
+		case EC_STREAM_ERROR_STOPPED: dout << "EC_STREAM_ERROR_STOPPED" << std::endl; break;
+		case EC_STREAM_ERROR_STILLPLAYING: dout << "EC_STREAM_ERROR_STILLPLAYING" << std::endl; break;
+		// ( HRESULT, DWORD ) : application
+		case EC_ERROR_STILLPLAYING: dout << "EC_ERROR_STILLPLAYING" << std::endl; break;
+		// ( HRESULT, void ) : application
+		case EC_PALETTE_CHANGED: dout << "EC_PALETTE_CHANGED" << std::endl; break;
+		// ( void, void ) : application
+		case EC_VIDEO_SIZE_CHANGED: dout << "EC_VIDEO_SIZE_CHANGED" << std::endl; break;
+		// ( DWORD, void ) : application
+		// LOWORD of the DWORD is the new width, HIWORD is the new height.
+		case EC_QUALITY_CHANGE: dout << "EC_QUALITY_CHANGE" << std::endl; break;
+		// ( void, void ) : application
+		case EC_SHUTTING_DOWN: dout << "EC_SHUTTING_DOWN" << std::endl; break;
+		// ( void, void ) : internal
+		case EC_CLOCK_CHANGED: dout << "EC_CLOCK_CHANGED" << std::endl; break;
+		// ( void, void ) : application
+		case EC_PAUSED: dout << "EC_PAUSED" << std::endl; break;
+		// ( HRESULT, void ) : application
+		case EC_OPENING_FILE: dout << "EC_OPENING_FILE" << std::endl; break;
+		case EC_BUFFERING_DATA: dout << "EC_BUFFERING_DATA" << std::endl; break;
+		// ( BOOL, void ) : application
+		case EC_FULLSCREEN_LOST: dout << "EC_FULLSCREEN_LOST" << std::endl; break;
+		// ( void, IBaseFilter * ) : application
+		case EC_ACTIVATE: dout << "EC_ACTIVATE" << std::endl; break;
+		// ( BOOL, IBaseFilter * ) : internal
+		case EC_NEED_RESTART: dout << "EC_NEED_RESTART" << std::endl; break;
+		// ( void, void ) : defaulted
+		case EC_WINDOW_DESTROYED: dout << "EC_WINDOW_DESTROYED" << std::endl; break;
+		// ( IBaseFilter *, void ) : internal
+		case EC_DISPLAY_CHANGED: dout << "EC_DISPLAY_CHANGED" << std::endl; break;
+		// ( IPin *, void ) : internal
+		case EC_STARVATION: dout << "EC_STARVATION" << std::endl; break;
+		// ( void, void ) : defaulted
+		case EC_OLE_EVENT: dout << "EC_OLE_EVENT" << std::endl; break;
+		// ( BSTR, BSTR ) : application
+		case EC_NOTIFY_WINDOW: dout << "EC_NOTIFY_WINDOW" << std::endl; break;
+		// ( HWND, void ) : internal
+		case EC_STREAM_CONTROL_STOPPED: dout << "EC_STREAM_CONTROL_STOPPED" << std::endl; break;
+		// ( IPin * pSender, DWORD dwCookie )
+		case EC_STREAM_CONTROL_STARTED: dout << "EC_STREAM_CONTROL_STARTED" << std::endl; break;
+		// ( IPin * pSender, DWORD dwCookie )
+		case EC_END_OF_SEGMENT: dout << "EC_END_OF_SEGMENT" << std::endl; break;
+		// ( const REFERENCE_TIME *pStreamTimeAtEndOfSegment, DWORD dwSegmentNumber )
+		case EC_SEGMENT_STARTED: dout << "EC_SEGMENT_STARTED" << std::endl; break;
+		// ( const REFERENCE_TIME *pStreamTimeAtStartOfSegment, DWORD dwSegmentNumber)
+		case EC_LENGTH_CHANGED: dout << "EC_LENGTH_CHANGED" << std::endl; break;
+		// (void, void)
+		case EC_DEVICE_LOST: dout << "EC_DEVICE_LOST" << std::endl; break;
+		// (IUnknown, 0)
+		case EC_STEP_COMPLETE: dout << "EC_STEP_COMPLETE" << std::endl; break;
+		// (BOOL bCacelled, void)
+		case EC_TIMECODE_AVAILABLE: dout << "EC_TIMECODE_AVAILABLE" << std::endl; break;
+		// Param1 has a pointer to the sending object
+		// Param2 has the device ID of the sending object
+		case EC_EXTDEVICE_MODE_CHANGE: dout << "EC_EXTDEVICE_MODE_CHANGE" << std::endl; break;
+		// Param1 has the new mode
+		// Param2 has the device ID of the sending object
+		case EC_STATE_CHANGE: dout << "EC_STATE_CHANGE" << std::endl; break;
+		// ( FILTER_STATE, BOOL bInternal)
+		case EC_GRAPH_CHANGED: dout << "EC_GRAPH_CHANGED" << std::endl; break;
+		// Sent by filter to notify interesting graph changes
+		case EC_CLOCK_UNSET: dout << "EC_CLOCK_UNSET" << std::endl; break;
+		// ( void, void ) : application
+		case EC_VMR_RENDERDEVICE_SET: dout << "EC_VMR_RENDERDEVICE_SET" << std::endl; break;
+		// (Render_Device type, void)
+		case EC_VMR_SURFACE_FLIPPED: dout << "EC_VMR_SURFACE_FLIPPED" << std::endl; break;
+		// (hr - Flip return code, void)
+		case EC_VMR_RECONNECTION_FAILED: dout << "EC_VMR_RECONNECTION_FAILED" << std::endl; break;
+		// (hr - ReceiveConnection return code, void)
+		case EC_PREPROCESS_COMPLETE: dout << "EC_PREPROCESS_COMPLETE" << std::endl; break;
+		// Param1 = 0, Param2 = IBaseFilter ptr of sending filter
+		case EC_CODECAPI_EVENT: dout << "EC_CODECAPI_EVENT" << std::endl; break;
+		// Param1 = UserDataPointer, Param2 = VOID* Data
+		case EC_WMT_INDEX_EVENT: dout << "EC_WMT_INDEX_EVENT" << std::endl; break;
+		// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
+		// lParam2 is specific to the lParam event
+		case EC_WMT_EVENT: dout << "EC_WMT_EVENT" << std::endl; break;
+		// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
+		// lParam2 is a pointer an AM_WMT_EVENT_DATA structure where,
+		//                          hrStatus is the status code sent by the wmsdk
+		//                          pData is specific to the lParam1 event
+		case EC_BUILT: dout << "EC_BUILT" << std::endl; break;
+		// Sent to notify transition from unbuilt to built state
+		case EC_UNBUILT: dout << "EC_UNBUILT" << std::endl; break;
+		// Sent to notify transtion from built to unbuilt state
+		case EC_DVD_DOMAIN_CHANGE: dout << "EC_DVD_DOMAIN_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, void ) 
+		case EC_DVD_TITLE_CHANGE: dout << "EC_DVD_TITLE_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, void ) 
+		case EC_DVD_CHAPTER_START: dout << "EC_DVD_CHAPTER_START" << std::endl; break;
+		// Parameters: ( DWORD, void ) 
+		case EC_DVD_AUDIO_STREAM_CHANGE: dout << "EC_DVD_AUDIO_STREAM_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, void ) 
+		case EC_DVD_SUBPICTURE_STREAM_CHANGE: dout << "EC_DVD_SUBPICTURE_STREAM_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, BOOL ) 
+		case EC_DVD_ANGLE_CHANGE: dout << "EC_DVD_ANGLE_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, DWORD ) 
+		case EC_DVD_BUTTON_CHANGE: dout << "EC_DVD_BUTTON_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, DWORD ) 
+		case EC_DVD_VALID_UOPS_CHANGE: dout << "EC_DVD_VALID_UOPS_CHANGE" << std::endl; break;
+		// Parameters: ( DWORD, void ) 
+		case EC_DVD_STILL_ON: dout << "EC_DVD_STILL_ON" << std::endl; break;
+		// Parameters: ( BOOL, DWORD ) 
+		case EC_DVD_STILL_OFF: dout << "EC_DVD_STILL_OFF" << std::endl; break;
+		// Parameters: ( void, void ) 
+		case EC_DVD_CURRENT_TIME: dout << "EC_DVD_CURRENT_TIME" << std::endl; break;
+		// Parameters: ( DWORD, BOOL ) 
+		case EC_DVD_ERROR: dout << "EC_DVD_ERROR" << std::endl; break;
+		// Parameters: ( DWORD, void) 
+		case EC_DVD_WARNING: dout << "EC_DVD_WARNING" << std::endl; break;
+		// Parameters: ( DWORD, DWORD) 
+		case EC_DVD_CHAPTER_AUTOSTOP: dout << "EC_DVD_CHAPTER_AUTOSTOP" << std::endl; break;
+		// Parameters: (BOOL, void)
+		case EC_DVD_NO_FP_PGC: dout << "EC_DVD_NO_FP_PGC" << std::endl; break;
+		//  Parameters : (void, void)
+		case EC_DVD_PLAYBACK_RATE_CHANGE: dout << "EC_DVD_PLAYBACK_RATE_CHANGE" << std::endl; break;
+		//  Parameters : (LONG, void)
+		case EC_DVD_PARENTAL_LEVEL_CHANGE: dout << "EC_DVD_PARENTAL_LEVEL_CHANGE" << std::endl; break;
+		//  Parameters : (LONG, void)
+		case EC_DVD_PLAYBACK_STOPPED: dout << "EC_DVD_PLAYBACK_STOPPED" << std::endl; break;
+		//  Parameters : (DWORD, void)
+		case EC_DVD_ANGLES_AVAILABLE: dout << "EC_DVD_ANGLES_AVAILABLE" << std::endl; break;
+		//  Parameters : (BOOL, void)
+		case EC_DVD_PLAYPERIOD_AUTOSTOP: dout << "EC_DVD_PLAYPERIOD_AUTOSTOP" << std::endl; break;
+		// Parameters: (void, void)
+		case EC_DVD_BUTTON_AUTO_ACTIVATED: dout << "EC_DVD_BUTTON_AUTO_ACTIVATED" << std::endl; break;
+		// Parameters: (DWORD button, void)
+		case EC_DVD_CMD_START: dout << "EC_DVD_CMD_START" << std::endl; break;
+		// Parameters: (CmdID, HRESULT)
+		case EC_DVD_CMD_END: dout << "EC_DVD_CMD_END" << std::endl; break;
+		// Parameters: (CmdID, HRESULT)
+		case EC_DVD_DISC_EJECTED: dout << "EC_DVD_DISC_EJECTED" << std::endl; break;
+		// Parameters: none
+		case EC_DVD_DISC_INSERTED: dout << "EC_DVD_DISC_INSERTED" << std::endl; break;
+		// Parameters: none
+		case EC_DVD_CURRENT_HMSF_TIME: dout << "EC_DVD_CURRENT_HMSF_TIME" << std::endl; break;
+		// Parameters: ( ULONG, ULONG ) 
+		case EC_DVD_KARAOKE_MODE: dout << "EC_DVD_KARAOKE_MODE" << std::endl; break;
+		// Parameters: ( BOOL, reserved ) 
+		default:
+			dout << "unknown event: " << event_code << std::endl;
 		}
 	}
 	return 0;
 }
+
+#if 0
+
+#define IsInterlaced(x) ((x) & AMINTERLACE_IsInterlaced)
+#define IsSingleField(x) ((x) & AMINTERLACE_1FieldPerSample)
+#define IsField1First(x) ((x) & AMINTERLACE_Field1First)
+
+VMR9_SampleFormat ConvertInterlaceFlags(DWORD dwInterlaceFlags)
+{
+	if(IsInterlaced(dwInterlaceFlags))
+	{
+		if(IsSingleField(dwInterlaceFlags))
+		{
+			if(IsField1First(dwInterlaceFlags))
+			{
+				return VMR9_SampleFieldSingleEven;
+			}
+			else
+			{
+				return VMR9_SampleFieldSingleOdd;
+			}
+		}
+		else
+		{
+			if(IsField1First(dwInterlaceFlags))
+			{
+				return VMR9_SampleFieldInterleavedEvenFirst;
+			}
+			else
+			{
+				return VMR9_SampleFieldInterleavedOddFirst;
+			}
+		}
+	}
+	else
+	{
+		return VMR9_SampleProgressiveFrame;  // Not interlaced.
+	}
+}
+
+
+		if(mt.majortype == MEDIATYPE_Video && mt.formattype == FORMAT_VideoInfo2)
+		{
+			VIDEOINFOHEADER2* info(reinterpret_cast<VIDEOINFOHEADER2*>(mt.pbFormat));
+			switch(ConvertInterlaceFlags(info->dwInterlaceFlags))
+			{
+			case VMR9_SampleProgressiveFrame:
+				dout << "Progressive" << std::endl;
+				break;
+			case VMR9_SampleFieldInterleavedEvenFirst:
+			case VMR9_SampleFieldInterleavedOddFirst:
+			case VMR9_SampleFieldSingleEven:
+			case VMR9_SampleFieldSingleOdd:
+				dout << "Interlaced" << std::endl;
+				{
+					BITMAPINFOHEADER* bmi(&(info->bmiHeader));
+					VMR9VideoDesc desc = { sizeof(VMR9VideoDesc) };
+					desc.dwSampleWidth = bmi->biWidth;
+					desc.dwSampleHeight = std::abs(bmi->biHeight);
+					desc.SampleFormat = ConvertInterlaceFlags(info->dwInterlaceFlags);
+					desc.InputSampleFreq.dwNumerator = 10000000;
+					desc.InputSampleFreq.dwDenominator = info->AvgTimePerFrame;
+					desc.OutputFrameFreq.dwNumerator = desc.InputSampleFreq.dwNumerator * 2;
+					desc.OutputFrameFreq.dwDenominator = desc.InputSampleFreq.dwDenominator;
+					desc.dwFourCC = bmi->biCompression;
+					DWORD num_modes(0);
+					IVMRDeinterlaceControl9Ptr di_control;
+					vmr9->QueryInterface(&di_control);
+					di_control->GetNumberOfDeinterlaceModes(&desc, &num_modes, NULL);
+					boost::scoped_array<GUID> guids(new GUID[num_modes]);
+					dout << "num_modes: " << num_modes << std::endl;
+					di_control->GetNumberOfDeinterlaceModes(&desc, &num_modes, guids.get());
+					for(DWORD i(0); i < num_modes; ++i)
+					{
+						VMR9DeinterlaceCaps caps = { sizeof(VMR9DeinterlaceCaps) };
+						di_control->GetDeinterlaceModeCaps(&(guids[i]), &desc, &caps);
+						dout << guids[i] << std::endl;
+					}
+				}
+				break;
+			}
+		}
+#endif

@@ -73,19 +73,19 @@ struct surface_allocator : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImage
 
 	IDirect3DTexture9Ptr get_video_texture(DWORD_PTR id)
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		return static_cast<IDirect3DTexture9Ptr&>(video_textures[id]);
 	}
 
-	critical_section& get_cs(DWORD_PTR id)
+	utility::critical_section& get_cs(DWORD_PTR id)
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		return *texture_locks[id];
 	}
 
 	bool rendering(DWORD_PTR id) const
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		return texture_locks.find(id) != texture_locks.end();
 	}
 private:
@@ -93,13 +93,13 @@ private:
 
 	long ref_count;
 
-	mutable critical_section cs;
+	mutable utility::critical_section cs;
 
 	IDirect3DDevice9Ptr device;
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
 	std::map<DWORD_PTR, std::vector<CAdapt<IDirect3DSurface9Ptr> > > surfaces;
 	std::map<DWORD_PTR, CAdapt<IDirect3DTexture9Ptr> > video_textures;
-	std::map<DWORD_PTR, boost::shared_ptr<critical_section> > texture_locks;
+	std::map<DWORD_PTR, boost::shared_ptr<utility::critical_section> > texture_locks;
 
 	Player* player;
 	DWORD render_flags;

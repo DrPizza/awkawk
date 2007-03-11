@@ -84,19 +84,19 @@ struct player_scene : message_handler, direct3d_object
 
 	void set_cursor_position(POINT pt)
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		controls->set_cursor_position(pt);
 	}
 
 	void set_filename(const std::wstring& name)
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		controls->set_filename(name);
 	}
 
 	void set_video_texture(IDirect3DTexture9Ptr video_texture_)
 	{
-		critical_section::lock l(cs);
+		LOCK(cs);
 		video_texture = video_texture_;
 	}
 
@@ -120,7 +120,7 @@ private:
 
 	void calculate_positions();
 
-	critical_section cs;
+	utility::critical_section cs;
 
 	IDirect3DDevice9Ptr device;
 
