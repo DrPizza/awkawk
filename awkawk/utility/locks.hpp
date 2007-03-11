@@ -168,11 +168,11 @@ struct lock_tracker
 
 	struct cs_sequence
 	{
-		std::list<const CRITICAL_SECTION*> sequence;
+		std::list<lock_tracker::lock_manipulation> sequence;
 		const std::list<lock_tracker::lock_manipulation>* manipulations;
 
-		cs_sequence(std::list<const CRITICAL_SECTION*> sequence_, const std::list<lock_tracker::lock_manipulation>* manipulations_) : sequence(sequence_),
-		                                                                                                                              manipulations(manipulations_)
+		cs_sequence(std::list<lock_tracker::lock_manipulation> sequence_, const std::list<lock_tracker::lock_manipulation>* manipulations_) : sequence(sequence_),
+		                                                                                                                                      manipulations(manipulations_)
 		{
 		}
 		cs_sequence()
@@ -180,80 +180,45 @@ struct lock_tracker
 		}
 		bool operator==(const cs_sequence& rhs) const
 		{
-			return sequence == rhs.sequence;
+			if(sequence.size() != rhs.sequence.size())
+			{
+				return false;
+			}
+			for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(sequence.begin()), rit(rhs.sequence.begin()), end(sequence.end()); lit != end; ++lit, ++rit)
+			{
+				if(lit->section != rit ->section)
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 		bool operator<(const cs_sequence& rhs) const
 		{
-			return sequence < rhs.sequence;
+			if(sequence.size() < rhs.sequence.size())
+			{
+				return true;
+			}
+			if(sequence.size() > rhs.sequence.size())
+			{
+				return false;
+			}
+			for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(sequence.begin()), rit(rhs.sequence.begin()), end(sequence.end()); lit != end; ++lit, ++rit)
+			{
+				if(lit->section < rit->section)
+				{
+					return true;
+				}
+				if(lit->section > rit->section)
+				{
+					return false;
+				}
+			}
+			return false;
 		}
 	};
 
-	std::set<std::pair<cs_sequence, cs_sequence> > analyze_deadlocks()
-	{
-		::EnterCriticalSection(&cs);
-		ON_BLOCK_EXIT(&::LeaveCriticalSection, &cs);
-		std::set<cs_sequence> lock_seq;
-		for(std::list<std::list<lock_tracker::lock_manipulation> >::iterator it(lock_sequences.begin()), end(lock_sequences.end()); it != end; ++it)
-		{
-			std::list<const CRITICAL_SECTION*> current_sequence;
-			for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(it->begin()), lend(it->end()); lit != lend; ++lit)
-			{
-				switch(lit->operation)
-				{
-				case lock_tracker::lock_manipulation::acquire:
-					current_sequence.push_back(lit->section);
-					break;
-				case lock_tracker::lock_manipulation::release:
-					{
-						current_sequence.erase(--(std::find(current_sequence.rbegin(), current_sequence.rend(), lit->section).base()));
-					}
-					break;
-				}
-				lock_seq.insert(cs_sequence(current_sequence, &*it));
-			}
-		}
-
-		std::set<cs_sequence> cleaned_sequences;
-		// remove recursively held locks, because for deadlock detection, they don't matter.
-		for(std::set<cs_sequence>::iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
-		{
-			for(std::list<const CRITICAL_SECTION*>::iterator it(needle->sequence.begin()); it != needle->sequence.end() && utility::advance(it, 1) != needle->sequence.end();)
-			{
-				std::list<const CRITICAL_SECTION*>::iterator next(utility::advance(it, 1));
-				std::list<const CRITICAL_SECTION*>::iterator pos(std::find(next, needle->sequence.end(), *it));
-				if(pos != needle->sequence.end())
-				{
-					needle->sequence.erase(pos);
-				}
-				else
-				{
-					++it;
-				}
-			}
-			cleaned_sequences.insert(*needle);
-		}
-		lock_seq.swap(cleaned_sequences);
-
-		std::set<std::pair<cs_sequence, cs_sequence> > deadlocks;
-		for(std::set<cs_sequence>::const_iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
-		{
-			for(std::set<cs_sequence>::const_iterator haystack(needle), hend(lock_seq.end()); haystack != nend; ++haystack)
-			{
-				for(std::list<const CRITICAL_SECTION*>::const_iterator lit(needle->sequence.begin()), lend(needle->sequence.end()); lit != lend; ++lit)
-				{
-					std::list<const CRITICAL_SECTION*>::const_iterator midpoint(std::find(haystack->sequence.begin(), haystack->sequence.end(), *lit));
-					if(midpoint != haystack->sequence.end())
-					{
-						if(std::find_first_of(midpoint, haystack->sequence.end(), needle->sequence.begin(), lit) != haystack->sequence.end())
-						{
-							deadlocks.insert(std::pair<cs_sequence, cs_sequence>(*needle, *haystack));
-						}
-					}
-				}
-			}
-		}
-		return deadlocks;
-	}
+	std::set<std::pair<cs_sequence, cs_sequence> > analyze_deadlocks();
 
 private:
 	lock_tracker(const lock_tracker&);
@@ -373,8 +338,6 @@ private:
 };
 
 #define LOCK(cs) utility::critical_section::lock CREATE_NAME(lck)((cs))
-#define CREATE_LOCK(cs) utility::critical_section::lock ((cs))
-#define ATTEMPT_LOCK(cs, succ) utility::critical_section::attempt_lock CREATE_NAME(lck)((cs)); (succ) = CREATE_NAME(lck).succeeded
 
 }
 
