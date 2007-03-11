@@ -124,12 +124,12 @@ int wmain(int argc, wchar_t* argv[])
 	{
 		dout << "potential deadlock found" << std::endl;
 		dout << "the sequences" << std::endl;
-		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->first.manipulations->begin()), end1(it->first.manipulations->end()); it1 != end1; ++it1)
+		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->first.sequence.begin()), end1(it->first.sequence.end()); it1 != end1; ++it1)
 		{
 			dout << *it1 << std::endl;
 		}
 		dout << "and" << std::endl;
-		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->second.manipulations->begin()), end1(it->second.manipulations->end()); it1 != end1; ++it1)
+		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->second.sequence.begin()), end1(it->second.sequence.end()); it1 != end1; ++it1)
 		{
 			dout << *it1 << std::endl;
 		}
