@@ -337,12 +337,12 @@ void Player::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
 	FAIL_THROW(filter->QueryInterface(&surface_allocator_notify));
 
-	allocator = new surface_allocator(this, device);
+	allocator = new surface_allocator(this, scene_device);
 	vmr_surface_allocator.Attach(allocator, true);
 
 	FAIL_THROW(surface_allocator_notify->AdviseSurfaceAllocator(user_id, vmr_surface_allocator));
 	FAIL_THROW(vmr_surface_allocator->AdviseNotify(surface_allocator_notify));
-	FAIL_THROW(surface_allocator_notify->SetD3DDevice(device, ::MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY)));
+	FAIL_THROW(surface_allocator_notify->SetD3DDevice(scene_device, ::MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY)));
 }
 
 REFERENCE_TIME Player::get_average_frame_time(IFilterGraphPtr grph) const
@@ -640,30 +640,30 @@ void Player::create_device()
 	presentation_parameters.FullScreen_RefreshRateInHz = 0;
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &device));
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &scene_device));
 
-	FAIL_THROW(device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
-	FAIL_THROW(device->SetRenderState(D3DRS_LIGHTING, FALSE));
-	FAIL_THROW(device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE));
-	FAIL_THROW(device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
-	FAIL_THROW(device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
-	FAIL_THROW(device->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE));
-	FAIL_THROW(device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_LIGHTING, FALSE));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE));
 
-	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
-	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
-	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR));
-	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR));
-	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE /*D3DTEXF_LINEAR*/));
+	FAIL_THROW(scene_device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP));
+	FAIL_THROW(scene_device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP));
+	FAIL_THROW(scene_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR));
+	FAIL_THROW(scene_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR));
+	FAIL_THROW(scene_device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE /*D3DTEXF_LINEAR*/));
 
-	FAIL_THROW(scene->on_device_created(device));
+	FAIL_THROW(scene->on_device_created(scene_device));
 	FAIL_THROW(scene->on_device_reset());
 }
 
 void Player::destroy_device()
 {
 	scene->on_device_destroyed();
-	device = NULL;
+	scene_device = NULL;
 }
 
 void Player::reset_device()
@@ -704,7 +704,7 @@ void Player::reset_device()
 	FAIL_THROW(scene->on_device_reset());
 	if(allocator)
 	{
-		allocator->end_device_loss(device);
+		allocator->end_device_loss(scene_device);
 	}
 }
 
@@ -736,7 +736,7 @@ int Player::run_ui()
 bool Player::needs_display_change() const
 {
 	D3DDEVICE_CREATION_PARAMETERS parameters;
-	device->GetCreationParameters(&parameters);
+	scene_device->GetCreationParameters(&parameters);
 	HMONITOR device_monitor(d3d->GetAdapterMonitor(parameters.AdapterOrdinal));
 	HMONITOR window_monitor(::MonitorFromWindow(ui.get_window(), MONITOR_DEFAULTTONEAREST));
 	return device_monitor != window_monitor;
@@ -744,7 +744,7 @@ bool Player::needs_display_change() const
 
 void Player::reset()
 {
-	switch(device->TestCooperativeLevel())
+	switch(scene_device->TestCooperativeLevel())
 	{
 	case D3DERR_DRIVERINTERNALERROR:
 		dout << "D3DERR_DRIVERINTERNALERROR" << std::endl;
@@ -776,13 +776,13 @@ void Player::render()
 		}
 		static D3DCOLOR col(D3DCOLOR_ARGB(0xff, 0, 0, 0));
 		//col = col == D3DCOLOR_ARGB(0xff, 0, 0xff, 0) ? D3DCOLOR_ARGB(0xff, 0xff, 0, 0) : D3DCOLOR_ARGB(0xff, 0, 0xff, 0);
-		FAIL_THROW(device->Clear(0L, NULL, D3DCLEAR_TARGET, col, 1.0f, 0));
+		FAIL_THROW(scene_device->Clear(0L, NULL, D3DCLEAR_TARGET, col, 1.0f, 0));
 		{
-			FAIL_THROW(device->BeginScene());
-			ON_BLOCK_EXIT_OBJ(*device, &IDirect3DDevice9::EndScene);
+			FAIL_THROW(scene_device->BeginScene());
+			ON_BLOCK_EXIT_OBJ(*scene_device, &IDirect3DDevice9::EndScene);
 			D3DXMATRIX ortho2D;
 			D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), 0.0f, 1.0f);
-			FAIL_THROW(device->SetTransform(D3DTS_PROJECTION, &ortho2D));
+			FAIL_THROW(scene_device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			std::auto_ptr<utility::critical_section::lock> l;
 			if(allocator != NULL && allocator->rendering(user_id))
 			{
@@ -790,7 +790,7 @@ void Player::render()
 			}
 			scene->render();
 		}
-		FAIL_THROW(device->Present(NULL, NULL, NULL, NULL));
+		FAIL_THROW(scene_device->Present(NULL, NULL, NULL, NULL));
 	}
 	catch(_com_error& ce)
 	{
