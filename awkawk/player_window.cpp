@@ -139,6 +139,24 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 {
 	switch(message)
 	{
+	case WM_LBUTTONDBLCLK:
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_MBUTTONDBLCLK:
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONUP:
+	case WM_RBUTTONDBLCLK:
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_MOUSEWHEEL:
+	case WM_XBUTTONDBLCLK:
+	case WM_XBUTTONDOWN:
+	case WM_XBUTTONUP:
+		update_last_mouse_move_time();
+		break;
+	}
+	switch(message)
+	{
 	HANDLE_MSG(window, WM_COMMAND, onCommand);
 	HANDLE_MSG(window, WM_CONTEXTMENU, onContextMenu);
 	HANDLE_MSG(window, WM_DESTROY, onDestroy);
@@ -162,11 +180,37 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_PAINT, onPaint);
 	HANDLE_MSG(window, WM_INITMENU, onInitMenu);
 	HANDLE_MSG(window, WM_SYSCOMMAND, onSysCommand);
+	HANDLE_MSG(window, WM_TIMER, onTimer);
 
 	default:
 		return ::DefWindowProcW(window, message, wParam, lParam);
 	}
 	return 0;
+}
+
+void player_window::onTimer(HWND, UINT id)
+{
+	switch(id)
+	{
+	case mouse_kill:
+		{
+			static LARGE_INTEGER freq = {0};
+			if(freq.QuadPart == 0)
+			{
+				::QueryPerformanceFrequency(&freq);
+			}
+			LARGE_INTEGER now = {0};
+			::QueryPerformanceCounter(&now);
+			if(((now.QuadPart - last_mouse_move_time.QuadPart) / freq.QuadPart) > 3)
+			{
+				hide_cursor();
+			}
+		}
+		break;
+	default:
+		FORWARD_WM_TIMER(get_window(), id, &::DefWindowProcW);
+		break;
+	}
 }
 
 void player_window::onInitMenu(HWND, HMENU menu)
@@ -588,8 +632,27 @@ UINT player_window::onNCHitTest(HWND, int x, int y)
 	}
 }
 
+void player_window::update_last_mouse_move_time()
+{
+	::QueryPerformanceCounter(&last_mouse_move_time);
+	if(player->is_fullscreen())
+	{
+		show_cursor();
+	}
+}
+
 void player_window::onMouseMove(HWND, int x, int y, UINT)
 {
+	static int old_x(0);
+	static int old_y(0);
+	if(x == old_x && y == old_y)
+	{
+		return;
+	}
+	old_x = x;
+	old_y = y;
+	update_last_mouse_move_time();
+
 	if(dragging)
 	{
 		POINT new_position = { GET_X_LPARAM(::GetMessagePos()), GET_Y_LPARAM(::GetMessagePos()) };
@@ -701,8 +764,20 @@ void player_window::onMouseLeave(HWND)
 	tracking = false;
 }
 
-void player_window::onSize(HWND, UINT, int x, int y)
+void player_window::onSize(HWND, UINT size_type, int x, int y)
 {
+	switch(size_type)
+	{
+	case SIZE_MAXIMIZED:
+		::SetTimer(get_window(), mouse_kill, 2500, NULL);
+		break;
+	case SIZE_MAXHIDE:
+	case SIZE_MAXSHOW:
+	case SIZE_MINIMIZED:
+	case SIZE_RESTORED:
+	default:
+		::KillTimer(get_window(), mouse_kill);
+	}
 	player->set_window_dimensions(get_window_size());
 }
 

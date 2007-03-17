@@ -69,6 +69,21 @@ struct player_window : window
 	void onPaint(HWND wnd);
 	void onInitMenu(HWND wnd, HMENU menu);
 	void onSysCommand(HWND wnd, UINT command, int x, int y);
+	void onTimer(HWND wnd, UINT id);
+
+	void hide_cursor() const
+	{
+		while(::ShowCursor(FALSE) >= 0)
+		{
+		}
+	}
+
+	void show_cursor() const
+	{
+		while(::ShowCursor(TRUE) < 0)
+		{
+		}
+	}
 
 	void resize_window(int newWidth, int newHeight);
 
@@ -110,6 +125,11 @@ private:
 	bool dragging; // if we're in a drag
 	POINT old_position; // position at drag start
 	POINT snap_offset;
+
+	enum { mouse_kill = 1 };
+	LARGE_INTEGER last_mouse_move_time;
+
+	void update_last_mouse_move_time();
 
 	IDropTargetPtr target;
 

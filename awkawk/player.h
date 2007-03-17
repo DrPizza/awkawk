@@ -330,7 +330,8 @@ struct Player
 				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (2.40f));
 			}
 			break;
-
+		default:
+			__assume(0);
 		}
 		window_size = new_size;
 		ui.resize_window(window_size.cx, window_size.cy);
@@ -375,6 +376,8 @@ struct Player
 		case twofourzero_to_one_original:
 			video_ar = 2.40f;
 			break;
+		default:
+			__assume(0);
 		}
 		if(window_ar > video_ar)
 		{
@@ -453,6 +456,8 @@ struct Player
 				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
 			}
 			break;
+		default:
+			__assume(0);
 		}
 	}
 
