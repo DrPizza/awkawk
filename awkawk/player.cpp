@@ -763,17 +763,12 @@ void Player::render()
 {
 	try
 	{
-		{
-			utility::critical_section::attempt_lock l(graph_cs);
-			if(l.succeeded)
-			{
-				// any property that the scene requires that also requires the graph lock
-				// must be passed in now, and cannot be retrieved later
-				scene->set_video_texture(has_video ? allocator->get_video_texture(user_id) : NULL);
-				scene->set_volume(get_linear_volume());
-				scene->set_playback_position(get_playback_position());
-			}
-		}
+		LOCK(graph_cs);
+
+		scene->set_video_texture(has_video ? allocator->get_video_texture(user_id) : NULL);
+		scene->set_volume(get_linear_volume());
+		scene->set_playback_position(get_playback_position());
+
 		static D3DCOLOR col(D3DCOLOR_ARGB(0xff, 0, 0, 0));
 		//col = col == D3DCOLOR_ARGB(0xff, 0, 0xff, 0) ? D3DCOLOR_ARGB(0xff, 0xff, 0, 0) : D3DCOLOR_ARGB(0xff, 0, 0xff, 0);
 		FAIL_THROW(scene_device->Clear(0L, NULL, D3DCLEAR_TARGET, col, 1.0f, 0));
