@@ -78,6 +78,7 @@
 				AdditionalManifestDependencies=""
 				GenerateDebugInformation="true"
 				TargetMachine="1"
+				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -162,6 +163,7 @@
 				AdditionalManifestDependencies=""
 				GenerateDebugInformation="true"
 				TargetMachine="17"
+				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -247,6 +249,7 @@
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="1"
+				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -336,6 +339,7 @@
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="17"
+				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
