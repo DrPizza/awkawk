@@ -133,14 +133,12 @@ struct lock_tracker
 
 	void lock(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
 	{
-		lock_info& info(get_lock_info());
-		info.add_acquire(return_address, address_of_return_address, section);
+		get_lock_info().add_acquire(return_address, address_of_return_address, section);
 	}
 
 	void unlock(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
 	{
-		lock_info& info(get_lock_info());
-		info.add_release(return_address, address_of_return_address, section);
+		get_lock_info().add_release(return_address, address_of_return_address, section);
 	}
 
 	void add_sequence(const std::list<lock_manipulation>& seq)

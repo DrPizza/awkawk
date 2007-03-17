@@ -74,7 +74,8 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 
 		FAIL_THROW(surface_allocator_notify->AllocateSurfaceHelper(allocation_info, buffer_count, &raw_surfaces[0]));
 		texture_locks[id].reset(new utility::critical_section());
-		LOCK(get_cs(id));
+		boost::shared_ptr<utility::critical_section> stream_cs(get_cs(id));
+		LOCK(*stream_cs);
 		surfaces[id].clear();
 		surfaces[id].resize(raw_surfaces.size());
 		for(size_t i(0); i < raw_surfaces.size(); ++i)
@@ -186,7 +187,8 @@ STDMETHODIMP surface_allocator::PresentImage(DWORD_PTR id, VMR9PresentationInfo*
 
 		IDirect3DSurface9Ptr surf;
 		FAIL_THROW(static_cast<IDirect3DTexture9Ptr&>(video_textures[id])->GetSurfaceLevel(0, &surf));
-		LOCK(get_cs(id));
+		boost::shared_ptr<utility::critical_section> stream_cs(get_cs(id));
+		LOCK(*stream_cs);
 		FAIL_THROW(device->StretchRect(presentation_info->lpSurf, NULL, surf, NULL, D3DTEXF_NONE));
 		player->signal_new_frame();
 		return S_OK;

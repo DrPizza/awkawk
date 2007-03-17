@@ -690,7 +690,7 @@ private:
 
 	// direct3d gubbins
 	IDirect3D9Ptr d3d;
-	IDirect3DDevice9Ptr device;
+	IDirect3DDevice9Ptr scene_device;
 	D3DPRESENT_PARAMETERS presentation_parameters;
 	IDirect3DSurface9Ptr render_target;
 

@@ -241,11 +241,13 @@ void print_caller_info(std::basic_ostream<T>& os, void* address, void* address_o
 #if defined(_M_IX86)
 	context.Eip = reinterpret_cast<DWORD32>(address);
 	context.Ebp = reinterpret_cast<DWORD32>(address_of_return_address) + sizeof(void*);
+	// I know this is wrong.  The stack pointer is somewhere miles away.  I probably ought to do something about that.
 	context.Esp = reinterpret_cast<DWORD32>(&context) - (sizeof(CONTEXT) + sizeof(STACKFRAME64) + sizeof(DWORD) + sizeof(SymbolInfo<T>) + sizeof(SymbolInfo<T>) + sizeof(ImageLine<T>));
 #elif defined(_M_X64)
 	context.Rip = reinterpret_cast<DWORD64>(address);
 	context.Rbp = reinterpret_cast<DWORD64>(address_of_return_address) + sizeof(void*);
-	context.Rsp = reinterpret_cast<DWORD64>(&context) - (sizeof(CONTEXT) + sizeof(STACKFRAME64) + sizeof(DWORD) + sizeof(SymbolInfo<T>) + sizeof(SymbolInfo<T>) + sizeof(ImageLine<T>));
+	// This isn't really where the stack pointer, but it should be close enough.  Of course, the stack itself doesn't necessarily exist now.
+	context.Rsp = context.Rbp;
 #else
 #error Unsupported architecture
 #endif

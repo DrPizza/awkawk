@@ -77,10 +77,10 @@ struct surface_allocator : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImage
 		return static_cast<IDirect3DTexture9Ptr&>(video_textures[id]);
 	}
 
-	utility::critical_section& get_cs(DWORD_PTR id)
+	boost::shared_ptr<utility::critical_section> get_cs(DWORD_PTR id)
 	{
 		LOCK(cs);
-		return *texture_locks[id];
+		return texture_locks[id];
 	}
 
 	bool rendering(DWORD_PTR id) const

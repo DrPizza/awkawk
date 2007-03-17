@@ -783,10 +783,12 @@ void Player::render()
 			D3DXMATRIX ortho2D;
 			D3DXMatrixOrthoLH(&ortho2D, static_cast<float>(window_size.cx), static_cast<float>(window_size.cy), 0.0f, 1.0f);
 			FAIL_THROW(scene_device->SetTransform(D3DTS_PROJECTION, &ortho2D));
+			boost::shared_ptr<utility::critical_section> stream_cs;
 			std::auto_ptr<utility::critical_section::lock> l;
 			if(allocator != NULL && allocator->rendering(user_id))
 			{
-				l.reset(new utility::critical_section::lock(allocator->get_cs(user_id)));
+				stream_cs = allocator->get_cs(user_id);
+				l.reset(new utility::critical_section::lock(*stream_cs));
 			}
 			scene->render();
 		}
