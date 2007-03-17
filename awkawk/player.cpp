@@ -780,7 +780,7 @@ void Player::render()
 			FAIL_THROW(scene_device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			boost::shared_ptr<utility::critical_section> stream_cs;
 			std::auto_ptr<utility::critical_section::lock> l;
-			if(allocator != NULL && allocator->rendering(user_id))
+			if(has_video)
 			{
 				stream_cs = allocator->get_cs(user_id);
 				l.reset(new utility::critical_section::lock(*stream_cs));
@@ -846,221 +846,232 @@ DWORD Player::render_thread_proc(void*)
 
 DWORD Player::event_thread_proc(void*)
 {
-	HANDLE evts[] = { event, cancel_event };
-	while(::WaitForMultipleObjects(2, evts, FALSE, INFINITE) == WAIT_OBJECT_0)
+	try
 	{
-		long event_code;
-		LONG_PTR param1;
-		LONG_PTR param2;
-		FAIL_THROW(events->GetEvent(&event_code, &param1, &param2, INFINITE));
-		ON_BLOCK_EXIT_OBJ(*events, &IMediaEvent::FreeEventParams, event_code, param1, param2);
-		switch(event_code)
+		HANDLE evts[] = { event, cancel_event };
+		while(::WaitForMultipleObjects(2, evts, FALSE, INFINITE) == WAIT_OBJECT_0)
 		{
-		case EC_COMPLETE:
+			long event_code;
+			LONG_PTR param1;
+			LONG_PTR param2;
+			FAIL_THROW(events->GetEvent(&event_code, &param1, &param2, INFINITE));
+			ON_BLOCK_EXIT_OBJ(*events, &IMediaEvent::FreeEventParams, event_code, param1, param2);
+			switch(event_code)
 			{
-				//dout << "EC_COMPLETE" << std::endl;
-				Player::status initial_state(state);
-				stop();
-				LONGLONG current(0);
-				seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-				close();
-				switch(playlist_mode)
+			case EC_COMPLETE:
 				{
-				case normal: // stop on wraparound
+					dout << "EC_COMPLETE" << std::endl;
+					Player::status initial_state(state);
+					stop();
+					LONGLONG current(0);
+					seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
+					close();
+					switch(playlist_mode)
 					{
-						bool hit_end(false);
-						++playlist_position;
-						if(playlist_position == playlist.end())
+					case normal: // stop on wraparound
 						{
-							hit_end = true;
-							playlist_position = playlist.begin();
+							bool hit_end(false);
+							++playlist_position;
+							if(playlist_position == playlist.end())
+							{
+								hit_end = true;
+								playlist_position = playlist.begin();
+							}
+							load();
+							if(initial_state == playing && !hit_end)
+							{
+								play();
+							}
 						}
-						load();
-						if(initial_state == playing && !hit_end)
+						break;
+					case repeat_single: // when the user presses 'next' in repeat single, we move forward normally
 						{
-							play();
+							load();
+							if(initial_state == playing)
+							{
+								play();
+							}
 						}
+						break;
+					case repeat_all: // continue on wraparound
+						{
+							++playlist_position;
+							if(playlist_position == playlist.end())
+							{
+								playlist_position = playlist.begin();
+							}
+							load();
+							if(initial_state == playing)
+							{
+								play();
+							}
+						}
+						break;
+					case shuffle:
+						break;
 					}
-					break;
-				case repeat_single: // when the user presses 'next' in repeat single, we move forward normally
-					{
-						load();
-						if(initial_state == playing)
-						{
-							play();
-						}
-					}
-					break;
-				case repeat_all: // continue on wraparound
-					{
-						++playlist_position;
-						if(playlist_position == playlist.end())
-						{
-							playlist_position = playlist.begin();
-						}
-						load();
-						if(initial_state == playing)
-						{
-							play();
-						}
-					}
-					break;
-				case shuffle:
-					break;
 				}
+				break;
+			// ( HRESULT, void ) : defaulted (special)
+			case EC_USERABORT: dout << "EC_USERABORT" << std::endl; break;
+			// ( void, void ) : application
+			case EC_ERRORABORT: dout << "EC_ERRORABORT" << std::endl; break;
+			// ( HRESULT, void ) : application
+			case EC_TIME: dout << "EC_TIME" << std::endl; break;
+			// ( DWORD, DWORD ) : application
+			case EC_REPAINT: dout << "EC_REPAINT" << std::endl; break;
+			// ( IPin * (could be NULL), void ) : defaulted
+			case EC_STREAM_ERROR_STOPPED: dout << "EC_STREAM_ERROR_STOPPED" << std::endl; break;
+			case EC_STREAM_ERROR_STILLPLAYING: dout << "EC_STREAM_ERROR_STILLPLAYING" << std::endl; break;
+			// ( HRESULT, DWORD ) : application
+			case EC_ERROR_STILLPLAYING: dout << "EC_ERROR_STILLPLAYING" << std::endl; break;
+			// ( HRESULT, void ) : application
+			case EC_PALETTE_CHANGED: dout << "EC_PALETTE_CHANGED" << std::endl; break;
+			// ( void, void ) : application
+			case EC_VIDEO_SIZE_CHANGED: dout << "EC_VIDEO_SIZE_CHANGED" << std::endl; break;
+			// ( DWORD, void ) : application
+			// LOWORD of the DWORD is the new width, HIWORD is the new height.
+			case EC_QUALITY_CHANGE: dout << "EC_QUALITY_CHANGE" << std::endl; break;
+			// ( void, void ) : application
+			case EC_SHUTTING_DOWN: dout << "EC_SHUTTING_DOWN" << std::endl; break;
+			// ( void, void ) : internal
+			case EC_CLOCK_CHANGED: dout << "EC_CLOCK_CHANGED" << std::endl; break;
+			// ( void, void ) : application
+			case EC_PAUSED: dout << "EC_PAUSED" << std::endl; break;
+			// ( HRESULT, void ) : application
+			case EC_OPENING_FILE: dout << "EC_OPENING_FILE" << std::endl; break;
+			case EC_BUFFERING_DATA: dout << "EC_BUFFERING_DATA" << std::endl; break;
+			// ( BOOL, void ) : application
+			case EC_FULLSCREEN_LOST: dout << "EC_FULLSCREEN_LOST" << std::endl; break;
+			// ( void, IBaseFilter * ) : application
+			case EC_ACTIVATE: dout << "EC_ACTIVATE" << std::endl; break;
+			// ( BOOL, IBaseFilter * ) : internal
+			case EC_NEED_RESTART: dout << "EC_NEED_RESTART" << std::endl; break;
+			// ( void, void ) : defaulted
+			case EC_WINDOW_DESTROYED: dout << "EC_WINDOW_DESTROYED" << std::endl; break;
+			// ( IBaseFilter *, void ) : internal
+			case EC_DISPLAY_CHANGED: dout << "EC_DISPLAY_CHANGED" << std::endl; break;
+			// ( IPin *, void ) : internal
+			case EC_STARVATION: dout << "EC_STARVATION" << std::endl; break;
+			// ( void, void ) : defaulted
+			case EC_OLE_EVENT: dout << "EC_OLE_EVENT" << std::endl; break;
+			// ( BSTR, BSTR ) : application
+			case EC_NOTIFY_WINDOW: dout << "EC_NOTIFY_WINDOW" << std::endl; break;
+			// ( HWND, void ) : internal
+			case EC_STREAM_CONTROL_STOPPED: dout << "EC_STREAM_CONTROL_STOPPED" << std::endl; break;
+			// ( IPin * pSender, DWORD dwCookie )
+			case EC_STREAM_CONTROL_STARTED: dout << "EC_STREAM_CONTROL_STARTED" << std::endl; break;
+			// ( IPin * pSender, DWORD dwCookie )
+			case EC_END_OF_SEGMENT: dout << "EC_END_OF_SEGMENT" << std::endl; break;
+			// ( const REFERENCE_TIME *pStreamTimeAtEndOfSegment, DWORD dwSegmentNumber )
+			case EC_SEGMENT_STARTED: dout << "EC_SEGMENT_STARTED" << std::endl; break;
+			// ( const REFERENCE_TIME *pStreamTimeAtStartOfSegment, DWORD dwSegmentNumber)
+			case EC_LENGTH_CHANGED: dout << "EC_LENGTH_CHANGED" << std::endl; break;
+			// (void, void)
+			case EC_DEVICE_LOST: dout << "EC_DEVICE_LOST" << std::endl; break;
+			// (IUnknown, 0)
+			case EC_STEP_COMPLETE: dout << "EC_STEP_COMPLETE" << std::endl; break;
+			// (BOOL bCacelled, void)
+			case EC_TIMECODE_AVAILABLE: dout << "EC_TIMECODE_AVAILABLE" << std::endl; break;
+			// Param1 has a pointer to the sending object
+			// Param2 has the device ID of the sending object
+			case EC_EXTDEVICE_MODE_CHANGE: dout << "EC_EXTDEVICE_MODE_CHANGE" << std::endl; break;
+			// Param1 has the new mode
+			// Param2 has the device ID of the sending object
+			case EC_STATE_CHANGE: dout << "EC_STATE_CHANGE" << std::endl; break;
+			// ( FILTER_STATE, BOOL bInternal)
+			case EC_GRAPH_CHANGED: dout << "EC_GRAPH_CHANGED" << std::endl; break;
+			// Sent by filter to notify interesting graph changes
+			case EC_CLOCK_UNSET: dout << "EC_CLOCK_UNSET" << std::endl; break;
+			// ( void, void ) : application
+			case EC_VMR_RENDERDEVICE_SET: dout << "EC_VMR_RENDERDEVICE_SET" << std::endl; break;
+			// (Render_Device type, void)
+			case EC_VMR_SURFACE_FLIPPED: dout << "EC_VMR_SURFACE_FLIPPED" << std::endl; break;
+			// (hr - Flip return code, void)
+			case EC_VMR_RECONNECTION_FAILED: dout << "EC_VMR_RECONNECTION_FAILED" << std::endl; break;
+			// (hr - ReceiveConnection return code, void)
+			case EC_PREPROCESS_COMPLETE: dout << "EC_PREPROCESS_COMPLETE" << std::endl; break;
+			// Param1 = 0, Param2 = IBaseFilter ptr of sending filter
+			case EC_CODECAPI_EVENT: dout << "EC_CODECAPI_EVENT" << std::endl; break;
+			// Param1 = UserDataPointer, Param2 = VOID* Data
+			case EC_WMT_INDEX_EVENT: dout << "EC_WMT_INDEX_EVENT" << std::endl; break;
+			// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
+			// lParam2 is specific to the lParam event
+			case EC_WMT_EVENT: dout << "EC_WMT_EVENT" << std::endl; break;
+			// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
+			// lParam2 is a pointer an AM_WMT_EVENT_DATA structure where,
+			//                          hrStatus is the status code sent by the wmsdk
+			//                          pData is specific to the lParam1 event
+			case EC_BUILT: dout << "EC_BUILT" << std::endl; break;
+			// Sent to notify transition from unbuilt to built state
+			case EC_UNBUILT: dout << "EC_UNBUILT" << std::endl; break;
+			// Sent to notify transtion from built to unbuilt state
+			case EC_DVD_DOMAIN_CHANGE: dout << "EC_DVD_DOMAIN_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, void ) 
+			case EC_DVD_TITLE_CHANGE: dout << "EC_DVD_TITLE_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, void ) 
+			case EC_DVD_CHAPTER_START: dout << "EC_DVD_CHAPTER_START" << std::endl; break;
+			// Parameters: ( DWORD, void ) 
+			case EC_DVD_AUDIO_STREAM_CHANGE: dout << "EC_DVD_AUDIO_STREAM_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, void ) 
+			case EC_DVD_SUBPICTURE_STREAM_CHANGE: dout << "EC_DVD_SUBPICTURE_STREAM_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, BOOL ) 
+			case EC_DVD_ANGLE_CHANGE: dout << "EC_DVD_ANGLE_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, DWORD ) 
+			case EC_DVD_BUTTON_CHANGE: dout << "EC_DVD_BUTTON_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, DWORD ) 
+			case EC_DVD_VALID_UOPS_CHANGE: dout << "EC_DVD_VALID_UOPS_CHANGE" << std::endl; break;
+			// Parameters: ( DWORD, void ) 
+			case EC_DVD_STILL_ON: dout << "EC_DVD_STILL_ON" << std::endl; break;
+			// Parameters: ( BOOL, DWORD ) 
+			case EC_DVD_STILL_OFF: dout << "EC_DVD_STILL_OFF" << std::endl; break;
+			// Parameters: ( void, void ) 
+			case EC_DVD_CURRENT_TIME: dout << "EC_DVD_CURRENT_TIME" << std::endl; break;
+			// Parameters: ( DWORD, BOOL ) 
+			case EC_DVD_ERROR: dout << "EC_DVD_ERROR" << std::endl; break;
+			// Parameters: ( DWORD, void) 
+			case EC_DVD_WARNING: dout << "EC_DVD_WARNING" << std::endl; break;
+			// Parameters: ( DWORD, DWORD) 
+			case EC_DVD_CHAPTER_AUTOSTOP: dout << "EC_DVD_CHAPTER_AUTOSTOP" << std::endl; break;
+			// Parameters: (BOOL, void)
+			case EC_DVD_NO_FP_PGC: dout << "EC_DVD_NO_FP_PGC" << std::endl; break;
+			//  Parameters : (void, void)
+			case EC_DVD_PLAYBACK_RATE_CHANGE: dout << "EC_DVD_PLAYBACK_RATE_CHANGE" << std::endl; break;
+			//  Parameters : (LONG, void)
+			case EC_DVD_PARENTAL_LEVEL_CHANGE: dout << "EC_DVD_PARENTAL_LEVEL_CHANGE" << std::endl; break;
+			//  Parameters : (LONG, void)
+			case EC_DVD_PLAYBACK_STOPPED: dout << "EC_DVD_PLAYBACK_STOPPED" << std::endl; break;
+			//  Parameters : (DWORD, void)
+			case EC_DVD_ANGLES_AVAILABLE: dout << "EC_DVD_ANGLES_AVAILABLE" << std::endl; break;
+			//  Parameters : (BOOL, void)
+			case EC_DVD_PLAYPERIOD_AUTOSTOP: dout << "EC_DVD_PLAYPERIOD_AUTOSTOP" << std::endl; break;
+			// Parameters: (void, void)
+			case EC_DVD_BUTTON_AUTO_ACTIVATED: dout << "EC_DVD_BUTTON_AUTO_ACTIVATED" << std::endl; break;
+			// Parameters: (DWORD button, void)
+			case EC_DVD_CMD_START: dout << "EC_DVD_CMD_START" << std::endl; break;
+			// Parameters: (CmdID, HRESULT)
+			case EC_DVD_CMD_END: dout << "EC_DVD_CMD_END" << std::endl; break;
+			// Parameters: (CmdID, HRESULT)
+			case EC_DVD_DISC_EJECTED: dout << "EC_DVD_DISC_EJECTED" << std::endl; break;
+			// Parameters: none
+			case EC_DVD_DISC_INSERTED: dout << "EC_DVD_DISC_INSERTED" << std::endl; break;
+			// Parameters: none
+			case EC_DVD_CURRENT_HMSF_TIME: dout << "EC_DVD_CURRENT_HMSF_TIME" << std::endl; break;
+			// Parameters: ( ULONG, ULONG ) 
+			case EC_DVD_KARAOKE_MODE: dout << "EC_DVD_KARAOKE_MODE" << std::endl; break;
+			// Parameters: ( BOOL, reserved ) 
+			default:
+				dout << "unknown event: " << event_code << std::endl;
 			}
-			break;
-		// ( HRESULT, void ) : defaulted (special)
-		case EC_USERABORT: dout << "EC_USERABORT" << std::endl; break;
-		// ( void, void ) : application
-		case EC_ERRORABORT: dout << "EC_ERRORABORT" << std::endl; break;
-		// ( HRESULT, void ) : application
-		case EC_TIME: dout << "EC_TIME" << std::endl; break;
-		// ( DWORD, DWORD ) : application
-		case EC_REPAINT: dout << "EC_REPAINT" << std::endl; break;
-		// ( IPin * (could be NULL), void ) : defaulted
-		case EC_STREAM_ERROR_STOPPED: dout << "EC_STREAM_ERROR_STOPPED" << std::endl; break;
-		case EC_STREAM_ERROR_STILLPLAYING: dout << "EC_STREAM_ERROR_STILLPLAYING" << std::endl; break;
-		// ( HRESULT, DWORD ) : application
-		case EC_ERROR_STILLPLAYING: dout << "EC_ERROR_STILLPLAYING" << std::endl; break;
-		// ( HRESULT, void ) : application
-		case EC_PALETTE_CHANGED: dout << "EC_PALETTE_CHANGED" << std::endl; break;
-		// ( void, void ) : application
-		case EC_VIDEO_SIZE_CHANGED: dout << "EC_VIDEO_SIZE_CHANGED" << std::endl; break;
-		// ( DWORD, void ) : application
-		// LOWORD of the DWORD is the new width, HIWORD is the new height.
-		case EC_QUALITY_CHANGE: dout << "EC_QUALITY_CHANGE" << std::endl; break;
-		// ( void, void ) : application
-		case EC_SHUTTING_DOWN: dout << "EC_SHUTTING_DOWN" << std::endl; break;
-		// ( void, void ) : internal
-		case EC_CLOCK_CHANGED: dout << "EC_CLOCK_CHANGED" << std::endl; break;
-		// ( void, void ) : application
-		case EC_PAUSED: dout << "EC_PAUSED" << std::endl; break;
-		// ( HRESULT, void ) : application
-		case EC_OPENING_FILE: dout << "EC_OPENING_FILE" << std::endl; break;
-		case EC_BUFFERING_DATA: dout << "EC_BUFFERING_DATA" << std::endl; break;
-		// ( BOOL, void ) : application
-		case EC_FULLSCREEN_LOST: dout << "EC_FULLSCREEN_LOST" << std::endl; break;
-		// ( void, IBaseFilter * ) : application
-		case EC_ACTIVATE: dout << "EC_ACTIVATE" << std::endl; break;
-		// ( BOOL, IBaseFilter * ) : internal
-		case EC_NEED_RESTART: dout << "EC_NEED_RESTART" << std::endl; break;
-		// ( void, void ) : defaulted
-		case EC_WINDOW_DESTROYED: dout << "EC_WINDOW_DESTROYED" << std::endl; break;
-		// ( IBaseFilter *, void ) : internal
-		case EC_DISPLAY_CHANGED: dout << "EC_DISPLAY_CHANGED" << std::endl; break;
-		// ( IPin *, void ) : internal
-		case EC_STARVATION: dout << "EC_STARVATION" << std::endl; break;
-		// ( void, void ) : defaulted
-		case EC_OLE_EVENT: dout << "EC_OLE_EVENT" << std::endl; break;
-		// ( BSTR, BSTR ) : application
-		case EC_NOTIFY_WINDOW: dout << "EC_NOTIFY_WINDOW" << std::endl; break;
-		// ( HWND, void ) : internal
-		case EC_STREAM_CONTROL_STOPPED: dout << "EC_STREAM_CONTROL_STOPPED" << std::endl; break;
-		// ( IPin * pSender, DWORD dwCookie )
-		case EC_STREAM_CONTROL_STARTED: dout << "EC_STREAM_CONTROL_STARTED" << std::endl; break;
-		// ( IPin * pSender, DWORD dwCookie )
-		case EC_END_OF_SEGMENT: dout << "EC_END_OF_SEGMENT" << std::endl; break;
-		// ( const REFERENCE_TIME *pStreamTimeAtEndOfSegment, DWORD dwSegmentNumber )
-		case EC_SEGMENT_STARTED: dout << "EC_SEGMENT_STARTED" << std::endl; break;
-		// ( const REFERENCE_TIME *pStreamTimeAtStartOfSegment, DWORD dwSegmentNumber)
-		case EC_LENGTH_CHANGED: dout << "EC_LENGTH_CHANGED" << std::endl; break;
-		// (void, void)
-		case EC_DEVICE_LOST: dout << "EC_DEVICE_LOST" << std::endl; break;
-		// (IUnknown, 0)
-		case EC_STEP_COMPLETE: dout << "EC_STEP_COMPLETE" << std::endl; break;
-		// (BOOL bCacelled, void)
-		case EC_TIMECODE_AVAILABLE: dout << "EC_TIMECODE_AVAILABLE" << std::endl; break;
-		// Param1 has a pointer to the sending object
-		// Param2 has the device ID of the sending object
-		case EC_EXTDEVICE_MODE_CHANGE: dout << "EC_EXTDEVICE_MODE_CHANGE" << std::endl; break;
-		// Param1 has the new mode
-		// Param2 has the device ID of the sending object
-		case EC_STATE_CHANGE: dout << "EC_STATE_CHANGE" << std::endl; break;
-		// ( FILTER_STATE, BOOL bInternal)
-		case EC_GRAPH_CHANGED: dout << "EC_GRAPH_CHANGED" << std::endl; break;
-		// Sent by filter to notify interesting graph changes
-		case EC_CLOCK_UNSET: dout << "EC_CLOCK_UNSET" << std::endl; break;
-		// ( void, void ) : application
-		case EC_VMR_RENDERDEVICE_SET: dout << "EC_VMR_RENDERDEVICE_SET" << std::endl; break;
-		// (Render_Device type, void)
-		case EC_VMR_SURFACE_FLIPPED: dout << "EC_VMR_SURFACE_FLIPPED" << std::endl; break;
-		// (hr - Flip return code, void)
-		case EC_VMR_RECONNECTION_FAILED: dout << "EC_VMR_RECONNECTION_FAILED" << std::endl; break;
-		// (hr - ReceiveConnection return code, void)
-		case EC_PREPROCESS_COMPLETE: dout << "EC_PREPROCESS_COMPLETE" << std::endl; break;
-		// Param1 = 0, Param2 = IBaseFilter ptr of sending filter
-		case EC_CODECAPI_EVENT: dout << "EC_CODECAPI_EVENT" << std::endl; break;
-		// Param1 = UserDataPointer, Param2 = VOID* Data
-		case EC_WMT_INDEX_EVENT: dout << "EC_WMT_INDEX_EVENT" << std::endl; break;
-		// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
-		// lParam2 is specific to the lParam event
-		case EC_WMT_EVENT: dout << "EC_WMT_EVENT" << std::endl; break;
-		// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
-		// lParam2 is a pointer an AM_WMT_EVENT_DATA structure where,
-		//                          hrStatus is the status code sent by the wmsdk
-		//                          pData is specific to the lParam1 event
-		case EC_BUILT: dout << "EC_BUILT" << std::endl; break;
-		// Sent to notify transition from unbuilt to built state
-		case EC_UNBUILT: dout << "EC_UNBUILT" << std::endl; break;
-		// Sent to notify transtion from built to unbuilt state
-		case EC_DVD_DOMAIN_CHANGE: dout << "EC_DVD_DOMAIN_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, void ) 
-		case EC_DVD_TITLE_CHANGE: dout << "EC_DVD_TITLE_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, void ) 
-		case EC_DVD_CHAPTER_START: dout << "EC_DVD_CHAPTER_START" << std::endl; break;
-		// Parameters: ( DWORD, void ) 
-		case EC_DVD_AUDIO_STREAM_CHANGE: dout << "EC_DVD_AUDIO_STREAM_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, void ) 
-		case EC_DVD_SUBPICTURE_STREAM_CHANGE: dout << "EC_DVD_SUBPICTURE_STREAM_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, BOOL ) 
-		case EC_DVD_ANGLE_CHANGE: dout << "EC_DVD_ANGLE_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, DWORD ) 
-		case EC_DVD_BUTTON_CHANGE: dout << "EC_DVD_BUTTON_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, DWORD ) 
-		case EC_DVD_VALID_UOPS_CHANGE: dout << "EC_DVD_VALID_UOPS_CHANGE" << std::endl; break;
-		// Parameters: ( DWORD, void ) 
-		case EC_DVD_STILL_ON: dout << "EC_DVD_STILL_ON" << std::endl; break;
-		// Parameters: ( BOOL, DWORD ) 
-		case EC_DVD_STILL_OFF: dout << "EC_DVD_STILL_OFF" << std::endl; break;
-		// Parameters: ( void, void ) 
-		case EC_DVD_CURRENT_TIME: dout << "EC_DVD_CURRENT_TIME" << std::endl; break;
-		// Parameters: ( DWORD, BOOL ) 
-		case EC_DVD_ERROR: dout << "EC_DVD_ERROR" << std::endl; break;
-		// Parameters: ( DWORD, void) 
-		case EC_DVD_WARNING: dout << "EC_DVD_WARNING" << std::endl; break;
-		// Parameters: ( DWORD, DWORD) 
-		case EC_DVD_CHAPTER_AUTOSTOP: dout << "EC_DVD_CHAPTER_AUTOSTOP" << std::endl; break;
-		// Parameters: (BOOL, void)
-		case EC_DVD_NO_FP_PGC: dout << "EC_DVD_NO_FP_PGC" << std::endl; break;
-		//  Parameters : (void, void)
-		case EC_DVD_PLAYBACK_RATE_CHANGE: dout << "EC_DVD_PLAYBACK_RATE_CHANGE" << std::endl; break;
-		//  Parameters : (LONG, void)
-		case EC_DVD_PARENTAL_LEVEL_CHANGE: dout << "EC_DVD_PARENTAL_LEVEL_CHANGE" << std::endl; break;
-		//  Parameters : (LONG, void)
-		case EC_DVD_PLAYBACK_STOPPED: dout << "EC_DVD_PLAYBACK_STOPPED" << std::endl; break;
-		//  Parameters : (DWORD, void)
-		case EC_DVD_ANGLES_AVAILABLE: dout << "EC_DVD_ANGLES_AVAILABLE" << std::endl; break;
-		//  Parameters : (BOOL, void)
-		case EC_DVD_PLAYPERIOD_AUTOSTOP: dout << "EC_DVD_PLAYPERIOD_AUTOSTOP" << std::endl; break;
-		// Parameters: (void, void)
-		case EC_DVD_BUTTON_AUTO_ACTIVATED: dout << "EC_DVD_BUTTON_AUTO_ACTIVATED" << std::endl; break;
-		// Parameters: (DWORD button, void)
-		case EC_DVD_CMD_START: dout << "EC_DVD_CMD_START" << std::endl; break;
-		// Parameters: (CmdID, HRESULT)
-		case EC_DVD_CMD_END: dout << "EC_DVD_CMD_END" << std::endl; break;
-		// Parameters: (CmdID, HRESULT)
-		case EC_DVD_DISC_EJECTED: dout << "EC_DVD_DISC_EJECTED" << std::endl; break;
-		// Parameters: none
-		case EC_DVD_DISC_INSERTED: dout << "EC_DVD_DISC_INSERTED" << std::endl; break;
-		// Parameters: none
-		case EC_DVD_CURRENT_HMSF_TIME: dout << "EC_DVD_CURRENT_HMSF_TIME" << std::endl; break;
-		// Parameters: ( ULONG, ULONG ) 
-		case EC_DVD_KARAOKE_MODE: dout << "EC_DVD_KARAOKE_MODE" << std::endl; break;
-		// Parameters: ( BOOL, reserved ) 
-		default:
-			dout << "unknown event: " << event_code << std::endl;
 		}
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	}
+	catch(std::exception& e)
+	{
+		derr << e.what() << std::endl;
 	}
 	return 0;
 }
