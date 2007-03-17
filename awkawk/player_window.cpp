@@ -777,6 +777,7 @@ void player_window::onSize(HWND, UINT size_type, int x, int y)
 	case SIZE_RESTORED:
 	default:
 		::KillTimer(get_window(), mouse_kill);
+		show_cursor();
 	}
 	player->set_window_dimensions(get_window_size());
 }
