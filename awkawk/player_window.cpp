@@ -236,7 +236,7 @@ void player_window::onInitMenu(HWND, HMENU menu)
 	}
 }
 
-void player_window::onSysCommand(HWND wnd, UINT command, int x, int y)
+void player_window::onSysCommand(HWND, UINT command, int x, int y)
 {
 	switch(command)
 	{
@@ -245,6 +245,12 @@ void player_window::onSysCommand(HWND wnd, UINT command, int x, int y)
 		break;
 	case SC_RESTORE:
 		player->set_fullscreen(false);
+		break;
+	case SC_SCREENSAVE:
+		if(player->is_fullscreen())
+		{
+			return;
+		}
 		break;
 	}
 	FORWARD_WM_SYSCOMMAND(get_window(), command, x, y, &::DefWindowProcW);
@@ -255,7 +261,7 @@ BOOL player_window::onEraseBackground(HWND, HDC)
 	return FALSE;
 }
 
-void player_window::onCommand(HWND wnd, int id, HWND control, UINT event)
+void player_window::onCommand(HWND, int id, HWND control, UINT event)
 {
 	try
 	{
@@ -764,12 +770,12 @@ void player_window::onMouseLeave(HWND)
 	tracking = false;
 }
 
-void player_window::onSize(HWND, UINT size_type, int x, int y)
+void player_window::onSize(HWND, UINT size_type, int, int)
 {
 	switch(size_type)
 	{
 	case SIZE_MAXIMIZED:
-		::SetTimer(get_window(), mouse_kill, 2500, NULL);
+		::SetTimer(get_window(), mouse_kill, 1000, NULL);
 		break;
 	case SIZE_MAXHIDE:
 	case SIZE_MAXSHOW:
