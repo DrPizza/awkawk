@@ -422,8 +422,8 @@ void player_window::build_filter_menu(HMENU parent_menu, UINT position) const
 		UINT flt_id(WM_USER + 1);
 		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
 		{
-			FILTER_INFO fi = {0};
 			IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(*it));
+			FILTER_INFO fi = {0};
 			filter->QueryFilterInfo(&fi);
 			IFilterGraphPtr ptr(fi.pGraph, false);
 			

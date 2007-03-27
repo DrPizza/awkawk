@@ -439,7 +439,7 @@ struct window : message_handler
 
 	void resize_window(int newWidth, int newHeight)
 	{
-		::SetWindowPos(get_window(), HWND_TOP, 0, 0, newWidth, newHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), HWND_TOP, 0, 0, newWidth, newHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	bool is_minimized() const
@@ -449,18 +449,18 @@ struct window : message_handler
 
 	void set_on_top(bool ontop)
 	{
-		::SetWindowPos(get_window(), ontop ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), ontop ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	void move_window(int x, int y)
 	{
-		::SetWindowPos(get_window(), HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	void offset_window(int delta_x, int delta_y)
 	{
 		RECT window_position(get_window_rect());
-		::SetWindowPos(get_window(), HWND_TOP, window_position.left + delta_x, window_position.top + delta_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), HWND_TOP, window_position.left + delta_x, window_position.top + delta_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	void add_message_handler(message_handler* new_handler)
@@ -666,7 +666,7 @@ struct dialogue : message_handler
 
 	void resize_window(int newWidth, int newHeight)
 	{
-		::SetWindowPos(get_window(), HWND_TOP, 0, 0, newWidth, newHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), HWND_TOP, 0, 0, newWidth, newHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	bool is_minimized() const
@@ -678,23 +678,23 @@ struct dialogue : message_handler
 	{
 		if(ontop)
 		{
-			::SetWindowPos(get_window(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING);
+			::SetWindowPos(get_window(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 		}
 		else
 		{
-			::SetWindowPos(get_window(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING);
+			::SetWindowPos(get_window(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 		}
 	}
 
 	void move_window(int x, int y)
 	{
-		::SetWindowPos(get_window(), HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	void offset_window(int delta_x, int delta_y)
 	{
 		RECT window_position(get_window_rect());
-		::SetWindowPos(get_window(), HWND_TOP, window_position.left + delta_x, window_position.top + delta_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING);
+		::SetWindowPos(get_window(), HWND_TOP, window_position.left + delta_x, window_position.top + delta_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
 	void add_message_handler(message_handler* new_handler)

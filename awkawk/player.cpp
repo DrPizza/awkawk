@@ -314,6 +314,10 @@ void Player::destroy_graph()
 	graph->EnumFilters(&filtEn);
 	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL); graph->EnumFilters(&filtEn))
 	{
+		//FILTER_INFO fi = {0};
+		//flt->QueryFilterInfo(&fi);
+		//IFilterGraphPtr ptr(fi.pGraph, false);
+		//wdout << L"Removing " << fi.achName << std::endl;
 		graph->RemoveFilter(flt);
 	}
 
@@ -591,6 +595,20 @@ void Player::create_ui(int cmd_show)
 
 void Player::create_device()
 {
+	HMODULE rgb_rast(::LoadLibraryW(L"rgb9rast.dll"));
+	if(rgb_rast != NULL)
+	{
+		FARPROC rgb_rast_register(::GetProcAddress(rgb_rast, "D3D9GetSWInfo"));
+		d3d->RegisterSoftwareDevice(reinterpret_cast<void*>(rgb_rast_register));
+	}
+#ifdef USE_RGBRAST
+	const D3DDEVTYPE dev_type(D3DDEVTYPE_SW);
+	const DWORD vertex_processing(D3DCREATE_SOFTWARE_VERTEXPROCESSING);
+#else
+	const D3DDEVTYPE dev_type(D3DDEVTYPE_HAL);
+	const DWORD vertex_processing(D3DCREATE_HARDWARE_VERTEXPROCESSING);
+#endif
+
 	UINT device_ordinal(0);
 	for(UINT ord(0); ord < d3d->GetAdapterCount(); ++ord)
 	{
@@ -605,7 +623,7 @@ void Player::create_device()
 	FAIL_THROW(d3d->GetAdapterDisplayMode(device_ordinal, &dm));
 
 	D3DCAPS9 caps;
-	FAIL_THROW(d3d->GetDeviceCaps(device_ordinal, D3DDEVTYPE_HAL, &caps));
+	FAIL_THROW(d3d->GetDeviceCaps(device_ordinal, dev_type, &caps));
 	if((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL))
 	{
 		::MessageBoxW(ui.get_window(), L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
@@ -625,7 +643,7 @@ void Player::create_device()
 #ifdef USE_MULTISAMPLING
 	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONMASKABLE;
 	DWORD qualityLevels(0);
-	FAIL_THROW(d3d->CheckDeviceMultiSampleType(device_ordinal, D3DDEVTYPE_HAL, presentation_parameters.BackBufferFormat, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels));
+	FAIL_THROW(d3d->CheckDeviceMultiSampleType(device_ordinal, dev_type, presentation_parameters.BackBufferFormat, presentation_parameters.Windowed, presentation_parameters.MultiSampleType, &qualityLevels));
 	presentation_parameters.MultiSampleQuality = qualityLevels - 1;
 #else
 	presentation_parameters.MultiSampleType = D3DMULTISAMPLE_NONE;
@@ -640,7 +658,7 @@ void Player::create_device()
 	presentation_parameters.FullScreen_RefreshRateInHz = 0;
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, D3DDEVTYPE_HAL, ui.get_window(), D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &scene_device));
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, ui.get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &scene_device));
 
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_LIGHTING, FALSE));
@@ -764,7 +782,6 @@ void Player::render()
 	try
 	{
 		LOCK(graph_cs);
-
 		scene->set_video_texture(has_video ? allocator->get_video_texture(user_id) : NULL);
 		scene->set_volume(get_linear_volume());
 		scene->set_playback_position(get_playback_position());

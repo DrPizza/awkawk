@@ -379,7 +379,7 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 	};
 
 	ID3DXMeshPtr msh;
-	FAIL_RET(D3DXCreateMeshFVF(static_cast<DWORD>(extruder.indices.size() / 3), static_cast<DWORD>(extruder.vertices.size()), D3DXMESH_32BIT | D3DXMESH_NPATCHES, mesh_fvf, device, &msh));
+	FAIL_RET(D3DXCreateMeshFVF(static_cast<DWORD>(extruder.indices.size() / 3), static_cast<DWORD>(extruder.vertices.size()), D3DXMESH_32BIT | D3DXMESH_NPATCHES /*| D3DXMESH_WRITEONLY*/, mesh_fvf, device, &msh));
 	mesh_vertex* vertices(NULL);
 	FAIL_RET(msh->LockVertexBuffer(0, reinterpret_cast<void**>(&vertices)));
 	for(size_t i(0); i < extruder.vertices.size(); ++i)

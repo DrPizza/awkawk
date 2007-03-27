@@ -107,22 +107,12 @@ int real_main(int, wchar_t**)
 
 #ifdef DEBUG
 
-int wmain(int argc, wchar_t* argv[])
+void show_deadlocks()
 {
-#ifdef DEBUG_HEAP
-	USES_MEMORY_CHECK;
-	MEM_CHK_BEFORE;
-#endif
-	int rv(real_main(argc, argv));
-#ifdef DEBUG_HEAP
-	MEM_CHK_AFTER;
-#endif
-
-#ifdef TRACK_LOCKS
 	std::set<std::pair<utility::lock_tracker::cs_sequence, utility::lock_tracker::cs_sequence> > deadlocks(utility::tracker.analyze_deadlocks());
 	for(std::set<std::pair<utility::lock_tracker::cs_sequence, utility::lock_tracker::cs_sequence> >::const_iterator it(deadlocks.begin()), end(deadlocks.end()); it != end; ++it)
 	{
-		dout << "potential deadlock found" << std::endl;
+		dout << "deadlock found" << std::endl;
 		dout << "the sequences" << std::endl;
 		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator it1(it->first.sequence.begin()), end1(it->first.sequence.end()); it1 != end1; ++it1)
 		{
@@ -136,7 +126,70 @@ int wmain(int argc, wchar_t* argv[])
 		dout << "can deadlock" << std::endl;
 		dout << std::endl;
 	}
+}
 
+void show_locks()
+{
+	for(std::map<DWORD, boost::shared_ptr<utility::lock_tracker::lock_info> >::const_iterator it(utility::tracker.info.begin()), end(utility::tracker.info.end()); it != end; ++it)
+	{
+		boost::shared_ptr<utility::lock_tracker::lock_info> info(it->second);
+		if(info->current_sequence.empty())
+		{
+			continue;
+		}
+		dout << it->first << std::endl;
+		for(std::list<utility::lock_tracker::lock_manipulation>::const_iterator lit(info->current_sequence.begin()), lend(info->current_sequence.end()); lit != lend; ++lit)
+		{
+			dout << "\t";
+			switch(lit->operation)
+			{
+			case utility::lock_tracker::lock_manipulation::attempt:
+				dout << "?";
+				break;
+			case utility::lock_tracker::lock_manipulation::acquire:
+				dout << "+";
+				break;
+			case utility::lock_tracker::lock_manipulation::fail:
+				dout << "!";
+				break;
+			case utility::lock_tracker::lock_manipulation::release:
+				dout << "-";
+				break;
+			}
+			dout << " " << lit->section << " ";
+			utility::print_caller_info(dout, lit->return_address, lit->address_of_return_address);
+			dout << std::endl;
+		}
+	}
+}
+
+BOOL WINAPI ctrl_c_handler(DWORD type)
+{
+	switch(type)
+	{
+	case CTRL_BREAK_EVENT:
+		show_deadlocks();
+		show_locks();
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+int wmain(int argc, wchar_t* argv[])
+{
+	::SetConsoleCtrlHandler(&ctrl_c_handler, TRUE);
+#ifdef DEBUG_HEAP
+	USES_MEMORY_CHECK;
+	MEM_CHK_BEFORE;
+#endif
+	int rv(real_main(argc, argv));
+#ifdef DEBUG_HEAP
+	MEM_CHK_AFTER;
+#endif
+
+#ifdef TRACK_LOCKS
+	show_deadlocks();
 #endif
 	return rv;
 }
