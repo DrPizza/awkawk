@@ -40,6 +40,28 @@ namespace
 	};
 }
 
+std::set<utility::lock_tracker::cs_sequence> get_all_sequences(const std::list<utility::lock_tracker::lock_manipulation>& l)
+{
+	std::set<utility::lock_tracker::cs_sequence> lock_seq;
+	std::list<lock_tracker::lock_manipulation> current_sequence;
+	for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(l.begin()), lend(l.end()); lit != lend; ++lit)
+	{
+		switch(lit->operation)
+		{
+		case lock_tracker::lock_manipulation::attempt:
+			current_sequence.push_back(*lit);
+			break;
+		case lock_tracker::lock_manipulation::release:
+			{
+				current_sequence.erase(--(std::find_if(current_sequence.rbegin(), current_sequence.rend(), std::bind1st(section_equality(), *lit)).base()));
+			}
+			break;
+		}
+		lock_seq.insert(utility::lock_tracker::cs_sequence(current_sequence, &l));
+	}
+	return lock_seq;
+}
+
 std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_tracker::analyze_deadlocks()
 {
 	::EnterCriticalSection(&cs);
@@ -47,22 +69,13 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 	std::set<cs_sequence> lock_seq;
 	for(std::list<std::list<lock_tracker::lock_manipulation> >::iterator it(lock_sequences.begin()), end(lock_sequences.end()); it != end; ++it)
 	{
-		std::list<lock_tracker::lock_manipulation> current_sequence;
-		for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(it->begin()), lend(it->end()); lit != lend; ++lit)
-		{
-			switch(lit->operation)
-			{
-			case lock_tracker::lock_manipulation::acquire:
-				current_sequence.push_back(*lit);
-				break;
-			case lock_tracker::lock_manipulation::release:
-				{
-					current_sequence.erase(--(std::find_if(current_sequence.rbegin(), current_sequence.rend(), std::bind1st(section_equality(), *lit)).base()));
-				}
-				break;
-			}
-			lock_seq.insert(cs_sequence(current_sequence, &*it));
-		}
+		std::set<cs_sequence> seq(get_all_sequences(*it));
+		lock_seq.insert(seq.begin(), seq.end());
+	}
+	for(std::map<DWORD, boost::shared_ptr<utility::lock_tracker::lock_info> >::const_iterator it(utility::tracker.info.begin()), end(utility::tracker.info.end()); it != end; ++it)
+	{
+		std::set<cs_sequence> seq(get_all_sequences(it->second->current_sequence));
+		lock_seq.insert(seq.begin(), seq.end());
 	}
 
 	std::list<cs_sequence> cleaned_sequences;

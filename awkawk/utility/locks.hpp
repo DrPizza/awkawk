@@ -50,6 +50,8 @@ struct lock_tracker
 		const CRITICAL_SECTION* section;
 		enum lock_operation
 		{
+			attempt,
+			fail,
 			acquire,
 			release
 		};
@@ -93,6 +95,18 @@ struct lock_tracker
 		{
 			current_sequence.push_back(lock_manipulation(return_address, address_of_return_address, section, operation, outstanding_locks));
 		}
+		void add_attempt(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		{
+			::EnterCriticalSection(&cs);
+			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
+			add_entry(return_address, address_of_return_address, section, lock_manipulation::attempt);
+		}
+		void add_fail(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		{
+			::EnterCriticalSection(&cs);
+			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
+			add_entry(return_address, address_of_return_address, section, lock_manipulation::fail);
+		}
 		void add_acquire(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
 		{
 			::EnterCriticalSection(&cs);
@@ -131,12 +145,22 @@ struct lock_tracker
 		return *info[::GetCurrentThreadId()];
 	}
 
-	void lock(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	void attempt(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	{
+		get_lock_info().add_attempt(return_address, address_of_return_address, section);
+	}
+
+	void fail(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	{
+		get_lock_info().add_fail(return_address, address_of_return_address, section);
+	}
+
+	void acquire(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
 	{
 		get_lock_info().add_acquire(return_address, address_of_return_address, section);
 	}
 
-	void unlock(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	void release(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
 	{
 		get_lock_info().add_release(return_address, address_of_return_address, section);
 	}
@@ -233,8 +257,14 @@ std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, const lock_tracker:
 	os << T(':') << T(' ');
 	switch(lm.operation)
 	{
+	case lock_tracker::lock_manipulation::attempt:
+		os << T('a') << T('t') << T('t') << T('e') << T('m') << T('p') << T('t');
+		break;
 	case lock_tracker::lock_manipulation::acquire:
 		os << T('a') << T('c') << T('q') << T('u') << T('i') << T('r') << T('e');
+		break;
+	case lock_tracker::lock_manipulation::fail:
+		os << T('f') << T('a') << T('i') << T('l');
 		break;
 	case lock_tracker::lock_manipulation::release:
 		os << T('r') << T('e') << T('l') << T('e') << T('a') << T('s') << T('e');
@@ -260,23 +290,32 @@ struct critical_section
 
 	void enter(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
 	{
+#ifdef TRACK_LOCKS
+		tracker.attempt(return_address, address_of_return_address, &cs);
+#endif
 		::EnterCriticalSection(&cs);
 		::InterlockedIncrement(&count);
 #ifdef TRACK_LOCKS
-		tracker.lock(return_address, address_of_return_address, &cs);
+		tracker.acquire(return_address, address_of_return_address, &cs);
 #endif
 	}
 
 	bool attempt_enter(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
 	{
+#ifdef TRACK_LOCKS
+		tracker.attempt(return_address, address_of_return_address, &cs);
+#endif
 		if(TRUE == ::TryEnterCriticalSection(&cs))
 		{
 			::InterlockedIncrement(&count);
 #ifdef TRACK_LOCKS
-			tracker.lock(return_address, address_of_return_address, &cs);
+			tracker.acquire(return_address, address_of_return_address, &cs);
 #endif
 			return true;
 		}
+#ifdef TRACK_LOCKS
+		tracker.fail(return_address, address_of_return_address, &cs);
+#endif
 		return false;
 	}
 
@@ -285,7 +324,7 @@ struct critical_section
 		::InterlockedDecrement(&count);
 		::LeaveCriticalSection(&cs);
 #ifdef TRACK_LOCKS
-		tracker.unlock(return_address, address_of_return_address, &cs);
+		tracker.release(return_address, address_of_return_address, &cs);
 #endif
 	}
 
