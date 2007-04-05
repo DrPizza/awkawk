@@ -595,13 +595,13 @@ void Player::create_ui(int cmd_show)
 
 void Player::create_device()
 {
+#ifdef USE_RGBRAST
 	HMODULE rgb_rast(::LoadLibraryW(L"rgb9rast.dll"));
 	if(rgb_rast != NULL)
 	{
 		FARPROC rgb_rast_register(::GetProcAddress(rgb_rast, "D3D9GetSWInfo"));
 		d3d->RegisterSoftwareDevice(reinterpret_cast<void*>(rgb_rast_register));
 	}
-#ifdef USE_RGBRAST
 	const D3DDEVTYPE dev_type(D3DDEVTYPE_SW);
 	const DWORD vertex_processing(D3DCREATE_SOFTWARE_VERTEXPROCESSING);
 #else
@@ -835,6 +835,9 @@ DWORD Player::render_thread_proc(void*)
 					}
 					reset();
 					render();
+					//::InvalidateRect(ui.get_window(), NULL, TRUE);
+					//::RedrawWindow(ui.get_window(), NULL, NULL, RDW_UPDATENOW | RDW_INTERNALPAINT | RDW_ERASE | RDW_FRAME);
+					//ui.update_window();
 				}
 				catch(_com_error& ce)
 				{
