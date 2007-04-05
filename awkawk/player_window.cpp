@@ -124,6 +124,14 @@ void player_window::create_window(int cmd_show)
 		throw std::runtime_error("Could not create window");
 	}
 	set_window_theme(L"", L"");
+	HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
+	if(dwmapi_dll != NULL)
+	{
+		typedef HRESULT (*DWMSETWINDOWATTRIBUTE)(HWND, DWORD, const void*, DWORD);
+		DWMSETWINDOWATTRIBUTE dwm_set_window_attribute(reinterpret_cast<DWMSETWINDOWATTRIBUTE>(::GetProcAddress(dwmapi_dll, "DwmSetWindowAttribute")));
+		DWMNCRENDERINGPOLICY policy(DWMNCRP_DISABLED);
+		dwm_set_window_attribute(get_window(), DWMWA_NCRENDERING_POLICY, &policy, sizeof(DWMNCRENDERINGPOLICY));
+	}
 
 	player->set_window_dimensions(get_window_size());
 
@@ -133,6 +141,10 @@ void player_window::create_window(int cmd_show)
 
 	show_window(cmd_show);
 	update_window();
+	// for reasons I don't understand, the window appears black (functional, just non-drawing) when spawned from the command-line
+	// unless I send a WM_NCCALCSIZE (I think).  This does the job, but I have no idea why.  When spawned from the GUI there's no
+	// problem either way.
+	::SetWindowPos(get_window(), 0, 0, 0, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
 LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -258,7 +270,7 @@ void player_window::onSysCommand(HWND, UINT command, int x, int y)
 
 BOOL player_window::onEraseBackground(HWND, HDC)
 {
-	return FALSE;
+	return TRUE;
 }
 
 void player_window::onCommand(HWND, int id, HWND control, UINT event)

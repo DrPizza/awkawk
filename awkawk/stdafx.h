@@ -35,6 +35,7 @@
 #include <objbase.h>
 #include <windows.h>
 #include <uxtheme.h>
+#include <dwmapi.h>
 
 #define DBGHELP_TRANSLATE_TCHAR
 #include <dbghelp.h>

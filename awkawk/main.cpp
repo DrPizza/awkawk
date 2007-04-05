@@ -165,11 +165,11 @@ void show_locks()
 
 BOOL WINAPI ctrl_c_handler(DWORD type)
 {
+	show_deadlocks();
+	show_locks();
 	switch(type)
 	{
 	case CTRL_BREAK_EVENT:
-		show_deadlocks();
-		show_locks();
 		return TRUE;
 	default:
 		return FALSE;
