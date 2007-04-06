@@ -388,4 +388,21 @@ T clamp(T value, T min_, T max_)
 	return max(min(value, max_), min_);
 }
 
+inline void free_media_type(AM_MEDIA_TYPE& mt)
+{
+	if(mt.cbFormat != 0)
+	{
+		::CoTaskMemFree(mt.pbFormat);
+		mt.cbFormat = 0;
+		mt.pbFormat = NULL;
+	}
+	if(mt.pUnk != NULL)
+	{
+		// Unecessary because pUnk should not be used, but safest.
+		mt.pUnk->Release();
+		mt.pUnk = NULL;
+	}
+}
+
+
 #endif
