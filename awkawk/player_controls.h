@@ -50,7 +50,6 @@ struct player_controls : message_handler, direct3d_object
 	bool hit_test_position_slider(int x, int y) const;
 	bool hit_test_volume_slider(int x, int y) const;
 
-
 	enum control_images
 	{
 		normal = 0,
