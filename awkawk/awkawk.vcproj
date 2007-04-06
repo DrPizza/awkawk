@@ -73,7 +73,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmbasd.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib  uxtheme.lib"
+				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib  uxtheme.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
 				AdditionalManifestDependencies=""
@@ -159,7 +159,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmbasd.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
 				AdditionalManifestDependencies=""
@@ -245,7 +245,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmbase.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"
@@ -335,7 +335,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmbase.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
+				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"

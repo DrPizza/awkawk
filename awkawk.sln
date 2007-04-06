@@ -7,10 +7,10 @@ Global
 		SccNumberOfProjects = 2
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
 		SccTeamFoundationServer = https://tfs01.codeplex.com/
-		SccProjectUniqueName0 = awkawk\\awkawk.vcproj
-		SccProjectName0 = awkawk
-		SccLocalPath0 = awkawk
-		SccLocalPath1 = .
+		SccLocalPath0 = .
+		SccProjectUniqueName1 = awkawk\\awkawk.vcproj
+		SccProjectName1 = awkawk
+		SccLocalPath1 = awkawk
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32

@@ -361,7 +361,7 @@ REFERENCE_TIME Player::get_average_frame_time(IFilterGraphPtr grph) const
 		{
 			AM_MEDIA_TYPE mt;
 			pin->ConnectionMediaType(&mt);
-			ON_BLOCK_EXIT(&FreeMediaType, Loki::ByRef(mt));
+			ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
 			if(mt.majortype == MEDIATYPE_Video)
 			{
 				REFERENCE_TIME averageFrameTime(0);
@@ -403,7 +403,7 @@ SIZE Player::get_video_size() const
 	{
 		AM_MEDIA_TYPE mt;
 		pin->ConnectionMediaType(&mt);
-		ON_BLOCK_EXIT(&FreeMediaType, Loki::ByRef(mt));
+		ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
 		if(mt.majortype == MEDIATYPE_Video)
 		{
 			SIZE sz = {0};
@@ -533,7 +533,7 @@ void Player::create_graph()
 	{
 		AM_MEDIA_TYPE mt;
 		pin->ConnectionMediaType(&mt);
-		ON_BLOCK_EXIT(&FreeMediaType, Loki::ByRef(mt));
+		ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
 		has_video = has_video || (mt.formattype != FORMAT_None) && (mt.formattype != GUID_NULL);
 
 	}
