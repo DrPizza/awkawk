@@ -65,7 +65,6 @@
 
 // DirectShow Header Files
 #include <dshow.h>
-#include <streams.h>
 #include <Dvdmedia.h>
 #include <Dvdevcod.h>
 
