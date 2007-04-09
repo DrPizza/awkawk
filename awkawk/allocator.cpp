@@ -83,7 +83,7 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 			static_cast<IDirect3DSurface9Ptr&>(surfaces[id][i]).Attach(raw_surfaces[i], false);
 		}
 		IDirect3DTexture9Ptr txtr;
-		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &txtr, NULL));
+		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &txtr, NULL));
 		video_textures[id] = txtr;
 	}
 	catch(_com_error& ce)
