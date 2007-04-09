@@ -29,7 +29,7 @@ struct strip : direct3d_object
 {
 	struct vertex
 	{
-		enum { format = (D3DFVF_XYZ | D3DFVF_TEX1) };
+		enum { format = (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1) };
 		struct position3
 		{
 			position3() : x(0.0f), y(0.0f), z(0.0f)
@@ -40,6 +40,7 @@ struct strip : direct3d_object
 		};
 
 		position3 position; // The position
+		D3DCOLOR diffuse;
 		FLOAT tu, tv; // The texture coordinates
 	};
 

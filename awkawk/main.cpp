@@ -67,6 +67,7 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS* exception_pointers)
 	{
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
+	ON_BLOCK_EXIT(&::FreeLibrary, dbghelp);
 	typedef BOOL (WINAPI* MINIDUMPWRITEDUMP)(HANDLE process, DWORD pid, HANDLE file, MINIDUMP_TYPE dump_type, const MINIDUMP_EXCEPTION_INFORMATION*, const MINIDUMP_USER_STREAM_INFORMATION*, const MINIDUMP_CALLBACK_INFORMATION*);
 	MINIDUMPWRITEDUMP mini_dump_write_dump(reinterpret_cast<MINIDUMPWRITEDUMP>(::GetProcAddress(dbghelp, "MiniDumpWriteDump")));
 	if(mini_dump_write_dump == NULL)

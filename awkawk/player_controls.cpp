@@ -383,6 +383,7 @@ void player_controls::render()
 			calculate_caption();
 		}
 		calculate_positions();
+		calculate_colours();
 
 		controls->copy_to_buffer();
 		trackbar->copy_to_buffer();
@@ -402,10 +403,9 @@ void player_controls::render()
 		FAIL_THROW(stateBlock->Capture());
 		ON_BLOCK_EXIT_OBJ(*stateBlock, &IDirect3DStateBlock9::Apply);
 
-		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE));
-		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_CONSTANT, D3DCOLOR_ARGB(static_cast<DWORD>(std::min(ui_reveal_percentage, 0.9f) * 255.0f), 255, 255, 255)));
-		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_CONSTANT));
+		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE));
 		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TEXTURE));
+		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE));
 
 		controls->draw(controls_texture);
 		trackbar->draw(trackbar_texture);
@@ -650,6 +650,53 @@ void player_controls::calculate_positions()
 	caption->vertices[5].tu = 1.0f - ((skin.caption.window_control_width + skin.caption.right_padding) / static_cast<float>(caption_texture_info.Width)); caption->vertices[5].tv = 0.0f;
 	caption->vertices[6].tu = 1.0f;                                                                                                                       caption->vertices[6].tv = 1.0f;
 	caption->vertices[7].tu = 1.0f;                                                                                                                       caption->vertices[7].tv = 0.0f;
+}
+
+void player_controls::calculate_colours()
+{
+	DWORD transparent(static_cast<DWORD>(std::min(ui_reveal_percentage, 0.9f) * 255.0f));
+
+	controls->vertices[0].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[1].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[2].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[3].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[4].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[5].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[6].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	controls->vertices[7].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+
+	trackbar->vertices[0].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[1].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[2].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[3].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[4].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[5].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[6].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	trackbar->vertices[7].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+
+	position_tracker->vertices[0].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	position_tracker->vertices[1].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	position_tracker->vertices[2].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	position_tracker->vertices[3].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+
+	shadowed_position_tracker->vertices[0].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	shadowed_position_tracker->vertices[1].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	shadowed_position_tracker->vertices[2].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	shadowed_position_tracker->vertices[3].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+
+	volume_tracker->vertices[0].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	volume_tracker->vertices[1].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	volume_tracker->vertices[2].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	volume_tracker->vertices[3].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+
+	caption->vertices[0].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[1].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[2].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[3].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[4].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[5].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[6].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
+	caption->vertices[7].diffuse = D3DCOLOR_ARGB(transparent, 0xff, 0xff, 0xff);
 }
 
 void player_controls::set_compact_filename()
