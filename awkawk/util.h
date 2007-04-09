@@ -108,7 +108,7 @@ inline IDirect3DTexture9Ptr load_texture_from_resource(IDirect3DDevice9Ptr devic
 	HGLOBAL glob(::LoadResource(::GetModuleHandle(NULL), res));
 	void* data(::LockResource(glob));
 	IDirect3DTexture9Ptr texture;
-	FAIL_THROW(D3DXCreateTextureFromFileInMemoryEx(device, data, size, D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, D3DFMT_FROM_FILE, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, info, NULL, &texture));
+	FAIL_THROW(D3DXCreateTextureFromFileInMemoryEx(device, data, size, D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 1, D3DFMT_FROM_FILE, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, info, NULL, &texture));
 	return texture;
 }
 
