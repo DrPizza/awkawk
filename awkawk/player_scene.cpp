@@ -55,6 +55,7 @@ void player_scene::render()
 		FAIL_THROW(device->SetTransform(D3DTS_WORLD, &translation));
 
 		calculate_positions();
+		calculate_colours();
 
 		video->copy_to_buffer();
 		// TODO resize the video texture using bicubic resize, possibly with pixel shaders?
@@ -113,4 +114,12 @@ void player_scene::calculate_positions()
 	video->vertices[1].tu = 0.0f; video->vertices[1].tv = 0.0f;
 	video->vertices[2].tu = 1.0f; video->vertices[2].tv = 1.0f;
 	video->vertices[3].tu = 1.0f; video->vertices[3].tv = 0.0f;
+}
+
+void player_scene::calculate_colours()
+{
+	video->vertices[0].diffuse = D3DCOLOR_ARGB(0xff, 0xff, 0xff, 0xff);
+	video->vertices[1].diffuse = D3DCOLOR_ARGB(0xff, 0xff, 0xff, 0xff);
+	video->vertices[2].diffuse = D3DCOLOR_ARGB(0xff, 0xff, 0xff, 0xff);
+	video->vertices[3].diffuse = D3DCOLOR_ARGB(0xff, 0xff, 0xff, 0xff);
 }

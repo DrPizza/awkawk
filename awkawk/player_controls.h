@@ -265,6 +265,7 @@ private:
 	void set_compact_filename();
 
 	void calculate_positions();
+	void calculate_colours();
 
 	void calculate_caption();
 

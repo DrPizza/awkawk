@@ -370,11 +370,12 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 	PathPolygon path_polygon(dc);
 	PathExtruder extruder(path_polygon, extrusion);
 
-	static const DWORD mesh_fvf(D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1);
+	static const DWORD mesh_fvf(D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 	struct mesh_vertex
 	{
 		vec3f position;
 		vec3f normal;
+		D3DCOLOR diffuse;
 		float tu, tv;
 	};
 
@@ -390,6 +391,7 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 		vertices[i].normal[0]   = static_cast<float>(extruder.vertices[i].normal[0]  );
 		vertices[i].normal[1]   = static_cast<float>(extruder.vertices[i].normal[1]  );
 		vertices[i].normal[2]   = static_cast<float>(extruder.vertices[i].normal[2]  );
+		vertices[i].diffuse = D3DCOLOR_ARGB(0xff, 0xff, 0xff, 0xff);
 		vertices[i].tu       = static_cast<float>(extruder.vertices[i].tu);
 		vertices[i].tv       = static_cast<float>(extruder.vertices[i].tv);
 	}

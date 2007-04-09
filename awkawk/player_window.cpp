@@ -127,6 +127,7 @@ void player_window::create_window(int cmd_show)
 	HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
 	if(dwmapi_dll != NULL)
 	{
+		ON_BLOCK_EXIT(&::FreeLibrary, dwmapi_dll);
 		typedef HRESULT (*DWMSETWINDOWATTRIBUTE)(HWND, DWORD, const void*, DWORD);
 		DWMSETWINDOWATTRIBUTE dwm_set_window_attribute(reinterpret_cast<DWMSETWINDOWATTRIBUTE>(::GetProcAddress(dwmapi_dll, "DwmSetWindowAttribute")));
 		DWMNCRENDERINGPOLICY policy(DWMNCRP_DISABLED);

@@ -119,6 +119,7 @@ private:
 	player_scene(const player_scene&);
 
 	void calculate_positions();
+	void calculate_colours();
 
 	utility::critical_section cs;
 
