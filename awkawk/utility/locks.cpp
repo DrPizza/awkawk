@@ -27,7 +27,9 @@
 
 namespace utility
 {
+#ifdef TRACK_LOCKS
 lock_tracker tracker;
+#endif
 
 namespace
 {
@@ -72,7 +74,7 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 		std::set<cs_sequence> seq(get_all_sequences(*it));
 		lock_seq.insert(seq.begin(), seq.end());
 	}
-	for(std::map<DWORD, boost::shared_ptr<utility::lock_tracker::lock_info> >::const_iterator it(utility::tracker.info.begin()), end(utility::tracker.info.end()); it != end; ++it)
+	for(std::map<DWORD, boost::shared_ptr<utility::lock_tracker::lock_info> >::const_iterator it(info.begin()), end(info.end()); it != end; ++it)
 	{
 		std::set<cs_sequence> seq(get_all_sequences(it->second->current_sequence));
 		lock_seq.insert(seq.begin(), seq.end());

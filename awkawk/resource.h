@@ -18,6 +18,9 @@
 #define IDR_VOLUME_TIP                  150
 #define IDD_OPEN_URL                    151
 #define IDR_ACCELERATORS                153
+#define IDR_BLACK                       154
+#define IDR_PNG1                        155
+#define IDR_WHITE                       155
 #define IDC_BROWSE                      1000
 #define IDC_URL                         1001
 #define IDM_PAUSE                       32774
@@ -62,8 +65,8 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        154
-#define _APS_NEXT_COMMAND_VALUE         32856
+#define _APS_NEXT_RESOURCE_VALUE        156
+#define _APS_NEXT_COMMAND_VALUE         32873
 #define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           110
 #endif

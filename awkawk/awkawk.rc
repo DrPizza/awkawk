@@ -136,6 +136,8 @@ IDR_BACKGROUND_CONTROLS PNG                     "Imgs\\Background_Controls.png"
 IDR_TRACKBAR            PNG                     "Imgs\\TrackBar.png"
 IDR_TRACKBAR_TIP        PNG                     "Imgs\\TrackBar_Tip.png"
 IDR_VOLUME_TIP          PNG                     "Imgs\\Volume_Tip.png"
+IDR_BLACK               PNG                     "Imgs\\black.png"
+IDR_WHITE               PNG                     "Imgs\\white.png"
 
 /////////////////////////////////////////////////////////////////////////////
 //
