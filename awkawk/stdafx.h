@@ -25,6 +25,8 @@
 
 #pragma once
 
+#pragma comment(lib, "delayimp.lib")
+
 #define NOMINMAX
 #define NTDDI_VERSION NTDDI_LONGHORN
 #define STRICT
@@ -34,7 +36,12 @@
 
 #include <objbase.h>
 #include <windows.h>
+#pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "comctl32.lib")
+
 #include <uxtheme.h>
+#pragma comment(lib, "uxtheme.lib")
+
 #include <dwmapi.h>
 
 #define DBGHELP_TRANSLATE_TCHAR
@@ -67,21 +74,21 @@
 #include <dshow.h>
 #include <Dvdmedia.h>
 #include <Dvdevcod.h>
+#pragma comment(lib, "strmiids.lib")
 
 // D3D, VMR9
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <vmr9.h>
+#pragma comment(lib, "d3d9.lib")
+#pragma comment(lib, "d3dx9.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #if defined DEBUG || defined _DEBUG
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #define DEBUG_CLIENTBLOCK new(_CLIENT_BLOCK, __FILE__, __LINE__)
 #define new DEBUG_CLIENTBLOCK
-#endif
-
-#if defined DEBUG || defined _DEBUG
-#define TRACK_LOCKS
 #endif
 
 // ATL

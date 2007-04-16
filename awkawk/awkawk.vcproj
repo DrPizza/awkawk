@@ -73,14 +73,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib  uxtheme.lib"
+				AdditionalOptions="/NXCOMPAT /DELAY:NOBIND"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
 				AdditionalManifestDependencies=""
 				DelayLoadDLLs="dbghelp.dll"
 				GenerateDebugInformation="true"
+				LargeAddressAware="2"
 				TargetMachine="1"
-				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -160,14 +160,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
+				AdditionalOptions="/NXCOMPAT /DELAY:NOBIND"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
 				AdditionalManifestDependencies=""
 				DelayLoadDLLs="dbghelp.dll"
 				GenerateDebugInformation="true"
+				LargeAddressAware="2"
 				TargetMachine="17"
-				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -247,15 +247,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
+				AdditionalOptions="/NXCOMPAT /DELAY:NOBIND"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories=""
 				DelayLoadDLLs="dbghelp.dll"
 				GenerateDebugInformation="true"
+				LargeAddressAware="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="1"
-				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -338,15 +338,15 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="strmiids.lib d3d9.lib d3dx9.lib dxguid.lib winmm.lib comctl32.lib uxtheme.lib"
+				AdditionalOptions="/NXCOMPAT /DELAY:NOBIND"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories=""
 				DelayLoadDLLs="dbghelp.dll"
 				GenerateDebugInformation="true"
+				LargeAddressAware="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="17"
-				FixedBaseAddress="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -660,6 +660,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Imgs\black.png"
+				>
+			</File>
+			<File
 				RelativePath=".\Imgs\TrackBar.png"
 				>
 			</File>
@@ -673,6 +677,10 @@
 			</File>
 			<File
 				RelativePath=".\Imgs\Volume_Tip.png"
+				>
+			</File>
+			<File
+				RelativePath=".\Imgs\white.png"
 				>
 			</File>
 		</Filter>

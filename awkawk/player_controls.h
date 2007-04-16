@@ -173,26 +173,8 @@ struct player_controls : message_handler, direct3d_object
 		shadowed_position_tracker_texture = load_texture_from_resource(device, IDR_TRACKBAR_TIP, &shadowed_position_tracker_texture_info);
 		volume_tracker_texture = load_texture_from_resource(device, IDR_VOLUME_TIP, &volume_tracker_texture_info);
 		caption_texture = load_texture_from_resource(device, IDR_BACKGROUND_CAPTION, &caption_texture_info);
-#ifdef USE_RGBRAST
-		FAIL_RET(device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &white_texture, NULL));
-#else
-		FAIL_RET(device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &white_texture, NULL));
-#endif
-		D3DLOCKED_RECT lr = {0};
-		FAIL_RET(white_texture->LockRect(0, &lr, NULL, D3DLOCK_DISCARD));
-		*reinterpret_cast<DWORD*>(lr.pBits) = D3DCOLOR_ARGB(255, 255, 255, 255);
-		FAIL_RET(white_texture->UnlockRect(0));
-
-#ifdef USE_RGBRAST
-		FAIL_RET(device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &black_texture, NULL));
-#else
-		FAIL_RET(device->CreateTexture(1, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &black_texture, NULL));
-#endif
-		lr.pBits = 0;
-		lr.Pitch = 0;
-		FAIL_RET(black_texture->LockRect(0, &lr, NULL, D3DLOCK_DISCARD));
-		*reinterpret_cast<DWORD*>(lr.pBits) = D3DCOLOR_ARGB(255, 0, 0, 0);
-		FAIL_RET(black_texture->UnlockRect(0));
+		white_texture = load_texture_from_resource(device, IDR_WHITE, &white_texture_info);
+		black_texture = load_texture_from_resource(device, IDR_BLACK, &black_texture_info);
 
 		FAIL_RET(controls->on_device_reset());
 		FAIL_RET(trackbar->on_device_reset());
@@ -298,7 +280,10 @@ private:
 	D3DXIMAGE_INFO caption_texture_info;
 
 	IDirect3DTexture9Ptr white_texture;
+	D3DXIMAGE_INFO white_texture_info;
+
 	IDirect3DTexture9Ptr black_texture;
+	D3DXIMAGE_INFO black_texture_info;
 
 	skin_definition skin;
 

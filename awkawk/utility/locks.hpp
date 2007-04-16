@@ -23,6 +23,10 @@
 #ifndef LOCKS_HPP
 #define LOCKS_HPP
 
+#if defined DEBUG || defined _DEBUG
+#define TRACK_LOCKS
+#endif
+
 #define NOMINMAX
 #define STRICT
 #include <windows.h>
@@ -179,7 +183,7 @@ struct lock_tracker
 	{
 		::InitializeCriticalSection(&cs);
 		::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_CASE_INSENSITIVE);
-		::SymInitialize(::GetCurrentProcess(), NULL, TRUE);
+		::SymInitializeW(::GetCurrentProcess(), NULL, TRUE);
 	}
 
 	~lock_tracker()
@@ -274,7 +278,9 @@ std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, const lock_tracker:
 	return os;
 }
 
+#ifdef TRACK_LOCKS
 extern utility::lock_tracker tracker;
+#endif
 
 struct critical_section
 {
