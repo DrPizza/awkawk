@@ -203,6 +203,9 @@ struct player_controls : message_handler, direct3d_object
 		caption_texture = NULL;
 		white_texture = NULL;
 		black_texture = NULL;
+
+		caption_mesh = NULL;
+
 		return S_OK;
 	}
 	// destroy D3DPOOL_DEFAULT resources

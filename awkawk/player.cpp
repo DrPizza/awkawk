@@ -84,7 +84,8 @@ Player::~Player()
 void Player::create_d3d()
 {
 	IDirect3D9* d3d9(NULL);
-
+#define USE_D3D9EX
+#ifdef USE_D3D9EX
 	HMODULE d3d9_dll(::GetModuleHandleW(L"d3d9.dll"));
 	typedef HRESULT (WINAPI *d3dcreate9ex_proc)(UINT, IDirect3D9Ex**);
 	d3dcreate9ex_proc d3dcreate9ex(reinterpret_cast<d3dcreate9ex_proc>(::GetProcAddress(d3d9_dll, "Direct3DCreate9Ex")));
@@ -96,6 +97,7 @@ void Player::create_d3d()
 			d3d9 = ptr;
 		}
 	}
+#endif
 	if(d3d9 == NULL)
 	{
 		d3d9 = ::Direct3DCreate9(D3D_SDK_VERSION);
@@ -595,7 +597,7 @@ void Player::create_ui(int cmd_show)
 
 void Player::create_device()
 {
-#ifdef USE_RGBRAST
+#if defined(USE_RGBRAST)
 	HMODULE rgb_rast(::LoadLibraryW(L"rgb9rast.dll"));
 	if(rgb_rast != NULL)
 	{
@@ -603,6 +605,9 @@ void Player::create_device()
 		d3d->RegisterSoftwareDevice(reinterpret_cast<void*>(rgb_rast_register));
 	}
 	const D3DDEVTYPE dev_type(D3DDEVTYPE_SW);
+	const DWORD vertex_processing(D3DCREATE_SOFTWARE_VERTEXPROCESSING);
+#elif defined(USE_REFFAST)
+	const D3DDEVTYPE dev_type(D3DDEVTYPE_REF);
 	const DWORD vertex_processing(D3DCREATE_SOFTWARE_VERTEXPROCESSING);
 #else
 	const D3DDEVTYPE dev_type(D3DDEVTYPE_HAL);
@@ -658,7 +663,8 @@ void Player::create_device()
 	presentation_parameters.FullScreen_RefreshRateInHz = 0;
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, ui.get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &presentation_parameters, &scene_device));
+	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, ui.get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &parameters, &scene_device));
 
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_LIGHTING, FALSE));
@@ -696,7 +702,7 @@ void Player::reset_device()
 #if 0
 	// this doesn't seem to work satisfactorily; it says it resets OK, but nothing works.
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
-	HRESULT hr(device->Reset(&parameters));
+	HRESULT hr(scene_device->Reset(&parameters));
 	switch(hr)
 	{
 	case S_OK:
@@ -734,7 +740,11 @@ int Player::run_ui()
 	cancel_render = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	render_thread = utility::CreateThread(NULL, 0, this, &Player::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
 	schedule_render();
-	int rv(ui.pump_messages());
+	return ui.pump_messages();
+}
+
+void Player::stop_rendering()
+{
 	if(render_thread != 0)
 	{
 		::SetEvent(cancel_render);
@@ -747,8 +757,6 @@ int Player::run_ui()
 		render_timer = 0;
 		render_thread = 0;
 	}
-
-	return rv;
 }
 
 bool Player::needs_display_change() const
@@ -816,8 +824,10 @@ DWORD Player::render_thread_proc(void*)
 {
 	try
 	{
-		create_d3d();
-		create_device();
+		//create_d3d();
+		ui.send_message(player_window::create_d3d_msg, 0, 0);
+		//create_device();
+		ui.send_message(player_window::create_device_msg, 0, 0);
 		HANDLE evts[] = { render_event, render_timer, cancel_render };
 		bool continue_rendering(true);
 		while(continue_rendering)
@@ -831,13 +841,13 @@ DWORD Player::render_thread_proc(void*)
 				{
 					if(needs_display_change())
 					{
-						reset_device();
+						ui.send_message(player_window::reset_device_msg, 0, 0);
+						//reset_device();
 					}
-					reset();
-					render();
-					//::InvalidateRect(ui.get_window(), NULL, TRUE);
-					//::RedrawWindow(ui.get_window(), NULL, NULL, RDW_UPDATENOW | RDW_INTERNALPAINT | RDW_ERASE | RDW_FRAME);
-					//ui.update_window();
+					//reset();
+					ui.send_message(player_window::reset_msg, 0, 0);
+					//render();
+					ui.send_message(player_window::render_msg, 0, 0);
 				}
 				catch(_com_error& ce)
 				{
@@ -850,8 +860,10 @@ DWORD Player::render_thread_proc(void*)
 				break;
 			}
 		}
-		destroy_device();
-		destroy_d3d();
+		//destroy_device();
+		ui.post_message(player_window::destroy_device_msg, 0, 0);
+		//destroy_d3d();
+		ui.post_message(player_window::destroy_d3d_msg, 0, 0);
 	}
 	catch(_com_error& ce)
 	{

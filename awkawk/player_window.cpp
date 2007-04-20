@@ -195,6 +195,28 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_SYSCOMMAND, onSysCommand);
 	HANDLE_MSG(window, WM_TIMER, onTimer);
 
+	case create_d3d_msg:
+		player->create_d3d();
+		break;
+	case create_device_msg:
+		player->create_device();
+		break;
+	case reset_device_msg:
+		player->reset_device();
+		break;
+	case reset_msg:
+		player->reset();
+		break;
+	case render_msg:
+		player->render();
+		break;
+	case destroy_device_msg:
+		player->destroy_device();
+		break;
+	case destroy_d3d_msg:
+		player->destroy_d3d();
+		break;
+
 	default:
 		return ::DefWindowProcW(window, message, wParam, lParam);
 	}
@@ -382,7 +404,7 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			destroy_window();
 			break;
 		default:
-			if(id < WM_USER || !show_filter_properties(id - (WM_USER + 1)))
+			if(id < WM_USER || !show_filter_properties(id - (filter_menu_base)))
 			{
 				FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
 			}
@@ -432,7 +454,7 @@ void player_window::build_filter_menu(HMENU parent_menu, UINT position) const
 	{
 		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 		
-		UINT flt_id(WM_USER + 1);
+		UINT flt_id(filter_menu_base);
 		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
 		{
 			IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(*it));
@@ -564,6 +586,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 void player_window::onDestroy(HWND)
 {
 	player->close();
+	player->stop_rendering();
 	::RevokeDragDrop(get_window());
 	::PostQuitMessage(0);
 }
