@@ -644,6 +644,8 @@ struct Player
 		::SetEvent(render_event);
 	}
 
+	void stop_rendering();
+
 	typedef std::list<std::wstring> playlist_type;
 
 private:

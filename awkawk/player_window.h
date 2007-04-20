@@ -40,6 +40,17 @@ struct player_window : window
 
 	std::wstring get_local_path() const;
 	std::wstring get_remote_path() const;
+	enum
+	{
+		create_d3d_msg = WM_USER + 1,
+		create_device_msg,
+		reset_device_msg,
+		reset_msg,
+		render_msg,
+		destroy_device_msg,
+		destroy_d3d_msg,
+		filter_menu_base = WM_USER + 0x100
+	};
 	void build_filter_menu(HMENU parent_menu, UINT position) const;
 	bool show_filter_properties(size_t chosen) const;
 
