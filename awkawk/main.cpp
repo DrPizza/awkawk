@@ -20,7 +20,7 @@
 
 #include "stdafx.h"
 
-#include "player.h"
+#include "awkawk.h"
 
 #ifdef _DEBUG
 #define SET_CRT_DEBUG_FIELD(a) _CrtSetDbgFlag((a) | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
@@ -99,7 +99,7 @@ int real_main(int, wchar_t**)
 	::OleInitialize(NULL);
 	//::InitCommonControls();
 	ON_BLOCK_EXIT(&::OleUninitialize);
-	Player p;
+	awkawk p;
 	p.create_ui(SW_RESTORE);
 	return p.run_ui();
 }

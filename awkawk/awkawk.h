@@ -47,10 +47,10 @@ _COM_SMARTPTR_TYPEDEF(IPin, __uuidof(IPin));
 _COM_SMARTPTR_TYPEDEF(IMediaEventEx, __uuidof(IMediaEventEx));
 _COM_SMARTPTR_TYPEDEF(IVMRDeinterlaceControl9, __uuidof(IVMRDeinterlaceControl9));
 
-struct Player
+struct awkawk
 {
-	Player();
-	~Player();
+	awkawk();
+	~awkawk();
 
 	void add_file(const std::wstring& path)
 	{

@@ -388,6 +388,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\awkawk.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\utility\debugstream.cpp"
 				>
 				<FileConfiguration
@@ -476,10 +480,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\player.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\player_controls.cpp"
 				>
 			</File>
@@ -546,6 +546,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\awkawk.h"
+				>
+			</File>
+			<File
 				RelativePath=".\utility\debug.hpp"
 				>
 			</File>
@@ -571,10 +575,6 @@
 			</File>
 			<File
 				RelativePath=".\open_url.h"
-				>
-			</File>
-			<File
-				RelativePath=".\player.h"
 				>
 			</File>
 			<File

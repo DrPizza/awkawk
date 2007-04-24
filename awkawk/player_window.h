@@ -29,11 +29,11 @@ _COM_SMARTPTR_TYPEDEF(IDropTarget, __uuidof(IDropTarget));
 _COM_SMARTPTR_TYPEDEF(IDataObject, __uuidof(IDataObject));
 _COM_SMARTPTR_TYPEDEF(ISpecifyPropertyPages, __uuidof(ISpecifyPropertyPages));
 
-struct Player;
+struct awkawk;
 
 struct player_window : window
 {
-	player_window(Player* player_);
+	player_window(awkawk* player_);
 	~player_window();
 
 	void create_window(int cmd_show);
@@ -144,7 +144,7 @@ private:
 
 	IDropTargetPtr target;
 
-	Player* player;
+	awkawk* player;
 
 	player_window(const player_window&);
 };
