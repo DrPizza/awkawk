@@ -31,10 +31,10 @@ _COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocatorNotify9, __uuidof(IVMRSurfaceAllocator
 // These are QIed and may at some point be worth implementing
 // IVMRMonitorConfig9
 // IVMRSurfaceAllocatorEx9
-struct surface_allocator : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, device_loss_handler
+struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, device_loss_handler
 {
-	surface_allocator(awkawk* player_, IDirect3DDevice9Ptr device_);
-	virtual ~surface_allocator();
+	allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_);
+	virtual ~allocator_presenter();
 
 	// IVMRSurfaceAllocator9
 	virtual STDMETHODIMP InitializeDevice(DWORD_PTR user_id, VMR9AllocationInfo* allocationInfo, DWORD* numBuffers);
@@ -89,7 +89,7 @@ struct surface_allocator : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImage
 		return texture_locks.find(id) != texture_locks.end();
 	}
 private:
-	surface_allocator(const surface_allocator&);
+	allocator_presenter(const allocator_presenter&);
 
 	long ref_count;
 
