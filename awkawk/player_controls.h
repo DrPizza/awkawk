@@ -33,11 +33,11 @@ _COM_SMARTPTR_TYPEDEF(ID3DXFont, IID_ID3DXFont);
 _COM_SMARTPTR_TYPEDEF(ID3DXMesh, IID_ID3DXMesh);
 _COM_SMARTPTR_TYPEDEF(ID3DXBuffer, IID_ID3DXBuffer);
 
-struct Player;
+struct awkawk;
 
 struct player_controls : message_handler, direct3d_object
 {
-	player_controls(Player* player_, window* parent_);
+	player_controls(awkawk* player_, window* parent_);
 
 	bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -313,7 +313,7 @@ private:
 
 	bool clicking_volume_slider;
 
-	Player* player;
+	awkawk* player;
 
 	player_controls(const player_controls&);
 };

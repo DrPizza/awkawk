@@ -32,11 +32,11 @@
 _COM_SMARTPTR_TYPEDEF(ID3DXFont, IID_ID3DXFont);
 _COM_SMARTPTR_TYPEDEF(ID3DXMesh, IID_ID3DXMesh);
 
-struct Player;
+struct awkawk;
 
 struct player_scene : message_handler, direct3d_object
 {
-	player_scene(Player* player_, window* parent_);
+	player_scene(awkawk* player_, window* parent_);
 	virtual ~player_scene();
 	void render();
 
@@ -131,7 +131,7 @@ private:
 	D3DXIMAGE_INFO default_video_texture_info;
 	IDirect3DTexture9Ptr video_texture;
 
-	Player* player;
+	awkawk* player;
 	std::auto_ptr<player_controls> controls;
 };
 

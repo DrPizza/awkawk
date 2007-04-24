@@ -20,10 +20,10 @@
 
 #include "stdafx.h"
 
-#include "player.h"
+#include "awkawk.h"
 #include "text.h"
 
-Player::Player() : ui(this),
+awkawk::awkawk() : ui(this),
                    event_thread(0),
                    render_thread(0),
                    user_id(0xabcd),
@@ -50,13 +50,13 @@ Player::Player() : ui(this),
 	FAIL_THROW(events->GetEventHandle(reinterpret_cast<OAEVENT*>(&evt)));
 	::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &event, 0, FALSE, DUPLICATE_SAME_ACCESS);
 	cancel_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
-	event_thread = utility::CreateThread(NULL, 0, this, &Player::event_thread_proc, static_cast<void*>(0), "Event thread", 0, 0);
+	event_thread = utility::CreateThread(NULL, 0, this, &awkawk::event_thread_proc, static_cast<void*>(0), "Event thread", 0, 0);
 }
 
-Player::~Player()
+awkawk::~awkawk()
 {
 	LOCK(graph_cs);
-	if(get_state() != Player::unloaded)
+	if(get_state() != awkawk::unloaded)
 	{
 		try
 		{
@@ -81,7 +81,7 @@ Player::~Player()
 	graph = NULL;
 }
 
-void Player::create_d3d()
+void awkawk::create_d3d()
 {
 	IDirect3D9* d3d9(NULL);
 #define USE_D3D9EX
@@ -109,12 +109,12 @@ void Player::create_d3d()
 	d3d.Attach(d3d9);
 }
 
-void Player::destroy_d3d()
+void awkawk::destroy_d3d()
 {
 	d3d = NULL;
 }
 
-void Player::stop()
+void awkawk::stop()
 {
 	if(state == unloaded)
 	{
@@ -132,7 +132,7 @@ void Player::stop()
 	state = stopped;
 }
 
-void Player::play()
+void awkawk::play()
 {
 	if(state == unloaded)
 	{
@@ -144,7 +144,7 @@ void Player::play()
 	state = playing;
 }
 
-void Player::pause()
+void awkawk::pause()
 {
 	if(state == unloaded)
 	{
@@ -168,7 +168,7 @@ void Player::pause()
 	}
 }
 
-void Player::ffwd()
+void awkawk::ffwd()
 {
 	if(state == unloaded)
 	{
@@ -178,14 +178,14 @@ void Player::ffwd()
 	// TODO
 }
 
-void Player::next()
+void awkawk::next()
 {
 	LOCK(graph_cs);
 	if(playlist.empty())
 	{
 		return;
 	}
-	Player::status initial_state(state);
+	awkawk::status initial_state(state);
 	if(initial_state != unloaded)
 	{
 		stop();
@@ -231,7 +231,7 @@ void Player::next()
 	}
 }
 
-void Player::rwnd()
+void awkawk::rwnd()
 {
 	if(state == unloaded)
 	{
@@ -241,15 +241,14 @@ void Player::rwnd()
 	// TODO
 }
 
-void Player::prev()
+void awkawk::prev()
 {
-
 	LOCK(graph_cs);
 	if(playlist.empty())
 	{
 		return;
 	}
-	Player::status initial_state(state);
+	awkawk::status initial_state(state);
 	if(initial_state != unloaded)
 	{
 		stop();
@@ -280,7 +279,7 @@ void Player::prev()
 	}
 }
 
-void Player::load()
+void awkawk::load()
 {
 	LOCK(graph_cs);
 	try
@@ -295,7 +294,7 @@ void Player::load()
 	}
 }
 
-void Player::close()
+void awkawk::close()
 {
 	if(state == unloaded)
 	{
@@ -307,7 +306,7 @@ void Player::close()
 	state = unloaded;
 }
 
-void Player::destroy_graph()
+void awkawk::destroy_graph()
 {
 	LOCK(graph_cs);
 	unregister_graph();
@@ -337,7 +336,7 @@ void Player::destroy_graph()
 	has_video = false;
 }
 
-void Player::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
+void awkawk::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 {
 	LOCK(graph_cs);
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
@@ -351,7 +350,7 @@ void Player::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 	FAIL_THROW(surface_allocator_notify->SetD3DDevice(scene_device, ::MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY)));
 }
 
-REFERENCE_TIME Player::get_average_frame_time(IFilterGraphPtr grph) const
+REFERENCE_TIME awkawk::get_average_frame_time(IFilterGraphPtr grph) const
 {
 	IEnumFiltersPtr filtEn;
 	grph->EnumFilters(&filtEn);
@@ -397,7 +396,7 @@ REFERENCE_TIME Player::get_average_frame_time(IFilterGraphPtr grph) const
 	return 0;
 }
 
-SIZE Player::get_video_size() const
+SIZE awkawk::get_video_size() const
 {
 	IEnumPinsPtr pinEn;
 	vmr9->EnumPins(&pinEn);
@@ -443,7 +442,7 @@ SIZE Player::get_video_size() const
 	return get_video_dimensions();
 }
 
-void Player::create_graph()
+void awkawk::create_graph()
 {
 	FAIL_THROW(vmr9.CreateInstance(CLSID_VideoMixingRenderer9, NULL, CLSCTX_INPROC_SERVER));
 	IVMRFilterConfig9Ptr filter_config;
@@ -458,6 +457,7 @@ void Player::create_graph()
 	// Further, if we do not use mixing mode then we cannot use VMR deinterlacing.
 	// It's all rather sad.
 #define USE_MIXING_MODE
+#define USE_YUV_MIXING_MODE
 #ifdef USE_MIXING_MODE
 	FAIL_THROW(filter_config->SetNumberOfStreams(1));
 	IVMRMixerControl9Ptr mixer_control;
@@ -465,7 +465,9 @@ void Player::create_graph()
 	DWORD mixing_prefs(0);
 	FAIL_THROW(mixer_control->GetMixingPrefs(&mixing_prefs));
 	mixing_prefs &= ~MixerPref9_RenderTargetMask;
+#ifdef USE_YUV_MIXING_MODE
 	mixing_prefs |= MixerPref9_RenderTargetYUV;
+#endif
 	mixing_prefs &= ~MixerPref9_DynamicMask;
 	FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
 #endif
@@ -537,7 +539,6 @@ void Player::create_graph()
 		pin->ConnectionMediaType(&mt);
 		ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
 		has_video = has_video || (mt.formattype != FORMAT_None) && (mt.formattype != GUID_NULL);
-
 	}
 
 	if(has_video)
@@ -554,7 +555,7 @@ void Player::create_graph()
 	pause();
 }
 
-void Player::register_graph(IUnknownPtr unknown)
+void awkawk::register_graph(IUnknownPtr unknown)
 {
 	IRunningObjectTablePtr rot;
 	FAIL_THROW(::GetRunningObjectTable(0, &rot));
@@ -568,14 +569,14 @@ void Player::register_graph(IUnknownPtr unknown)
 	FAIL_THROW(rot->Register(ROTFLAGS_REGISTRATIONKEEPSALIVE, unknown, moniker, &rot_key));
 }
 
-void Player::unregister_graph(void)
+void awkawk::unregister_graph(void)
 {
 	IRunningObjectTablePtr rot;
 	FAIL_THROW(::GetRunningObjectTable(0, &rot));
 	rot->Revoke(rot_key);
 }
 
-::tm Player::convert_win32_time(LONGLONG w32Time)
+::tm awkawk::convert_win32_time(LONGLONG w32Time)
 {
 	::tm t = {0};
 	t.tm_isdst = 0;
@@ -588,14 +589,14 @@ void Player::unregister_graph(void)
 	return t;
 }
 
-void Player::create_ui(int cmd_show)
+void awkawk::create_ui(int cmd_show)
 {
 	ui.create_window(cmd_show);
 	scene.reset(new player_scene(this, &ui));
 	ui.add_message_handler(scene.get());
 }
 
-void Player::create_device()
+void awkawk::create_device()
 {
 #if defined(USE_RGBRAST)
 	HMODULE rgb_rast(::LoadLibraryW(L"rgb9rast.dll"));
@@ -684,13 +685,13 @@ void Player::create_device()
 	FAIL_THROW(scene->on_device_reset());
 }
 
-void Player::destroy_device()
+void awkawk::destroy_device()
 {
 	scene->on_device_destroyed();
 	scene_device = NULL;
 }
 
-void Player::reset_device()
+void awkawk::reset_device()
 {
 	LOCK(graph_cs);
 	if(allocator)
@@ -700,7 +701,7 @@ void Player::reset_device()
 	FAIL_THROW(scene->on_device_lost());
 
 #if 0
-	// this doesn't seem to work satisfactorily; it says it resets OK, but nothing works.
+	// this doesn't seem to work satisfactorily; it says it resets OK, but just renders a black window
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
 	HRESULT hr(scene_device->Reset(&parameters));
 	switch(hr)
@@ -732,18 +733,18 @@ void Player::reset_device()
 	}
 }
 
-int Player::run_ui()
+int awkawk::run_ui()
 {
 	render_timer = ::CreateWaitableTimerW(NULL, TRUE, NULL);
 	set_render_fps(25);
 	render_event = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	cancel_render = ::CreateEventW(NULL, FALSE, FALSE, NULL);
-	render_thread = utility::CreateThread(NULL, 0, this, &Player::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
+	render_thread = utility::CreateThread(NULL, 0, this, &awkawk::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
 	schedule_render();
 	return ui.pump_messages();
 }
 
-void Player::stop_rendering()
+void awkawk::stop_rendering()
 {
 	if(render_thread != 0)
 	{
@@ -759,7 +760,7 @@ void Player::stop_rendering()
 	}
 }
 
-bool Player::needs_display_change() const
+bool awkawk::needs_display_change() const
 {
 	D3DDEVICE_CREATION_PARAMETERS parameters;
 	scene_device->GetCreationParameters(&parameters);
@@ -768,7 +769,7 @@ bool Player::needs_display_change() const
 	return device_monitor != window_monitor;
 }
 
-void Player::reset()
+void awkawk::reset()
 {
 	switch(scene_device->TestCooperativeLevel())
 	{
@@ -785,7 +786,7 @@ void Player::reset()
 	}
 }
 
-void Player::render()
+void awkawk::render()
 {
 	try
 	{
@@ -820,7 +821,7 @@ void Player::render()
 	}
 }
 
-DWORD Player::render_thread_proc(void*)
+DWORD awkawk::render_thread_proc(void*)
 {
 	try
 	{
@@ -841,13 +842,13 @@ DWORD Player::render_thread_proc(void*)
 				{
 					if(needs_display_change())
 					{
-						ui.send_message(player_window::reset_device_msg, 0, 0);
+						ui.post_message(player_window::reset_device_msg, 0, 0);
 						//reset_device();
 					}
 					//reset();
-					ui.send_message(player_window::reset_msg, 0, 0);
+					ui.post_message(player_window::reset_msg, 0, 0);
 					//render();
-					ui.send_message(player_window::render_msg, 0, 0);
+					ui.post_message(player_window::render_msg, 0, 0);
 				}
 				catch(_com_error& ce)
 				{
@@ -876,7 +877,7 @@ DWORD Player::render_thread_proc(void*)
 	return 0;
 }
 
-DWORD Player::event_thread_proc(void*)
+DWORD awkawk::event_thread_proc(void*)
 {
 	try
 	{
@@ -893,7 +894,7 @@ DWORD Player::event_thread_proc(void*)
 			case EC_COMPLETE:
 				{
 					dout << "EC_COMPLETE" << std::endl;
-					Player::status initial_state(state);
+					awkawk::status initial_state(state);
 					stop();
 					LONGLONG current(0);
 					seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);

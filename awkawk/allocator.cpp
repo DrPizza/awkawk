@@ -20,9 +20,9 @@
 
 #include "stdafx.h"
 
-#include "player.h"
+#include "awkawk.h"
 
-surface_allocator::surface_allocator(Player* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
+surface_allocator::surface_allocator(awkawk* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
                                                                                      player(player_),
                                                                                      device(device_)
 {

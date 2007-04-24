@@ -22,10 +22,10 @@
 
 #include "player_window.h"
 #include "open_url.h"
-#include "player.h"
+#include "awkawk.h"
 #include "resource.h"
 
-player_window::player_window(Player* player_) : window(L"awkawk class", CS_DBLCLKS, ::LoadIconW(instance, MAKEINTRESOURCEW(IDI_PLAYER)), ::LoadCursorW(NULL, MAKEINTRESOURCEW(IDC_ARROW)), static_cast<HBRUSH>(::GetStockObject(BLACK_BRUSH)), NULL, MAKEINTRESOURCEW(IDR_ACCELERATORS)),
+player_window::player_window(awkawk* player_) : window(L"awkawk class", CS_DBLCLKS, ::LoadIconW(instance, MAKEINTRESOURCEW(IDI_PLAYER)), ::LoadCursorW(NULL, MAKEINTRESOURCEW(IDC_ARROW)), static_cast<HBRUSH>(::GetStockObject(BLACK_BRUSH)), NULL, MAKEINTRESOURCEW(IDR_ACCELERATORS)),
                                                 player(player_),
                                                 tracking(false),
                                                 dragging(false),
@@ -104,7 +104,7 @@ void player_window::open_single_file(const std::wstring& path)
 		std::copy(path.begin(), path.end(), buffer.get());
 		::PathStripPathW(buffer.get());
 		set_window_text(buffer.get());
-		if(player->get_state() != Player::unloaded)
+		if(player->get_state() != awkawk::unloaded)
 		{
 			player->stop();
 			player->close();
@@ -196,27 +196,43 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_TIMER, onTimer);
 
 	case create_d3d_msg:
-		player->create_d3d();
-		break;
 	case create_device_msg:
-		player->create_device();
-		break;
 	case reset_device_msg:
-		player->reset_device();
-		break;
-	case reset_msg:
-		player->reset();
-		break;
 	case render_msg:
-		player->render();
-		break;
+	case reset_msg:
 	case destroy_device_msg:
-		player->destroy_device();
-		break;
 	case destroy_d3d_msg:
-		player->destroy_d3d();
-		break;
-
+		try
+		{
+			switch(message)
+			{
+			case create_d3d_msg:
+				player->create_d3d();
+				break;
+			case create_device_msg:
+				player->create_device();
+				break;
+			case reset_device_msg:
+				player->reset_device();
+				break;
+			case reset_msg:
+				player->reset();
+				break;
+			case render_msg:
+				player->render();
+				break;
+			case destroy_device_msg:
+				player->destroy_device();
+				break;
+			case destroy_d3d_msg:
+				player->destroy_d3d();
+				break;
+			}
+		}
+		catch(_com_error& ce)
+		{
+			derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		}
 	default:
 		return ::DefWindowProcW(window, message, wParam, lParam);
 	}
@@ -324,69 +340,69 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			player->prev();
 			break;
 		case IDM_PLAYMODE_NORMAL:
-			player->set_playmode(Player::normal);
+			player->set_playmode(awkawk::normal);
 			break;
 		case IDM_PLAYMODE_REPEATALL:
-			player->set_playmode(Player::repeat_all);
+			player->set_playmode(awkawk::repeat_all);
 			break;
 		case IDM_PLAYMODE_REPEATTRACK:
-			player->set_playmode(Player::repeat_single);
+			player->set_playmode(awkawk::repeat_single);
 			break;
 		case IDM_PLAYMODE_SHUFFLE:
-			player->set_playmode(Player::shuffle);
+			player->set_playmode(awkawk::shuffle);
 			break;
 		case IDM_SIZE_50:
-			player->set_window_size_mode(Player::fifty_percent);
+			player->set_window_size_mode(awkawk::fifty_percent);
 			break;
 		case IDM_SIZE_100:
-			player->set_window_size_mode(Player::one_hundred_percent);
+			player->set_window_size_mode(awkawk::one_hundred_percent);
 			break;
 		case IDM_SIZE_200:
-			player->set_window_size_mode(Player::two_hundred_percent);
+			player->set_window_size_mode(awkawk::two_hundred_percent);
 			break;
 		case IDM_SIZE_FREE:
-			player->set_window_size_mode(Player::free);
+			player->set_window_size_mode(awkawk::free);
 			break;
 		case IDM_AR_ORIGINAL:
-			player->set_aspect_ratio_mode(Player::original);
+			player->set_aspect_ratio_mode(awkawk::original);
 			break;
 		case IDM_AR_133TO1:
-			player->set_aspect_ratio_mode(Player::onethreethree_to_one);
+			player->set_aspect_ratio_mode(awkawk::onethreethree_to_one);
 			break;
 		case IDM_AR_155TO1:
-			player->set_aspect_ratio_mode(Player::onefivefive_to_one);
+			player->set_aspect_ratio_mode(awkawk::onefivefive_to_one);
 			break;
 		case IDM_AR_177TO1:
-			player->set_aspect_ratio_mode(Player::onesevenseven_to_one);
+			player->set_aspect_ratio_mode(awkawk::onesevenseven_to_one);
 			break;
 		case IDM_AR_185TO1:
-			player->set_aspect_ratio_mode(Player::oneeightfive_to_one);
+			player->set_aspect_ratio_mode(awkawk::oneeightfive_to_one);
 			break;
 		case IDM_AR_240TO1:
-			player->set_aspect_ratio_mode(Player::twofourzero_to_one);
+			player->set_aspect_ratio_mode(awkawk::twofourzero_to_one);
 			break;
 		case IDM_NOLETTERBOXING:
-			player->set_letterbox_mode(Player::no_letterboxing);
+			player->set_letterbox_mode(awkawk::no_letterboxing);
 			break;
 		case IDM_4_TO_3_ORIGINAL:
-			player->set_letterbox_mode(Player::four_to_three_original);
+			player->set_letterbox_mode(awkawk::four_to_three_original);
 			break;
 		case IDM_14_TO_9_ORIGINAL:
-			player->set_letterbox_mode(Player::fourteen_to_nine_original);
+			player->set_letterbox_mode(awkawk::fourteen_to_nine_original);
 			break;
 		case IDM_16_TO_9_ORIGINAL:
-			player->set_letterbox_mode(Player::sixteen_to_nine_original);
+			player->set_letterbox_mode(awkawk::sixteen_to_nine_original);
 			break;
 		case IDM_185_TO_1_ORIGINAL:
-			player->set_letterbox_mode(Player::oneeightfive_to_one_original);
+			player->set_letterbox_mode(awkawk::oneeightfive_to_one_original);
 			break;
 		case IDM_240_TO_1_ORIGINAL:
-			player->set_letterbox_mode(Player::twofourzero_to_one_original);
+			player->set_letterbox_mode(awkawk::twofourzero_to_one_original);
 			break;
 		case IDM_CLOSE_FILE:
 			{
 				set_window_text(app_title.c_str());
-				if(player->get_state() != Player::unloaded)
+				if(player->get_state() != awkawk::unloaded)
 				{
 					player->stop();
 					player->close();
@@ -395,7 +411,7 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			}
 			break;
 		case IDM_EXIT:
-			if(player->get_state() != Player::unloaded)
+			if(player->get_state() != awkawk::unloaded)
 			{
 				player->stop();
 				player->close();
@@ -450,7 +466,7 @@ void player_window::build_filter_menu(HMENU parent_menu, UINT position) const
 	{
 		::RemoveMenu(filter_menu, 0, MF_BYPOSITION);
 	}
-	if(player->get_state() != Player::unloaded)
+	if(player->get_state() != awkawk::unloaded)
 	{
 		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 		
@@ -501,7 +517,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 	HMENU size_menu(::GetSubMenu(main_menu, 4));
 	switch(player->get_state())
 	{
-	case Player::unloaded:
+	case awkawk::unloaded:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
 		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
 		::EnableMenuItem(main_menu, 2, MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
@@ -511,7 +527,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_GRAYED);
 		::EnableMenuItem(main_menu, 5, MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
 		break;
-	case Player::stopped:
+	case awkawk::stopped:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
 		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
 		::EnableMenuItem(main_menu, 2, MF_ENABLED | MF_BYPOSITION);
@@ -521,7 +537,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
 		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
 		break;
-	case Player::playing:
+	case awkawk::playing:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
 		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
 		::EnableMenuItem(main_menu, 2, MF_ENABLED | MF_BYPOSITION);
@@ -531,7 +547,7 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
 		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
 		break;
-	case Player::paused:
+	case awkawk::paused:
 		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
 		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
 		::EnableMenuItem(main_menu, 2, MF_ENABLED | MF_BYPOSITION);
@@ -620,7 +636,7 @@ UINT player_window::onNCHitTest(HWND, int x, int y)
 	{
 		return HTCLIENT;
 	}
-	if(Player::free != player->get_window_size_mode())
+	if(awkawk::free != player->get_window_size_mode())
 	{
 		return HTCLIENT;
 	}

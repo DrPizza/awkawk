@@ -21,10 +21,10 @@
 #include "stdafx.h"
 
 #include "player_controls.h"
-#include "player.h"
+#include "awkawk.h"
 #include "text.h"
 
-player_controls::player_controls(Player* player_, window* parent_) : message_handler(parent_),
+player_controls::player_controls(awkawk* player_, window* parent_) : message_handler(parent_),
                                                                      ui_reveal_percentage(0.0f),
                                                                      text_size(14.0f),
                                                                      caption_text(L"<(@) awkawk (@)>"),
@@ -442,6 +442,7 @@ void player_controls::calculate_caption()
 	ON_BLOCK_EXIT(&::SelectObject, dc, original_object);
 
 	FAIL_THROW(CreateTextMesh(device, dc, compact_caption_text.c_str(), 0.001f, 216.0f, &caption_mesh, NULL));
+	//FAIL_THROW(D3DXCreateTextW(device, dc, compact_caption_text.c_str(), 0.001f, 216.0f, &caption_mesh, NULL, NULL)); // stupid MS fuckwits won't fix D3DX to stop it using the managed pool, so this is incompatible with D3D9Ex
 
 	D3DXVECTOR3 bottomLeft(FLT_MIN, FLT_MIN, FLT_MIN), topRight(FLT_MAX, FLT_MAX, FLT_MAX);
 	void* buff(NULL);
