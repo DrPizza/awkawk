@@ -342,7 +342,7 @@ void awkawk::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
 	FAIL_THROW(filter->QueryInterface(&surface_allocator_notify));
 
-	allocator = new surface_allocator(this, scene_device);
+	allocator = new allocator_presenter(this, scene_device);
 	vmr_surface_allocator.Attach(allocator, true);
 
 	FAIL_THROW(surface_allocator_notify->AdviseSurfaceAllocator(user_id, vmr_surface_allocator));

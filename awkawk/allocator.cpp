@@ -22,17 +22,17 @@
 
 #include "awkawk.h"
 
-surface_allocator::surface_allocator(awkawk* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
+allocator_presenter::allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
                                                                                      player(player_),
                                                                                      device(device_)
 {
 }
 
-surface_allocator::~surface_allocator()
+allocator_presenter::~allocator_presenter()
 {
 }
 
-void surface_allocator::begin_device_loss()
+void allocator_presenter::begin_device_loss()
 {
 	LOCK(cs);
 	device = NULL;
@@ -41,7 +41,7 @@ void surface_allocator::begin_device_loss()
 	texture_locks.clear();
 }
 
-void surface_allocator::end_device_loss(IDirect3DDevice9Ptr device_)
+void allocator_presenter::end_device_loss(IDirect3DDevice9Ptr device_)
 {
 	LOCK(cs);
 	device = device_;
@@ -49,7 +49,7 @@ void surface_allocator::end_device_loss(IDirect3DDevice9Ptr device_)
 }
 
 //IVMRSurfaceAllocator9
-STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInfo* allocation_info, DWORD* buffer_count)
+STDMETHODIMP allocator_presenter::InitializeDevice(DWORD_PTR id, VMR9AllocationInfo* allocation_info, DWORD* buffer_count)
 {
 	if(buffer_count == NULL)
 	{
@@ -94,7 +94,7 @@ STDMETHODIMP surface_allocator::InitializeDevice(DWORD_PTR id, VMR9AllocationInf
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::TerminateDevice(DWORD_PTR id)
+STDMETHODIMP allocator_presenter::TerminateDevice(DWORD_PTR id)
 {
 	LOCK(cs);
 	if(surfaces.find(id) == surfaces.end())
@@ -107,7 +107,7 @@ STDMETHODIMP surface_allocator::TerminateDevice(DWORD_PTR id)
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::GetSurface(DWORD_PTR id, DWORD surface_index, DWORD, IDirect3DSurface9** surface)
+STDMETHODIMP allocator_presenter::GetSurface(DWORD_PTR id, DWORD surface_index, DWORD, IDirect3DSurface9** surface)
 {
 	if(surface == NULL)
 	{
@@ -127,14 +127,14 @@ STDMETHODIMP surface_allocator::GetSurface(DWORD_PTR id, DWORD surface_index, DW
 	return static_cast<IDirect3DSurface9Ptr&>(surfaces[id][surface_index]).QueryInterface(__uuidof(IDirect3DSurface9), surface);
 }
 
-STDMETHODIMP surface_allocator::AdviseNotify(IVMRSurfaceAllocatorNotify9* surface_allocator_notify_)
+STDMETHODIMP allocator_presenter::AdviseNotify(IVMRSurfaceAllocatorNotify9* surface_allocator_notify_)
 {
 	LOCK(cs);
 	surface_allocator_notify = surface_allocator_notify_;
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::StartPresenting(DWORD_PTR id)
+STDMETHODIMP allocator_presenter::StartPresenting(DWORD_PTR id)
 {
 	LOCK(cs);
 	if(device == NULL)
@@ -148,7 +148,7 @@ STDMETHODIMP surface_allocator::StartPresenting(DWORD_PTR id)
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::StopPresenting(DWORD_PTR id)
+STDMETHODIMP allocator_presenter::StopPresenting(DWORD_PTR id)
 {
 	LOCK(cs);
 	if(surfaces.find(id) == surfaces.end())
@@ -158,7 +158,7 @@ STDMETHODIMP surface_allocator::StopPresenting(DWORD_PTR id)
 	return S_OK;
 }
 
-STDMETHODIMP surface_allocator::PresentImage(DWORD_PTR id, VMR9PresentationInfo* presentation_info)
+STDMETHODIMP allocator_presenter::PresentImage(DWORD_PTR id, VMR9PresentationInfo* presentation_info)
 {
 	if(presentation_info == NULL)
 	{
@@ -200,7 +200,7 @@ STDMETHODIMP surface_allocator::PresentImage(DWORD_PTR id, VMR9PresentationInfo*
 	}
 }
 
-STDMETHODIMP surface_allocator::QueryInterface(const IID& iid, void** target)
+STDMETHODIMP allocator_presenter::QueryInterface(const IID& iid, void** target)
 {
 	if(target == NULL)
 	{
@@ -232,12 +232,12 @@ STDMETHODIMP surface_allocator::QueryInterface(const IID& iid, void** target)
 	return E_NOINTERFACE;
 }
 
-STDMETHODIMP_(ULONG) surface_allocator::AddRef()
+STDMETHODIMP_(ULONG) allocator_presenter::AddRef()
 {
 	return ::InterlockedIncrement(&ref_count);
 }
 
-STDMETHODIMP_(ULONG) surface_allocator::Release()
+STDMETHODIMP_(ULONG) allocator_presenter::Release()
 {
 	ULONG ret(::InterlockedDecrement(&ref_count));
 	if(ret == 0)

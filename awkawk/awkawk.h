@@ -692,7 +692,7 @@ private:
 	bool has_video;
 
 	IVMRSurfaceAllocator9Ptr vmr_surface_allocator;
-	surface_allocator* allocator;
+	allocator_presenter* allocator;
 	player_window ui;
 
 	// direct3d gubbins
