@@ -659,7 +659,7 @@ private:
 	void register_graph(IUnknownPtr unknown);
 	void unregister_graph();
 
-	HANDLE event;
+	HANDLE media_event;
 	HANDLE cancel_event;
 	HANDLE event_thread;
 	DWORD event_thread_proc(void*);

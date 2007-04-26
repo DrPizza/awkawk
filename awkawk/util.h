@@ -112,6 +112,51 @@ inline IDirect3DTexture9Ptr load_texture_from_resource(IDirect3DDevice9Ptr devic
 	return texture;
 }
 
+template<typename T>
+struct array
+{
+	array() : length(0), raw(new T[length])
+	{
+	}
+	array(size_t length_) : length(length_), raw(new T[length])
+	{
+	}
+	array(size_t length_, const T& t) : length(length_), raw(new T[length])
+	{
+		for(size_t i(0); i < length; ++i)
+		{
+			raw[i] = t;
+		}
+	}
+	~array()
+	{
+		delete [] raw;
+	}
+	array(const array<T>& rhs) : length(rhs.length), raw(new T[length])
+	{
+		for(size_t i(0); i < length; ++i)
+		{
+			raw[i] = rhs.raw[i];
+		}
+	}
+	// this is pretty gross, but absent array literals, it's the best I can do
+	array<T> operator<<(const T& t)
+	{
+		array<T> rv(length + 1);
+		for(size_t i(0); i < length; ++i)
+		{
+			rv[i] = (*this)[i];
+		}
+		rv[length] = t;
+		return rv;
+	}
+	const size_t length;
+	const T& operator[](size_t idx) const { return raw[idx]; }
+	      T& operator[](size_t idx)       { return raw[idx]; }
+private:
+	T* raw;
+};
+
 template <typename T, size_t N>
 struct vector
 {
