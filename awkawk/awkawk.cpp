@@ -48,7 +48,7 @@ awkawk::awkawk() : ui(this),
 	FAIL_THROW(graph->QueryInterface(&events));
 	HANDLE evt(0);
 	FAIL_THROW(events->GetEventHandle(reinterpret_cast<OAEVENT*>(&evt)));
-	::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &event, 0, FALSE, DUPLICATE_SAME_ACCESS);
+	::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &media_event, 0, FALSE, DUPLICATE_SAME_ACCESS);
 	cancel_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
 	event_thread = utility::CreateThread(NULL, 0, this, &awkawk::event_thread_proc, static_cast<void*>(0), "Event thread", 0, 0);
 }
@@ -74,8 +74,8 @@ awkawk::~awkawk()
 		event_thread = 0;
 		::CloseHandle(cancel_event);
 		cancel_event = 0;
-		::CloseHandle(event);
-		event = 0;
+		::CloseHandle(media_event);
+		media_event = 0;
 	}
 	events = NULL;
 	graph = NULL;
@@ -881,7 +881,7 @@ DWORD awkawk::event_thread_proc(void*)
 {
 	try
 	{
-		HANDLE evts[] = { event, cancel_event };
+		HANDLE evts[] = { media_event, cancel_event };
 		while(::WaitForMultipleObjects(2, evts, FALSE, INFINITE) == WAIT_OBJECT_0)
 		{
 			long event_code;
