@@ -417,6 +417,7 @@ typedef vector<double, 2> vec2d;
 typedef vector<float, 2> vec2f;
 typedef vector<double, 3> vec3d;
 typedef vector<float, 3> vec3f;
+typedef vector<float, 4> vec4f;
 
 inline bool point_in_circle(POINT pt, POINT centre, float radius)
 {

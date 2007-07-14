@@ -106,13 +106,16 @@ void player_window::open_single_file(const std::wstring& path)
 		set_window_text(buffer.get());
 		if(player->get_state() != awkawk::unloaded)
 		{
-			player->stop();
-			player->close();
+			if(player->get_state() != awkawk::stopped)
+			{
+				player->send_event(awkawk::stop);
+			}
+			player->send_event(awkawk::unload);
 			player->clear_files();
 		}
 		player->add_file(path);
-		player->load();
-		player->play();
+		player->post_event(awkawk::load);
+		player->post_event(awkawk::play);
 	}
 }
 
@@ -325,19 +328,19 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			}
 			break;
 		case IDM_PLAY:
-			player->play();
+			player->post_event(awkawk::play);
 			break;
 		case IDM_PAUSE:
-			player->pause();
+			player->post_event(awkawk::pause);
 			break;
 		case IDM_STOP:
-			player->stop();
+			player->post_event(awkawk::stop);
 			break;
 		case IDM_NEXT:
-			player->next();
+			player->post_event(awkawk::next);
 			break;
 		case IDM_PREV:
-			player->prev();
+			player->post_event(awkawk::previous);
 			break;
 		case IDM_PLAYMODE_NORMAL:
 			player->set_playmode(awkawk::normal);
@@ -402,21 +405,12 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 		case IDM_CLOSE_FILE:
 			{
 				set_window_text(app_title.c_str());
-				if(player->get_state() != awkawk::unloaded)
-				{
-					player->stop();
-					player->close();
-					player->clear_files();
-				}
+				player->send_event(awkawk::stop);
+				player->send_event(awkawk::unload);
+				player->clear_files();
 			}
 			break;
 		case IDM_EXIT:
-			if(player->get_state() != awkawk::unloaded)
-			{
-				player->stop();
-				player->close();
-				player->clear_files();
-			}
 			destroy_window();
 			break;
 		default:
@@ -466,7 +460,7 @@ void player_window::build_filter_menu(HMENU parent_menu, UINT position) const
 	{
 		::RemoveMenu(filter_menu, 0, MF_BYPOSITION);
 	}
-	if(player->get_state() != awkawk::unloaded)
+	if(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop))
 	{
 		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 		
@@ -515,49 +509,16 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 	HMENU play_menu(::GetSubMenu(main_menu, 2));
 	HMENU playmode_menu(::GetSubMenu(main_menu, 3));
 	HMENU size_menu(::GetSubMenu(main_menu, 4));
-	switch(player->get_state())
-	{
-	case awkawk::unloaded:
-		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
-		::EnableMenuItem(main_menu, 2, MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
-			::EnableMenuItem(play_menu, IDM_PLAY, MF_GRAYED);
-			::EnableMenuItem(play_menu, IDM_PAUSE, MF_GRAYED);
-			::EnableMenuItem(play_menu, IDM_STOP, MF_GRAYED);
-		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_GRAYED);
-		::EnableMenuItem(main_menu, 5, MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
-		break;
-	case awkawk::stopped:
-		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
-		::EnableMenuItem(main_menu, 2, MF_ENABLED | MF_BYPOSITION);
-			::EnableMenuItem(play_menu, IDM_PLAY, MF_ENABLED);
-			::EnableMenuItem(play_menu, IDM_PAUSE, MF_GRAYED);
-			::EnableMenuItem(play_menu, IDM_STOP, MF_GRAYED);
-		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
-		break;
-	case awkawk::playing:
-		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
-		::EnableMenuItem(main_menu, 2, MF_ENABLED | MF_BYPOSITION);
-			::EnableMenuItem(play_menu, IDM_PLAY, MF_ENABLED);
-			::EnableMenuItem(play_menu, IDM_PAUSE, MF_ENABLED);
-			::EnableMenuItem(play_menu, IDM_STOP, MF_ENABLED);
-		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
-		break;
-	case awkawk::paused:
-		::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
-		::EnableMenuItem(main_menu, 2, MF_ENABLED | MF_BYPOSITION);
-			::EnableMenuItem(play_menu, IDM_PLAY, MF_ENABLED);
-			::EnableMenuItem(play_menu, IDM_PAUSE, MF_ENABLED);
-			::EnableMenuItem(play_menu, IDM_STOP, MF_ENABLED);
-		::EnableMenuItem(main_menu, IDM_CLOSE_FILE, MF_ENABLED);
-		::EnableMenuItem(main_menu, 5, MF_ENABLED | MF_BYPOSITION);
-		break;
-	}
+	bool play_menu_enabled(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop));
+
+	::EnableMenuItem(main_menu, IDM_OPEN_FILE, MF_ENABLED);
+	::EnableMenuItem(main_menu, IDM_OPEN_URL, MF_ENABLED);
+	::EnableMenuItem(main_menu, 2, play_menu_enabled ? MF_ENABLED | MF_BYPOSITION : MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
+		::EnableMenuItem(play_menu, IDM_PLAY, player->permitted(awkawk::play) ? MF_ENABLED : MF_GRAYED);
+		::EnableMenuItem(play_menu, IDM_PAUSE, player->permitted(awkawk::pause) ? MF_ENABLED : MF_GRAYED);
+		::EnableMenuItem(play_menu, IDM_STOP, player->permitted(awkawk::stop) ? MF_ENABLED : MF_GRAYED);
+	::EnableMenuItem(main_menu, IDM_CLOSE_FILE, play_menu_enabled ? MF_ENABLED : MF_GRAYED);
+	::EnableMenuItem(main_menu, 5, play_menu_enabled ? MF_ENABLED | MF_BYPOSITION : MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
 
 	build_filter_menu(main_menu, 5);
 
@@ -601,7 +562,15 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 
 void player_window::onDestroy(HWND)
 {
-	player->close();
+	if(player->get_state() != awkawk::unloaded)
+	{
+		if(player->get_state() != awkawk::stopped)
+		{
+			player->send_event(awkawk::stop);
+		}
+		player->send_event(awkawk::unload);
+		player->clear_files();
+	}
 	player->stop_rendering();
 	::RevokeDragDrop(get_window());
 	::PostQuitMessage(0);

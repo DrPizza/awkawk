@@ -395,6 +395,30 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 		vertices[i].tu       = static_cast<float>(extruder.vertices[i].tu);
 		vertices[i].tv       = static_cast<float>(extruder.vertices[i].tv);
 	}
+
+
+	D3DXVECTOR3 bottomLeft(FLT_MIN, FLT_MIN, FLT_MIN), topRight(FLT_MAX, FLT_MAX, FLT_MAX);
+	FAIL_RET(D3DXComputeBoundingBox(reinterpret_cast<D3DXVECTOR3*>(vertices), msh->GetNumVertices(), D3DXGetFVFVertexSize(mesh_fvf), &bottomLeft, &topRight));
+
+	TEXTMETRICW metrics = {0};
+	GetTextMetrics(dc, &metrics);
+
+	boost::scoped_array<D3DXVECTOR4> transformed_vertices(new D3DXVECTOR4[msh->GetNumVertices()]);
+	D3DXMATRIX scaling;
+	D3DXMatrixScaling(&scaling, 1.0f / static_cast<float>(metrics.tmHeight), 1.0f / static_cast<float>(metrics.tmHeight), 1.0f / static_cast<float>(metrics.tmHeight));
+	D3DXMATRIX translation;
+	D3DXMatrixTranslation(&translation, -bottomLeft.x, -bottomLeft.y, 0.0f);
+	D3DXMATRIX transformation;
+	transformation = translation * scaling;
+	D3DXVec3TransformArray(transformed_vertices.get(), sizeof(D3DXVECTOR4), reinterpret_cast<const D3DXVECTOR3*>(vertices), D3DXGetFVFVertexSize(mesh_fvf), &transformation, msh->GetNumVertices());
+
+	for(size_t i(0); i < extruder.vertices.size(); ++i)
+	{
+		vertices[i].position[0] = transformed_vertices[i].x;
+		vertices[i].position[1] = transformed_vertices[i].y;
+		vertices[i].position[2] = transformed_vertices[i].z;
+	}
+
 	FAIL_RET(msh->UnlockVertexBuffer());
 	DWORD* indices(NULL);
 	FAIL_RET(msh->LockIndexBuffer(0, reinterpret_cast<void**>(&indices)));

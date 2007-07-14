@@ -23,12 +23,68 @@
 #include "awkawk.h"
 #include "text.h"
 
+
+const awkawk::transition awkawk::transitions[awkawk::max_states][awkawk::max_events] =
+{
+/* state    | event         | handler             | exit states */
+/* ------------------- */ {
+/* unloaded | load     */   { &awkawk::do_load    , awkawk::state_array() << awkawk::stopped                    },
+/*          | stop     */   { NULL                , awkawk::state_array()                                       },
+/*          | pause    */   { NULL                , awkawk::state_array()                                       },
+/*          | play     */   { NULL                , awkawk::state_array()                                       },
+/*          | unload   */   { NULL                , awkawk::state_array()                                       },
+/*          | ending   */   { NULL                , awkawk::state_array()                                       },
+/*          | previous */   { NULL                , awkawk::state_array()                                       },
+/*          | next     */   { NULL                , awkawk::state_array()                                       },
+/*          | rwnd     */   { NULL                , awkawk::state_array()                                       },
+/*          | ffwd     */   { NULL                , awkawk::state_array()                                       }
+                          },
+                          {
+/* stopped  | load     */   { NULL                , awkawk::state_array()                                       },
+/*          | stop     */   { NULL                , awkawk::state_array()                                       },
+/*          | pause    */   { &awkawk::do_play    , awkawk::state_array() << awkawk::playing                    },
+/*          | play     */   { &awkawk::do_play    , awkawk::state_array() << awkawk::playing                    },
+/*          | unload   */   { &awkawk::do_unload  , awkawk::state_array() << awkawk::unloaded                   },
+/*          | ending   */   { NULL                , awkawk::state_array()                                       },
+/*          | previous */   { &awkawk::do_previous, awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | next     */   { &awkawk::do_next    , awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | rwnd     */   { NULL                , awkawk::state_array()                                       },
+/*          | ffwd     */   { NULL                , awkawk::state_array()                                       }
+                          },
+                          {
+/* paused   | load     */   { NULL                , awkawk::state_array()                                       },
+/*          | stop     */   { &awkawk::do_stop    , awkawk::state_array() << awkawk::stopped                    },
+/*          | pause    */   { &awkawk::do_resume  , awkawk::state_array() << awkawk::playing                    },
+/*          | play     */   { &awkawk::do_resume  , awkawk::state_array() << awkawk::playing                    },
+/*          | unload   */   { NULL                , awkawk::state_array()                                       },
+/*          | ending   */   { NULL                , awkawk::state_array()                                       },
+/*          | previous */   { &awkawk::do_previous, awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | next     */   { &awkawk::do_next    , awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | rwnd     */   { NULL                , awkawk::state_array()                                       },
+/*          | ffwd     */   { NULL                , awkawk::state_array()                                       }
+                          },
+                          {
+/* playing  | load     */   { NULL                , awkawk::state_array()                                       },
+/*          | stop     */   { &awkawk::do_stop    , awkawk::state_array() << awkawk::stopped                    },
+/*          | pause    */   { &awkawk::do_pause   , awkawk::state_array() << awkawk::paused                     },
+/*          | play     */   { &awkawk::do_pause   , awkawk::state_array() << awkawk::paused                     },
+/*          | unload   */   { NULL                , awkawk::state_array()                                       },
+/*          | ending   */   { &awkawk::do_ending  , awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | previous */   { &awkawk::do_previous, awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | next     */   { &awkawk::do_next    , awkawk::state_array() << awkawk::stopped << awkawk::playing },
+/*          | rwnd     */   { &awkawk::do_rwnd    , awkawk::state_array() << awkawk::playing                    },
+/*          | ffwd     */   { &awkawk::do_ffwd    , awkawk::state_array() << awkawk::playing                    }
+                          }
+};
+
 awkawk::awkawk() : ui(this),
-                   event_thread(0),
+                   media_event_thread(0),
                    render_thread(0),
+                   message_port(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1)),
+                   message_thread(utility::CreateThread(NULL, 0, this, &awkawk::message_thread_proc, static_cast<void*>(0), "Message thread", 0, 0)),
                    user_id(0xabcd),
                    allocator(NULL),
-                   state(unloaded),
+                   current_state(unloaded),
                    fullscreen(false),
                    has_video(false),
                    playlist(),
@@ -49,34 +105,34 @@ awkawk::awkawk() : ui(this),
 	HANDLE evt(0);
 	FAIL_THROW(events->GetEventHandle(reinterpret_cast<OAEVENT*>(&evt)));
 	::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &media_event, 0, FALSE, DUPLICATE_SAME_ACCESS);
-	cancel_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
-	event_thread = utility::CreateThread(NULL, 0, this, &awkawk::event_thread_proc, static_cast<void*>(0), "Event thread", 0, 0);
+	cancel_media_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
+	media_event_thread = utility::CreateThread(NULL, 0, this, &awkawk::media_event_thread_proc, static_cast<void*>(0), "Media Event thread", 0, 0);
 }
 
 awkawk::~awkawk()
 {
-	LOCK(graph_cs);
-	if(get_state() != awkawk::unloaded)
+	if(get_state() != unloaded)
 	{
-		try
+		if(get_state() != stopped)
 		{
-			stop();
-			close();
+			send_event(stop);
 		}
-		catch(_com_error&)
-		{
-		}
+		send_event(unload);
 	}
-	if(event_thread != 0)
 	{
-		::SetEvent(cancel_event);
-		::WaitForSingleObject(event_thread, INFINITE);
-		event_thread = 0;
-		::CloseHandle(cancel_event);
-		cancel_event = 0;
+		::SetEvent(cancel_media_event);
+		::WaitForSingleObject(media_event_thread, INFINITE);
+		::CloseHandle(media_event_thread);
+		::CloseHandle(cancel_media_event);
 		::CloseHandle(media_event);
-		media_event = 0;
 	}
+	{
+		::PostQueuedCompletionStatus(message_port, 0, 1, NULL);
+		::WaitForSingleObject(message_thread, INFINITE);
+		::CloseHandle(message_thread);
+		::CloseHandle(message_port);
+	}
+	LOCK(graph_cs);
 	events = NULL;
 	graph = NULL;
 }
@@ -97,8 +153,8 @@ void awkawk::create_d3d()
 			d3d9 = ptr;
 		}
 	}
-#endif
 	if(d3d9 == NULL)
+#endif
 	{
 		d3d9 = ::Direct3DCreate9(D3D_SDK_VERSION);
 	}
@@ -114,12 +170,9 @@ void awkawk::destroy_d3d()
 	d3d = NULL;
 }
 
-void awkawk::stop()
+size_t awkawk::do_stop()
 {
-	if(state == unloaded)
-	{
-		return;
-	}
+	dout << __FUNCSIG__ << std::endl;
 	LOCK(graph_cs);
 	OAFilterState movie_state;
 	media_control->GetState(0, &movie_state);
@@ -129,132 +182,103 @@ void awkawk::stop()
 		media_control->GetState(0, &movie_state);
 	}
 	ui.set_on_top(false);
-	state = stopped;
+	return 0;
 }
 
-void awkawk::play()
+size_t awkawk::do_play()
 {
-	if(state == unloaded)
-	{
-		return;
-	}
 	LOCK(graph_cs);
 	ui.set_on_top(true);
 	FAIL_THROW(media_control->Run());
-	state = playing;
+	return 0;
 }
 
-void awkawk::pause()
+size_t awkawk::do_pause()
 {
-	if(state == unloaded)
-	{
-		return;
-	}
+	dout << __FUNCSIG__ << std::endl;
 	LOCK(graph_cs);
-	if(state == paused)
+	OAFilterState movie_state;
+	media_control->GetState(0, &movie_state);
+	while(movie_state != State_Paused)
 	{
-		play();
-	}
-	else
-	{
-		OAFilterState movie_state;
+		FAIL_THROW(media_control->Pause());
 		media_control->GetState(0, &movie_state);
-		while(movie_state != State_Paused)
-		{
-			FAIL_THROW(media_control->Pause());
-			media_control->GetState(0, &movie_state);
-		}
-		state = paused;
 	}
+	return 0;
 }
 
-void awkawk::ffwd()
+size_t awkawk::do_resume()
 {
-	if(state == unloaded)
-	{
-		return;
-	}
+	LOCK(graph_cs);
+	FAIL_THROW(media_control->Run());
+	return 0;
+}
+
+size_t awkawk::do_ffwd()
+{
 	LOCK(graph_cs);
 	// TODO
+	return 0;
 }
 
-void awkawk::next()
+size_t awkawk::do_next()
 {
 	LOCK(graph_cs);
 	if(playlist.empty())
 	{
-		return;
+		return 0;
 	}
-	awkawk::status initial_state(state);
-	if(initial_state != unloaded)
-	{
-		stop();
-		LONGLONG current(0);
-		seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-		close();
-	}
+	awkawk::state initial_state(get_state());
+	do_stop();
+	LONGLONG current(0);
+	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
+	do_unload();
+	bool hit_end(playlist_position == --playlist.end());
 	switch(playlist_mode)
 	{
-	case normal: // stop on wraparound
-		{
-			bool hit_end(false);
-			++playlist_position;
-			if(playlist_position == playlist.end())
-			{
-				hit_end = true;
-				playlist_position = playlist.begin();
-			}
-			load();
-			if(initial_state == playing && !hit_end)
-			{
-				play();
-			}
-		}
-		break;
 	case repeat_single: // when the user presses 'next' in repeat single, we move forward normally
 	case repeat_all: // continue on wraparound
+		hit_end = false;
+	case normal: // stop on wraparound
 		{
 			++playlist_position;
 			if(playlist_position == playlist.end())
 			{
 				playlist_position = playlist.begin();
 			}
-			load();
-			if(initial_state == playing)
+			do_load();
+			if(initial_state == playing && !hit_end)
 			{
-				play();
+				do_play();
+				return 1;
 			}
 		}
 		break;
 	case shuffle:
 		break;
 	}
+	return 0;
 }
 
-void awkawk::rwnd()
+size_t awkawk::do_rwnd()
 {
-	if(state == unloaded)
-	{
-		return;
-	}
 	LOCK(graph_cs);
 	// TODO
+	return 0;
 }
 
-void awkawk::prev()
+size_t awkawk::do_previous()
 {
 	LOCK(graph_cs);
 	if(playlist.empty())
 	{
-		return;
+		return 0;
 	}
-	awkawk::status initial_state(state);
+	awkawk::state initial_state(get_state());
 	if(initial_state != unloaded)
 	{
-		stop();
-		LONGLONG current(0);
-		seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-		close();
+		do_stop();
+		do_unload();
 	}
 	switch(playlist_mode)
 	{
@@ -267,43 +291,44 @@ void awkawk::prev()
 				playlist_position = playlist.end();
 			}
 			--playlist_position;
-			load();
+			do_load();
 			if(initial_state == playing)
 			{
-				play();
+				do_play();
+				return 1;
 			}
 		}
 		break;
 	case shuffle:
 		break;
 	}
+	return 0;
 }
 
-void awkawk::load()
+size_t awkawk::do_load()
 {
+	dout << __FUNCSIG__ << std::endl;
 	LOCK(graph_cs);
 	try
 	{
 		scene->set_filename(*playlist_position);
-		state = loading;
 		create_graph();
 	}
 	catch(_com_error& ce)
 	{
 		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 	}
+	return 0;
 }
 
-void awkawk::close()
+size_t awkawk::do_unload()
 {
-	if(state == unloaded)
-	{
-		return;
-	}
 	LOCK(graph_cs);
+	LONGLONG current(0);
+	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
 	destroy_graph();
 	scene->set_filename(L"");
-	state = unloaded;
+	return 0;
 }
 
 void awkawk::destroy_graph()
@@ -550,9 +575,6 @@ void awkawk::create_graph()
 
 	double frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<double>(average_frame_time));
 	set_render_fps(static_cast<unsigned int>(frame_rate));
-	state = stopped;
-
-	pause();
 }
 
 void awkawk::register_graph(IUnknownPtr unknown)
@@ -667,7 +689,7 @@ void awkawk::create_device()
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
 	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, ui.get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &parameters, &scene_device));
 
-	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW));
+	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_LIGHTING, FALSE));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
@@ -746,18 +768,11 @@ int awkawk::run_ui()
 
 void awkawk::stop_rendering()
 {
-	if(render_thread != 0)
-	{
-		::SetEvent(cancel_render);
-		::WaitForSingleObject(render_thread, INFINITE);
-		::CloseHandle(cancel_render);
-		cancel_render = 0;
-		::CloseHandle(render_timer);
-		render_timer = 0;
-		::CloseHandle(render_timer);
-		render_timer = 0;
-		render_thread = 0;
-	}
+	::SetEvent(cancel_render);
+	::WaitForSingleObject(render_thread, INFINITE);
+	::CloseHandle(cancel_render);
+	::CloseHandle(render_thread);
+	::CloseHandle(render_timer);
 }
 
 bool awkawk::needs_display_change() const
@@ -796,7 +811,10 @@ void awkawk::render()
 		scene->set_playback_position(get_playback_position());
 
 		static D3DCOLOR col(D3DCOLOR_ARGB(0xff, 0, 0, 0));
-		//col = col == D3DCOLOR_ARGB(0xff, 0, 0xff, 0) ? D3DCOLOR_ARGB(0xff, 0xff, 0, 0) : D3DCOLOR_ARGB(0xff, 0, 0xff, 0);
+		//col = col == D3DCOLOR_ARGB(0xff, 0xff, 0, 0) ? D3DCOLOR_ARGB(0xff, 0, 0xff, 0)
+		//    : col == D3DCOLOR_ARGB(0xff, 0, 0xff, 0) ? D3DCOLOR_ARGB(0xff, 0, 0, 0xff)
+		//                                             : D3DCOLOR_ARGB(0xff, 0xff, 0, 0);
+		//col = D3DCOLOR_ARGB(0xff, 0, 0xff, 0);
 		FAIL_THROW(scene_device->Clear(0L, NULL, D3DCLEAR_TARGET, col, 1.0f, 0));
 		{
 			FAIL_THROW(scene_device->BeginScene());
@@ -806,7 +824,7 @@ void awkawk::render()
 			FAIL_THROW(scene_device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			boost::shared_ptr<utility::critical_section> stream_cs;
 			std::auto_ptr<utility::critical_section::lock> l;
-			if(has_video)
+			if(has_video && allocator->rendering(user_id))
 			{
 				stream_cs = allocator->get_cs(user_id);
 				l.reset(new utility::critical_section::lock(*stream_cs));
@@ -825,15 +843,13 @@ DWORD awkawk::render_thread_proc(void*)
 {
 	try
 	{
-		//create_d3d();
 		ui.send_message(player_window::create_d3d_msg, 0, 0);
-		//create_device();
 		ui.send_message(player_window::create_device_msg, 0, 0);
 		HANDLE evts[] = { render_event, render_timer, cancel_render };
 		bool continue_rendering(true);
 		while(continue_rendering)
 		{
-			switch(::WaitForMultipleObjects(sizeof(evts) / sizeof(evts[0]), evts, FALSE, INFINITE))
+			switch(::WaitForMultipleObjects(ARRAY_SIZE(evts), evts, FALSE, INFINITE))
 			{
 			case WAIT_OBJECT_0:
 			case WAIT_OBJECT_0 + 1:
@@ -843,11 +859,8 @@ DWORD awkawk::render_thread_proc(void*)
 					if(needs_display_change())
 					{
 						ui.post_message(player_window::reset_device_msg, 0, 0);
-						//reset_device();
 					}
-					//reset();
 					ui.post_message(player_window::reset_msg, 0, 0);
-					//render();
 					ui.post_message(player_window::render_msg, 0, 0);
 				}
 				catch(_com_error& ce)
@@ -861,9 +874,7 @@ DWORD awkawk::render_thread_proc(void*)
 				break;
 			}
 		}
-		//destroy_device();
 		ui.post_message(player_window::destroy_device_msg, 0, 0);
-		//destroy_d3d();
 		ui.post_message(player_window::destroy_d3d_msg, 0, 0);
 	}
 	catch(_com_error& ce)
@@ -877,12 +888,89 @@ DWORD awkawk::render_thread_proc(void*)
 	return 0;
 }
 
-DWORD awkawk::event_thread_proc(void*)
+size_t awkawk::do_ending()
+{
+	do_stop();
+	LONGLONG current(0);
+	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
+	do_unload();
+	bool hit_end(playlist_position == --playlist.end());
+	switch(playlist_mode)
+	{
+	case repeat_all: // continue on wraparound
+		hit_end = false; // there is no end
+	case normal:     // stop on wraparound
+		{
+			++playlist_position;
+			if(playlist_position == playlist.end())
+			{
+				playlist_position = playlist.begin();
+			}
+			do_load();
+			if(!hit_end)
+			{
+				do_play();
+				return 1;
+			}
+		}
+		break;
+	case repeat_single:
+		{
+			do_load();
+			do_play();
+			return 1;
+		}
+		break;
+	case shuffle:
+		break;
+	}
+	return 0;
+}
+
+DWORD awkawk::message_thread_proc(void*)
+{
+	bool quit_received(false);
+	DWORD message(0);
+	ULONG_PTR key(0);
+	OVERLAPPED* overlapped(NULL);
+	while(FALSE != ::GetQueuedCompletionStatus(message_port, &message, &key, &overlapped, quit_received ? 0 : INFINITE))
+	{
+		switch(key)
+		{
+		case 0:
+			{
+				event evt(static_cast<event>(message));
+				if(permitted(evt))
+				{
+					dout << "current state: " << state_name(current_state) << std::endl;
+					current_state = transitions[current_state][evt].execute(this);
+					dout << "new state: " << state_name(current_state) << std::endl;
+				}
+				else
+				{
+					dout << "the event " << event_name(evt) << " is not permitted in state " << state_name(current_state) << std::endl;
+				}
+				if(overlapped != NULL)
+				{
+					::SetEvent(overlapped->hEvent);
+				}
+			}
+			break;
+		case 1:
+			quit_received = true;
+			break;
+		}
+	}
+	dout << "exiting" << std::endl;
+	return 0;
+}
+
+DWORD awkawk::media_event_thread_proc(void*)
 {
 	try
 	{
-		HANDLE evts[] = { media_event, cancel_event };
-		while(::WaitForMultipleObjects(2, evts, FALSE, INFINITE) == WAIT_OBJECT_0)
+		HANDLE evts[] = { media_event, cancel_media_event };
+		while(::WaitForMultipleObjects(ARRAY_SIZE(evts), evts, FALSE, INFINITE) == WAIT_OBJECT_0)
 		{
 			long event_code;
 			LONG_PTR param1;
@@ -894,55 +982,7 @@ DWORD awkawk::event_thread_proc(void*)
 			case EC_COMPLETE:
 				{
 					dout << "EC_COMPLETE" << std::endl;
-					awkawk::status initial_state(state);
-					stop();
-					LONGLONG current(0);
-					seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-					close();
-					switch(playlist_mode)
-					{
-					case normal: // stop on wraparound
-						{
-							bool hit_end(false);
-							++playlist_position;
-							if(playlist_position == playlist.end())
-							{
-								hit_end = true;
-								playlist_position = playlist.begin();
-							}
-							load();
-							if(initial_state == playing && !hit_end)
-							{
-								play();
-							}
-						}
-						break;
-					case repeat_single: // when the user presses 'next' in repeat single, we move forward normally
-						{
-							load();
-							if(initial_state == playing)
-							{
-								play();
-							}
-						}
-						break;
-					case repeat_all: // continue on wraparound
-						{
-							++playlist_position;
-							if(playlist_position == playlist.end())
-							{
-								playlist_position = playlist.begin();
-							}
-							load();
-							if(initial_state == playing)
-							{
-								play();
-							}
-						}
-						break;
-					case shuffle:
-						break;
-					}
+					post_event(ending);
 				}
 				break;
 			// ( HRESULT, void ) : defaulted (special)
@@ -961,7 +1001,13 @@ DWORD awkawk::event_thread_proc(void*)
 			// ( HRESULT, void ) : application
 			case EC_PALETTE_CHANGED: dout << "EC_PALETTE_CHANGED" << std::endl; break;
 			// ( void, void ) : application
-			case EC_VIDEO_SIZE_CHANGED: dout << "EC_VIDEO_SIZE_CHANGED" << std::endl; break;
+			case EC_VIDEO_SIZE_CHANGED:
+				// the documentation says that this message doesn't get sent in renderless mode.
+				// at least on Vista, the documentation is full of shit.
+				{
+					dout << "EC_VIDEO_SIZE_CHANGED: " << std::dec << LOWORD(param1) << " x " << HIWORD(param1) << std::endl;
+				}
+				break;
 			// ( DWORD, void ) : application
 			// LOWORD of the DWORD is the new width, HIWORD is the new height.
 			case EC_QUALITY_CHANGE: dout << "EC_QUALITY_CHANGE" << std::endl; break;

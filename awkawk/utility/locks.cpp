@@ -66,28 +66,36 @@ std::set<utility::lock_tracker::cs_sequence> get_all_sequences(const std::list<u
 
 std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_tracker::analyze_deadlocks()
 {
+	using std::set;
+	using std::list;
+	using std::map;
+	using std::find_if;
+	using std::find_first_of;
+	using std::bind1st;
+	using std::pair;
+
 	::EnterCriticalSection(&cs);
 	ON_BLOCK_EXIT(&::LeaveCriticalSection, &cs);
-	std::set<cs_sequence> lock_seq;
-	for(std::list<std::list<lock_tracker::lock_manipulation> >::iterator it(lock_sequences.begin()), end(lock_sequences.end()); it != end; ++it)
+	set<cs_sequence> lock_seq;
+	for(list<list<lock_tracker::lock_manipulation> >::const_iterator it(lock_sequences.begin()), end(lock_sequences.end()); it != end; ++it)
 	{
-		std::set<cs_sequence> seq(get_all_sequences(*it));
+		set<cs_sequence> seq(get_all_sequences(*it));
 		lock_seq.insert(seq.begin(), seq.end());
 	}
-	for(std::map<DWORD, boost::shared_ptr<utility::lock_tracker::lock_info> >::const_iterator it(info.begin()), end(info.end()); it != end; ++it)
+	for(map<DWORD, boost::shared_ptr<utility::lock_tracker::lock_info> >::const_iterator it(info.begin()), end(info.end()); it != end; ++it)
 	{
-		std::set<cs_sequence> seq(get_all_sequences(it->second->current_sequence));
+		set<cs_sequence> seq(get_all_sequences(it->second->current_sequence));
 		lock_seq.insert(seq.begin(), seq.end());
 	}
 
-	std::list<cs_sequence> cleaned_sequences;
-	// remove recursively held locks, because for deadlock detection, they don't matter.
-	for(std::set<cs_sequence>::iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
+	list<cs_sequence> cleaned_sequences;
+	// remove recursively held locks, because for deadlock detection, they don't matter; critical sections are recursive
+	for(set<cs_sequence>::iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
 	{
-		for(std::list<lock_tracker::lock_manipulation>::iterator it(needle->sequence.begin()); it != needle->sequence.end() && utility::advance(it, 1) != needle->sequence.end();)
+		typedef list<lock_tracker::lock_manipulation>::iterator manipulation_list_iterator;
+		for(manipulation_list_iterator it(needle->sequence.begin()); it != needle->sequence.end() && utility::advance(it, 1) != needle->sequence.end();)
 		{
-			std::list<lock_tracker::lock_manipulation>::iterator next(utility::advance(it, 1));
-			std::list<lock_tracker::lock_manipulation>::iterator pos(std::find_if(next, needle->sequence.end(), std::bind1st(section_equality(), *it)));
+			manipulation_list_iterator pos(find_if(utility::advance(it, 1), needle->sequence.end(), bind1st(section_equality(), *it)));
 			if(pos != needle->sequence.end())
 			{
 				needle->sequence.erase(pos);
@@ -100,19 +108,21 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 		cleaned_sequences.push_back(*needle);
 	}
 
-	std::set<std::pair<cs_sequence, cs_sequence> > deadlocks;
-	for(std::list<cs_sequence>::const_iterator needle(cleaned_sequences.begin()), nend(cleaned_sequences.end()); needle != nend; ++needle)
+	set<pair<cs_sequence, cs_sequence> > deadlocks;
+	typedef list<cs_sequence>::const_iterator sequence_list_c_iterator;
+	for(sequence_list_c_iterator needle(cleaned_sequences.begin()), nend(cleaned_sequences.end()); needle != nend; ++needle)
 	{
-		for(std::list<cs_sequence>::const_iterator haystack(needle), hend(cleaned_sequences.end()); haystack != nend; ++haystack)
+		for(sequence_list_c_iterator haystack(needle), hend(cleaned_sequences.end()); haystack != nend; ++haystack)
 		{
-			for(std::list<lock_tracker::lock_manipulation>::const_iterator lit(needle->sequence.begin()), lend(needle->sequence.end()); lit != lend; ++lit)
+			typedef list<lock_tracker::lock_manipulation>::const_iterator manipulation_list_c_iterator;
+			for(manipulation_list_c_iterator lit(needle->sequence.begin()), lend(needle->sequence.end()); lit != lend; ++lit)
 			{
-				std::list<lock_tracker::lock_manipulation>::const_iterator midpoint(std::find_if(haystack->sequence.begin(), haystack->sequence.end(), std::bind1st(section_equality(), *lit)));
+				manipulation_list_c_iterator midpoint(find_if(haystack->sequence.begin(), haystack->sequence.end(), bind1st(section_equality(), *lit)));
 				if(midpoint != haystack->sequence.end())
 				{
-					if(std::find_first_of(midpoint, haystack->sequence.end(), needle->sequence.begin(), lit, section_equality()) != haystack->sequence.end())
+					if(find_first_of(midpoint, haystack->sequence.end(), needle->sequence.begin(), lit, section_equality()) != haystack->sequence.end())
 					{
-						deadlocks.insert(std::pair<cs_sequence, cs_sequence>(*needle, *haystack));
+						deadlocks.insert(pair<cs_sequence, cs_sequence>(*needle, *haystack));
 					}
 				}
 			}

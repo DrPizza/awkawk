@@ -28,6 +28,8 @@
 #include <locale>
 #include <iostream>
 
+#include <boost/scoped_array.hpp>
+
 #include "utility/string.hpp"
 #include "utility/iomanip.hpp"
 
@@ -129,8 +131,12 @@ namespace std
 		using namespace std;
 		if(os)
 		{
-			const Elem* format(static_cast<const Elem*>(os.pword(utility::time_format_holder<Elem>::index)));
 			static const Elem default_format[] = { static_cast<Elem>('%'), static_cast<Elem>('c'), static_cast<Elem>('\0') };
+			//const Elem* format(static_cast<const Elem*>(os.pword(utility::time_format_holder<Elem>::index)));
+			void* ptr(NULL);
+			std::swap(os.pword(utility::time_format_holder<Elem>::index), ptr);
+			const Elem* format(static_cast<const Elem*>(ptr));
+			boost::scoped_array<const Elem> buffer(format);
 			if(format == NULL)
 			{
 				format = default_format;

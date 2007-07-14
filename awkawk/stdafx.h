@@ -122,3 +122,4 @@ using namespace ATL;
 #include "utility/threads.hpp"
 #include "utility/formattime.hpp"
 #include "utility/debugstream.hpp"
+#include "utility/utility.hpp"
