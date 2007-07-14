@@ -47,6 +47,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/MP"
 				Optimization="0"
 				AdditionalIncludeDirectories="C:\Program Files\Microsoft Platform SDK\Samples\Multimedia\DirectShow\VMR9\inc"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_ATL_ATTRIBUTES"
@@ -134,6 +135,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/MP"
 				Optimization="0"
 				AdditionalIncludeDirectories="C:\Program Files\Microsoft Platform SDK\Samples\Multimedia\DirectShow\VMR9\inc"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_ATL_ATTRIBUTES"
@@ -221,6 +223,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/MP"
 				Optimization="3"
 				FavorSizeOrSpeed="2"
 				OmitFramePointers="true"
@@ -310,6 +313,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/MP"
 				Optimization="3"
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
@@ -619,6 +623,10 @@
 			</File>
 			<File
 				RelativePath=".\util.h"
+				>
+			</File>
+			<File
+				RelativePath=".\utility\utility.hpp"
 				>
 			</File>
 			<File

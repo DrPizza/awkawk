@@ -67,28 +67,97 @@ struct awkawk
 		playlist_position = playlist.begin();
 	}
 
-	void load();
-	void close();
-	void play();
-	void pause();
-	void stop();
-	void ffwd();
-	void next();
-	void rwnd();
-	void prev();
-
-	enum status
+	enum state
 	{
 		unloaded,
-		loading,
 		stopped,
+		paused,
 		playing,
-		paused
+		max_states
 	};
 
-	status get_state() const
+	state get_state() const { return current_state; }
+
+	std::string state_name(state st) const
 	{
-		return state;
+		switch(st)
+		{
+		case unloaded:
+			return "unloaded";
+		case stopped:
+			return "stopped";
+		case paused:
+			return "paused";
+		case playing:
+			return "playing";
+		}
+		return "error";
+	}
+
+	enum event
+	{
+		load,
+		stop,
+		pause,
+		play,
+		unload,
+		ending,
+		previous,
+		next,
+		rwnd,
+		ffwd,
+		max_events
+	};
+
+	std::string event_name(event evt) const
+	{
+		switch(evt)
+		{
+		case load:
+			return"load";
+		case stop:
+			return"stop";
+		case pause:
+			return"pause";
+		case play:
+			return"play";
+		case unload:
+			return"unload";
+		case ending:
+			return"ending";
+		case previous:
+			return"previous";
+		case next:
+			return"next";
+		case rwnd:
+			return"rwnd";
+		case ffwd:
+			return"ffwd";
+		}
+		return "(not an event)";
+	}
+
+	void post_event(event evt)
+	{
+		dout << "posting " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		::PostQueuedCompletionStatus(message_port, static_cast<DWORD>(evt), 0, NULL);
+		dout << "posted " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
+	}
+
+	void send_event(event evt)
+	{
+		OVERLAPPED o = {0};
+		o.hEvent = ::CreateEventW(NULL, FALSE, FALSE, NULL);
+		ON_BLOCK_EXIT(&::CloseHandle, o.hEvent);
+		dout << "sending " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		::PostQueuedCompletionStatus(message_port, static_cast<DWORD>(evt), 0, &o);
+		::WaitForSingleObject(o.hEvent, INFINITE);
+		dout << "sent " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
+	}
+
+	bool permitted(event evt) const
+	{
+		return transitions[current_state][evt].next_states.length != 0;
 	}
 
 	enum play_mode
@@ -649,6 +718,39 @@ struct awkawk
 	typedef std::list<std::wstring> playlist_type;
 
 private:
+	state current_state;
+
+	typedef size_t (awkawk::*state_fun)(void);
+	typedef array<state> state_array;
+
+	friend struct transition;
+
+	struct transition
+	{
+		state_fun fun;
+		array<state> next_states;
+
+		state execute(awkawk* awk) const
+		{
+			return next_states.length > 0 ? next_states[(awk->*fun)()]
+			                              : awk->current_state;
+		}
+	};
+
+	static const transition transitions[max_states][max_events];
+
+	size_t do_load();
+	size_t do_stop();
+	size_t do_pause();
+	size_t do_resume();
+	size_t do_play();
+	size_t do_unload();
+	size_t do_ending();
+	size_t do_previous();
+	size_t do_next();
+	size_t do_rwnd();
+	size_t do_ffwd();
+
 	void set_allocator_presenter(IBaseFilterPtr filter, HWND window);
 	void create_graph();
 	void destroy_graph();
@@ -660,9 +762,13 @@ private:
 	void unregister_graph();
 
 	HANDLE media_event;
-	HANDLE cancel_event;
-	HANDLE event_thread;
-	DWORD event_thread_proc(void*);
+	HANDLE cancel_media_event;
+	HANDLE media_event_thread;
+	DWORD media_event_thread_proc(void*);
+
+	HANDLE message_port;
+	HANDLE message_thread;
+	DWORD message_thread_proc(void*);
 
 	::tm convert_win32_time(LONGLONG w32Time);
 
@@ -715,8 +821,6 @@ private:
 	letterbox_mode ltrbx_mode;
 
 	bool fullscreen;
-
-	status state;
 
 	playlist_type playlist;
 	playlist_type::iterator playlist_position;

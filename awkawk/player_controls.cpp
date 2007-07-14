@@ -422,6 +422,12 @@ void player_controls::render()
 
 		FAIL_THROW(device->SetTransform(D3DTS_WORLD, &caption_transform));
 		FAIL_THROW(device->SetTexture(0, black_texture));
+
+		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE));
+		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1));
+		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE));
+		FAIL_THROW(device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1));
+
 		FAIL_THROW(caption_mesh->DrawSubset(0));
 		FAIL_THROW(device->SetTexture(0, NULL));
 	}
@@ -436,22 +442,55 @@ void player_controls::calculate_caption()
 	LOCK(cs);
 	HDC dc(::CreateCompatibleDC(NULL));
 	ON_BLOCK_EXIT(&::DeleteDC, dc);
-	HFONT font(::CreateFontW(216, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Verdana"));
+	NONCLIENTMETRICSW metrics = { sizeof(NONCLIENTMETRICSW) };
+	::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &metrics, 0);
+	HFONT font(::CreateFontW(216, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, PROOF_QUALITY, DEFAULT_PITCH, L"Verdana"/*metrics.lfCaptionFont.lfFaceName*/));
 	ON_BLOCK_EXIT(&::DeleteObject, font);
 	HGDIOBJ original_object(::SelectObject(dc, font));
 	ON_BLOCK_EXIT(&::SelectObject, dc, original_object);
 
-	FAIL_THROW(CreateTextMesh(device, dc, compact_caption_text.c_str(), 0.001f, 216.0f, &caption_mesh, NULL));
-	//FAIL_THROW(D3DXCreateTextW(device, dc, compact_caption_text.c_str(), 0.001f, 216.0f, &caption_mesh, NULL, NULL)); // stupid MS fuckwits won't fix D3DX to stop it using the managed pool, so this is incompatible with D3D9Ex
+	static const float deviation(0.001f);
+
+	ID3DXMeshPtr mesh;
+	try
+	{
+		FAIL_THROW(D3DXCreateTextW(device, dc, compact_caption_text.c_str(), deviation, 0.01f, &mesh, NULL, NULL));
+		//_com_raise_error(S_OK);
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		FAIL_THROW(CreateTextMesh(device, dc, compact_caption_text.c_str(), deviation, 0.0f, &mesh, NULL));
+	}
+
+	static const DWORD mesh_fvf(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+	struct mesh_vertex
+	{
+		vec3f position;
+		D3DCOLOR diffuse;
+	};
+
+	FAIL_THROW(mesh->CloneMeshFVF(D3DXMESH_32BIT, mesh_fvf, device, &caption_mesh));
+
+	ID3DXBufferPtr buffer;
+	FAIL_THROW(D3DXCreateBuffer(3 * caption_mesh->GetNumFaces() * sizeof(DWORD), &buffer));
+	FAIL_THROW(caption_mesh->GenerateAdjacency(deviation, static_cast<DWORD*>(buffer->GetBufferPointer())));
+	FAIL_THROW(caption_mesh->OptimizeInplace(D3DXMESHOPT_COMPACT | D3DXMESHOPT_ATTRSORT | D3DXMESHOPT_VERTEXCACHE, static_cast<const DWORD*>(buffer->GetBufferPointer()), NULL, NULL, NULL));
 
 	D3DXVECTOR3 bottomLeft(FLT_MIN, FLT_MIN, FLT_MIN), topRight(FLT_MAX, FLT_MAX, FLT_MAX);
-	void* buff(NULL);
-	FAIL_THROW(caption_mesh->LockVertexBuffer(D3DLOCK_READONLY, &buff));
-	FAIL_THROW(D3DXComputeBoundingBox(static_cast<D3DXVECTOR3*>(buff), caption_mesh->GetNumVertices(), D3DXGetFVFVertexSize(caption_mesh->GetFVF()), &bottomLeft, &topRight));
+	mesh_vertex* vertices(NULL);
+	FAIL_THROW(caption_mesh->LockVertexBuffer(0, reinterpret_cast<void**>(&vertices)));
+	FAIL_THROW(D3DXComputeBoundingBox(reinterpret_cast<D3DXVECTOR3*>(vertices), caption_mesh->GetNumVertices(), D3DXGetFVFVertexSize(caption_mesh->GetFVF()), &bottomLeft, &topRight));
+
+	for(size_t i(0), count(caption_mesh->GetNumVertices()); i < count; ++i)
+	{
+		vertices[i].diffuse = D3DCOLOR_ARGB(0xff, 0x00, 0x00, 0x00);
+	}
+
 	FAIL_THROW(caption_mesh->UnlockVertexBuffer());
 
-	topRight *= text_size / 216.0f;
-	bottomLeft *= text_size / 216.0f;
+	topRight *= text_size;
+	bottomLeft *= text_size;
 
 	caption_dimensions.cx = static_cast<LONG>(topRight.x - bottomLeft.x);
 	caption_dimensions.cy = static_cast<LONG>(topRight.y - bottomLeft.y);
@@ -480,11 +519,11 @@ void player_controls::calculate_positions()
 	float top_offset((1.0f - ui_reveal_percentage) * static_cast<float>(caption_texture_info.Height));
 
 	D3DXMATRIX textTranslation;
-	D3DXMatrixTranslation(&textTranslation, -caption_dimensions.cx / 2.0f, (static_cast<float>(window_size.cy) / 2.0f) + top_offset, 0.0f);
+	D3DXMatrixTranslation(&textTranslation, -caption_dimensions.cx / 2.0f, (static_cast<float>(window_size.cy) / 2.0f) + top_offset - caption_dimensions.cy, 0.0f);
 
 	D3DXMATRIX scaling;
-	// the text is initially 216px tall; this makes it 14 px (so that it can fit inside the caption)
-	D3DXMatrixScaling(&scaling, text_size / 216.0f, text_size / 216.0f, text_size / 216.0f);
+	// the text is initially 1px tall; this makes it 14 px (so that it can fit inside the caption)
+	D3DXMatrixScaling(&scaling, text_size, text_size, 1.0f);
 	
 	scaling *= textTranslation;
 	caption_transform = scaling;
