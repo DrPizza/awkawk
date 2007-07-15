@@ -71,6 +71,7 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 	using std::map;
 	using std::find_if;
 	using std::find_first_of;
+	using std::remove_if;
 	using std::bind1st;
 	using std::pair;
 
@@ -92,18 +93,9 @@ std::set<std::pair<lock_tracker::cs_sequence, lock_tracker::cs_sequence> > lock_
 	// remove recursively held locks, because for deadlock detection, they don't matter; critical sections are recursive
 	for(set<cs_sequence>::iterator needle(lock_seq.begin()), nend(lock_seq.end()); needle != nend; ++needle)
 	{
-		typedef list<lock_tracker::lock_manipulation>::iterator manipulation_list_iterator;
-		for(manipulation_list_iterator it(needle->sequence.begin()); it != needle->sequence.end() && utility::advance(it, 1) != needle->sequence.end();)
+		for(list<lock_tracker::lock_manipulation>::iterator it(needle->sequence.begin()); it != needle->sequence.end() && utility::advance(it, 1) != needle->sequence.end(); ++it)
 		{
-			manipulation_list_iterator pos(find_if(utility::advance(it, 1), needle->sequence.end(), bind1st(section_equality(), *it)));
-			if(pos != needle->sequence.end())
-			{
-				needle->sequence.erase(pos);
-			}
-			else
-			{
-				++it;
-			}
+			needle->sequence.erase(remove_if(utility::advance(it, 1), needle->sequence.end(), bind1st(section_equality(), *it)), needle->sequence.end());
 		}
 		cleaned_sequences.push_back(*needle);
 	}
