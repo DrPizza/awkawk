@@ -35,11 +35,11 @@ _COM_SMARTPTR_TYPEDEF(ID3DXBuffer, IID_ID3DXBuffer);
 
 struct awkawk;
 
-struct player_controls : message_handler, direct3d_object
+struct player_controls : control, direct3d_object
 {
 	player_controls(awkawk* player_, window* parent_);
 
-	bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam);
+	bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam) const;
 
 	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void onLeftButtonDown(HWND wnd, BOOL doubleClick, int x, int y, UINT keyFlags);
@@ -142,11 +142,9 @@ struct player_controls : message_handler, direct3d_object
 		volume_slider_definition volume_slider;
 	};
 
-	control_images hit_test_controls(int x, int y);
-
-	control_images get_current_control(int x, int y);
-
-	caption_buttons hit_test_caption(int x, int y);
+	control_images hit_test_controls(int x, int y) const;
+	control_images get_current_control(int x, int y) const;
+	caption_buttons hit_test_caption(int x, int y) const;
 
 	void render();
 

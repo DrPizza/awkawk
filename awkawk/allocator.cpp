@@ -45,7 +45,7 @@ void allocator_presenter::end_device_loss(IDirect3DDevice9Ptr device_)
 {
 	LOCK(cs);
 	device = device_;
-	FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(player->get_window(), MONITOR_DEFAULTTOPRIMARY)));
+	FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(player->get_ui()->get_window(), MONITOR_DEFAULTTOPRIMARY)));
 }
 
 //IVMRSurfaceAllocator9

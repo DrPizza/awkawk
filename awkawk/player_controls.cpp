@@ -24,7 +24,7 @@
 #include "awkawk.h"
 #include "text.h"
 
-player_controls::player_controls(awkawk* player_, window* parent_) : message_handler(parent_),
+player_controls::player_controls(awkawk* player_, window* parent_) : control(parent_),
                                                                      ui_reveal_percentage(0.0f),
                                                                      text_size(14.0f),
                                                                      caption_text(L"<(@) awkawk (@)>"),
@@ -72,7 +72,7 @@ player_controls::player_controls(awkawk* player_, window* parent_) : message_han
 	set_compact_filename();
 }
 
-bool player_controls::handles_message(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
+bool player_controls::handles_message(HWND window, UINT message, WPARAM wParam, LPARAM lParam) const
 {
 	// if something has it captured and it isn't me, don't interfere (or else things can forget to release the capture)
 	if(NULL != ::GetCapture() && (!dragging_position_tracker && !clicking_volume_slider))
@@ -92,7 +92,7 @@ bool player_controls::handles_message(HWND window, UINT message, WPARAM wParam, 
 	case WM_MOUSEMOVE:
 		{
 			POINT pt = { GET_X_LPARAM(::GetMessagePos()), GET_Y_LPARAM(::GetMessagePos()) };
-			RECT window_rect(parent->get_window_rect());
+			RECT window_rect(get_owning_window()->get_window_rect());
 			pt.x -= window_rect.left;
 			pt.y -= window_rect.top;
 			return (hit_test_caption(pt.x, pt.y) != title_bar)
@@ -116,7 +116,7 @@ LRESULT CALLBACK player_controls::message_proc(HWND window, UINT message, WPARAM
 	HANDLE_MSG(window, WM_MOUSEMOVE, onMouseMove);
 
 	default:
-		return parent->message_proc(window, message, wParam, lParam);
+		return get_owning_window()->message_proc(window, message, wParam, lParam);
 	}
 	return 0;
 }
@@ -127,7 +127,7 @@ void player_controls::onLeftButtonDown(HWND, BOOL double_click, int x, int y, UI
 	{
 		dragging_position_tracker = true;
 		position_drag_offset = x - static_cast<int>(98.0f + (19.0f / 2.0f));
-		::SetCapture(parent->get_window());
+		::SetCapture(get_owning_window()->get_window());
 		return;
 	}
 	else if(hit_test_volume_slider(x, y))
@@ -137,19 +137,19 @@ void player_controls::onLeftButtonDown(HWND, BOOL double_click, int x, int y, UI
 		// just change the volume; the renderloop queries for the volume each iteration, so it will just draw 
 		// in the right place.
 		clicking_volume_slider = true;
-		RECT window_rect(parent->get_window_rect());
+		RECT window_rect(get_owning_window()->get_window_rect());
 		float vol(25.0f - static_cast<float>(y - ((window_rect.bottom - window_rect.top) - static_cast<LONG>(controls->vertices[1].position.y) + 8)));
 		vol /= 25.0f;
 		vol = clamp(vol, 0.0f, 1.0f);
 		player->set_linear_volume(vol);
-		::SetCapture(parent->get_window());
+		::SetCapture(get_owning_window()->get_window());
 		return;
 	}
 }
 
 void player_controls::onLeftButtonUp(HWND, int x, int y, UINT keyFlags)
 {
-	RECT window_rect(parent->get_window_rect());
+	RECT window_rect(get_owning_window()->get_window_rect());
 	if(dragging_position_tracker)
 	{
 		dragging_position_tracker = false;
@@ -169,28 +169,24 @@ void player_controls::onLeftButtonUp(HWND, int x, int y, UINT keyFlags)
 		{
 		case system_menu:
 			{
-				BOOL value(::TrackPopupMenu(::GetSystemMenu(parent->get_window(), FALSE), TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_RETURNCMD, window_rect.left + x, window_rect.top + y, 0, parent->get_window(), NULL));
-				if(value != 0)
-				{
-					parent->post_message(WM_SYSCOMMAND, value, 0);
-				}
+				get_owning_window()->post_message(WM_SYSMENU, 0, MAKELPARAM(window_rect.left + x, window_rect.top + y));
 			}
 			return;
 		case minimize:
-			parent->post_message(WM_SYSCOMMAND, SC_MINIMIZE, 0);
+			get_owning_window()->post_message(WM_SYSCOMMAND, SC_MINIMIZE, 0);
 			return;
 		case maximize:
 			if(player->is_fullscreen())
 			{
-				parent->post_message(WM_SYSCOMMAND, SC_RESTORE, 0);
+				get_owning_window()->post_message(WM_SYSCOMMAND, SC_RESTORE, 0);
 			}
 			else
 			{
-				parent->post_message(WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+				get_owning_window()->post_message(WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 			}
 			return;
 		case close:
-			parent->post_message(WM_SYSCOMMAND, SC_CLOSE, 0);
+			get_owning_window()->post_message(WM_SYSCOMMAND, SC_CLOSE, 0);
 			return;
 		}
 	}
@@ -199,19 +195,19 @@ void player_controls::onLeftButtonUp(HWND, int x, int y, UINT keyFlags)
 		switch(chosen)
 		{
 		case play:
-			parent->post_message(WM_COMMAND, IDM_PLAY, 0);
+			get_owning_window()->post_message(WM_COMMAND, IDM_PLAY, 0);
 			return;
 		case pause:
-			parent->post_message(WM_COMMAND, IDM_PAUSE, 0);
+			get_owning_window()->post_message(WM_COMMAND, IDM_PAUSE, 0);
 			return;
 		case stop:
-			parent->post_message(WM_COMMAND, IDM_STOP, 0);
+			get_owning_window()->post_message(WM_COMMAND, IDM_STOP, 0);
 			return;
 		case rwd:
-			parent->post_message(WM_COMMAND, IDM_PREV, 0);
+			get_owning_window()->post_message(WM_COMMAND, IDM_PREV, 0);
 			return;
 		case ffwd:
-			parent->post_message(WM_COMMAND, IDM_NEXT, 0);
+			get_owning_window()->post_message(WM_COMMAND, IDM_NEXT, 0);
 			return;
 		case volume:
 			break;
@@ -225,13 +221,13 @@ void player_controls::onLeftButtonUp(HWND, int x, int y, UINT keyFlags)
 		case unknown2:
 			break;
 		case open:
-			parent->post_message(WM_COMMAND, IDM_OPEN_FILE, 0);
+			get_owning_window()->post_message(WM_COMMAND, IDM_OPEN_FILE, 0);
 			return;
 		}
 	}
 }
 
-player_controls::control_images player_controls::get_current_control(int x, int y)
+player_controls::control_images player_controls::get_current_control(int x, int y) const
 {
 	if(control_images chosen = hit_test_controls(x, y))
 	{
@@ -256,20 +252,20 @@ void player_controls::onMouseMove(HWND wnd, int x, int y, UINT keyFlags)
 	}
 	else if(clicking_volume_slider)
 	{
-		RECT window_rect(parent->get_window_rect());
+		RECT window_rect(get_owning_window()->get_window_rect());
 		float vol(25.0f - static_cast<float>(y - ((window_rect.bottom - window_rect.top) - static_cast<LONG>(controls->vertices[1].position.y) + 8)));
 		vol /= 25.0f;
 		player->set_linear_volume(vol);
 	}
 	else
 	{
-		FORWARD_WM_MOUSEMOVE(wnd, x, y, keyFlags, parent->message_proc);
+		FORWARD_WM_MOUSEMOVE(wnd, x, y, keyFlags, get_owning_window()->message_proc);
 	}
 }
 
 bool player_controls::hit_test_position_slider(int x, int y) const
 {
-	RECT window_rect(parent->get_window_rect());
+	RECT window_rect(get_owning_window()->get_window_rect());
 	RECT position_rect = {0};
 	position_rect.left   = static_cast<LONG>(controls->vertices[3].position.x);
 	position_rect.right  = static_cast<LONG>(controls->vertices[5].position.x);
@@ -281,7 +277,7 @@ bool player_controls::hit_test_position_slider(int x, int y) const
 
 bool player_controls::hit_test_position_tracker(int x, int y) const
 {
-	RECT window_rect(parent->get_window_rect());
+	RECT window_rect(get_owning_window()->get_window_rect());
 	RECT tracker_rect = {0};
 	tracker_rect.left   = static_cast<LONG>(position_tracker->vertices[1].position.x);
 	tracker_rect.top    = (window_rect.bottom - window_rect.top) - static_cast<LONG>(position_tracker->vertices[1].position.y);
@@ -294,7 +290,7 @@ bool player_controls::hit_test_position_tracker(int x, int y) const
 
 bool player_controls::hit_test_volume_slider(int x, int y) const
 {
-	RECT window_rect(parent->get_window_rect());
+	RECT window_rect(get_owning_window()->get_window_rect());
 	RECT volume_rect = {0};
 	volume_rect.left   = static_cast<LONG>(controls->vertices[6].position.x) - 25;
 	volume_rect.right  = static_cast<LONG>(controls->vertices[6].position.x);
@@ -311,10 +307,10 @@ bool player_controls::hit_test_volume_slider(int x, int y) const
 // play pause stop |< >|
 // timer switch-size unknown1 unknown2 open
 // then at the right hand side is a 25x40 panel for the volume slider
-player_controls::control_images player_controls::hit_test_controls(int x, int y)
+player_controls::control_images player_controls::hit_test_controls(int x, int y) const
 {
 	POINT pt = { x, y };
-	RECT window_rect(parent->get_window_rect());
+	RECT window_rect(get_owning_window()->get_window_rect());
 	RECT controls_rect = {0};
 	controls_rect.left   = static_cast<LONG>(controls->vertices[1].position.x);
 	controls_rect.top    = (window_rect.bottom - window_rect.top) - static_cast<LONG>(controls->vertices[1].position.y);
@@ -331,10 +327,10 @@ player_controls::control_images player_controls::hit_test_controls(int x, int y)
 	return normal;
 }
 
-player_controls::caption_buttons player_controls::hit_test_caption(int x, int y)
+player_controls::caption_buttons player_controls::hit_test_caption(int x, int y) const
 {
 	POINT pt = { x, y };
-	RECT window_rect(parent->get_window_rect());
+	RECT window_rect(get_owning_window()->get_window_rect());
 	::OffsetRect(&window_rect, window_rect.left, window_rect.top);
 	RECT caption_rect = {0};
 	caption_rect.left   = static_cast<LONG>(caption->vertices[1].position.x);
@@ -444,7 +440,7 @@ void player_controls::calculate_caption()
 	ON_BLOCK_EXIT(&::DeleteDC, dc);
 	NONCLIENTMETRICSW metrics = { sizeof(NONCLIENTMETRICSW) };
 	::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &metrics, 0);
-	HFONT font(::CreateFontW(216, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, PROOF_QUALITY, DEFAULT_PITCH, L"Verdana"/*metrics.lfCaptionFont.lfFaceName*/));
+	HFONT font(::CreateFontW(216, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, PROOF_QUALITY, DEFAULT_PITCH, metrics.lfCaptionFont.lfFaceName));
 	ON_BLOCK_EXIT(&::DeleteObject, font);
 	HGDIOBJ original_object(::SelectObject(dc, font));
 	ON_BLOCK_EXIT(&::SelectObject, dc, original_object);
@@ -744,7 +740,9 @@ void player_controls::set_compact_filename()
 	LOCK(cs);
 	HDC dc(::CreateCompatibleDC(NULL));
 	ON_BLOCK_EXIT(&::DeleteDC, dc);
-	HFONT font(::CreateFontW(static_cast<int>(text_size), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Verdana"));
+	NONCLIENTMETRICSW metrics = { sizeof(NONCLIENTMETRICSW) };
+	::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &metrics, 0);
+	HFONT font(::CreateFontW(static_cast<int>(text_size), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, metrics.lfCaptionFont.lfFaceName));
 	ON_BLOCK_EXIT(&::DeleteObject, font);
 	::SelectObject(dc, font);
 	boost::scoped_array<wchar_t> buffer(new wchar_t[/*caption_text.length() + 1*/ MAX_PATH]);

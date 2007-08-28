@@ -488,6 +488,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\player_menus.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\player_scene.cpp"
 				>
 			</File>
@@ -578,11 +582,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\menu.h"
+				>
+			</File>
+			<File
 				RelativePath=".\open_url.h"
 				>
 			</File>
 			<File
 				RelativePath=".\player_controls.h"
+				>
+			</File>
+			<File
+				RelativePath=".\player_menus.h"
 				>
 			</File>
 			<File

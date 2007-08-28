@@ -110,6 +110,7 @@ BEGIN
             MENUITEM "16:9\tShift+4",               IDM_AR_177TO1
             MENUITEM "1.85:1\tShift+5",             IDM_AR_185TO1
             MENUITEM "2.40:1\tShift+6",             IDM_AR_240TO1
+            MENUITEM "&Custom",                     IDM_AR_CUSTOM
             MENUITEM SEPARATOR
             MENUITEM "&No Letterboxing\tCtrl+1",    IDM_NOLETTERBOXING
             MENUITEM "4:3 Original\tCtrl+2",        IDM_4_TO_3_ORIGINAL

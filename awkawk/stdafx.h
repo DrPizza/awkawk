@@ -40,6 +40,7 @@
 #pragma comment(lib, "comctl32.lib")
 
 #include <uxtheme.h>
+#include <vssym32.h>
 #pragma comment(lib, "uxtheme.lib")
 
 #include <dwmapi.h>
