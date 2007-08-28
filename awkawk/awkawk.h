@@ -703,9 +703,14 @@ struct awkawk
 		return fps;
 	}
 
-	HWND get_window() const
+	const player_window* get_ui() const
 	{
-		return ui.get_window();
+		return &ui;
+	}
+
+	player_window* get_ui()
+	{
+		return &ui;
 	}
 
 	void signal_new_frame() const

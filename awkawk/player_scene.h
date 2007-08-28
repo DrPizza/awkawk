@@ -34,7 +34,7 @@ _COM_SMARTPTR_TYPEDEF(ID3DXMesh, IID_ID3DXMesh);
 
 struct awkawk;
 
-struct player_scene : message_handler, direct3d_object
+struct player_scene : direct3d_object
 {
 	player_scene(awkawk* player_, window* parent_);
 	virtual ~player_scene();
@@ -70,16 +70,6 @@ struct player_scene : message_handler, direct3d_object
 		video->on_device_destroyed();
 		controls->on_device_destroyed();
 		device = NULL;
-	}
-
-	bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		return controls->handles_message(wnd, message, wParam, lParam);
-	}
-
-	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		return controls->message_proc(wnd, message, wParam, lParam);
 	}
 
 	void set_cursor_position(POINT pt)

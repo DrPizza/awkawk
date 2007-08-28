@@ -35,6 +35,9 @@
 
 #include "util.h"
 
+// undocumented, but how else to "properly" display the system menu?
+#define WM_SYSMENU	0x0313
+
 // why doesn't windowsx.h include these?
 
 // BOOL OnSizing(HWND hwnd, UINT edge, RECT* coords)
@@ -72,6 +75,13 @@
     ((fn)((hwnd)), 0L)
 #define FORWARD_WM_EXITSIZEMOVE(hwnd, fn) \
     (void)(DWORD)(fn)((hwnd), WM_EXITSIZEMOVE, 0UL, 0L)
+
+// void OnMenuCommand(HWND hwnd, HMENU hmenu, UINT position)
+#define HANDLE_WM_MENUCOMMAND(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd), (HMENU)(lParam), (UINT)(wParam)), 0L)
+#define FORWARD_WM_MENUCOMMAND(hwnd, hmenu, position, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_MENUCOMMAND, (WPARAM)(position), (LPARAM)(hmenu))
+
 
 inline void print_message(UINT message)
 {
@@ -306,24 +316,35 @@ inline void print_message(UINT message)
 
 struct window;
 
-struct message_handler
+struct control
 {
-	message_handler(window* parent_) : parent(parent_)
-	{
-	}
+	control(window* parent_);
 
-	virtual bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
+	virtual ~control();
+
+	virtual bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam) const
 	{
 		return false;
 	}
 	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam) = 0;
 
+	const window* get_owning_window() const
+	{
+		return parent;
+	}
+
+	window* get_owning_window()
+	{
+		return parent;
+	}
+
+private:
 	window* parent;
 };
 
-struct window : message_handler
+struct window : control
 {
-	window(const wchar_t* window_class_name, UINT style, HICON icon, HCURSOR cursor, HBRUSH background, const wchar_t* menu_name, const wchar_t* accelerators_id) : message_handler(NULL),
+	window(const wchar_t* window_class_name, UINT style, HICON icon, HCURSOR cursor, HBRUSH background, const wchar_t* menu_name, const wchar_t* accelerators_id) : control(NULL),
 	                                                                                                                                                                instance(::GetModuleHandle(NULL)),
 	                                                                                                                                                                accelerator_table(accelerators_id != NULL ? ::LoadAcceleratorsW(instance, accelerators_id) : NULL),
 	                                                                                                                                                                registered(true)
@@ -407,7 +428,7 @@ struct window : message_handler
 
 	LRESULT CALLBACK filtering_message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		for(std::set<message_handler*>::iterator it(message_handlers.begin()), end(message_handlers.end()); it != end; ++it)
+		for(std::set<control*>::const_iterator it(controls.begin()), end(controls.end()); it != end; ++it)
 		{
 			if((*it)->handles_message(wnd, message, wParam, lParam))
 			{
@@ -463,14 +484,14 @@ struct window : message_handler
 		::SetWindowPos(get_window(), HWND_TOP, window_position.left + delta_x, window_position.top + delta_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
-	void add_message_handler(message_handler* new_handler)
+	void add_control(control* new_handler)
 	{
-		message_handlers.insert(new_handler);
+		controls.insert(new_handler);
 	}
 
-	void remove_message_handler(message_handler* old_handler)
+	void remove_control(control* old_handler)
 	{
-		message_handlers.erase(old_handler);
+		controls.erase(old_handler);
 	}
 
 	RECT get_window_rect() const
@@ -559,17 +580,32 @@ private:
 
 	window(const window&);
 	HWND window_handle;
-	std::set<message_handler*> message_handlers;
+	std::set<control*> controls;
 	HACCEL accelerator_table;
 
 	WNDCLASSEXW window_class;
 	bool registered;
 };
 
-
-struct dialogue : message_handler
+inline control::control(window* parent_) : parent(parent_)
 {
-	dialogue() : message_handler(NULL), instance(::GetModuleHandle(NULL))
+	if(parent != NULL)
+	{
+		parent->add_control(this);
+	}
+}
+
+inline control::~control()
+{
+	if(parent != NULL)
+	{
+		parent->remove_control(this);
+	}
+}
+
+struct dialogue : control
+{
+	dialogue() : control(NULL), instance(::GetModuleHandle(NULL))
 	{
 	}
 
@@ -634,7 +670,7 @@ struct dialogue : message_handler
 
 	LRESULT CALLBACK filtering_message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		for(std::set<message_handler*>::iterator it(message_handlers.begin()), end(message_handlers.end()); it != end; ++it)
+		for(std::set<control*>::iterator it(controls.begin()), end(controls.end()); it != end; ++it)
 		{
 			if((*it)->handles_message(wnd, message, wParam, lParam))
 			{
@@ -697,14 +733,14 @@ struct dialogue : message_handler
 		::SetWindowPos(get_window(), HWND_TOP, window_position.left + delta_x, window_position.top + delta_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_ASYNCWINDOWPOS);
 	}
 
-	void add_message_handler(message_handler* new_handler)
+	void add_control(control* new_handler)
 	{
-		message_handlers.insert(new_handler);
+		controls.insert(new_handler);
 	}
 
-	void remove_message_handler(message_handler* old_handler)
+	void remove_control(control* old_handler)
 	{
-		message_handlers.erase(old_handler);
+		controls.erase(old_handler);
 	}
 
 	RECT get_window_rect() const
@@ -745,7 +781,7 @@ struct dialogue : message_handler
 
 private:
 	HWND window_handle;
-	std::set<message_handler*> message_handlers;
+	std::set<control*> controls;
 	ATOM window_class;
 };
 

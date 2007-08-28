@@ -615,7 +615,7 @@ void awkawk::create_ui(int cmd_show)
 {
 	ui.create_window(cmd_show);
 	scene.reset(new player_scene(this, &ui));
-	ui.add_message_handler(scene.get());
+	//ui.add_control(scene.get());
 }
 
 void awkawk::create_device()

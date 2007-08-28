@@ -58,6 +58,9 @@
 #define IDM_185_TO_1_ORIGINAL           32844
 #define IDM_240_TO_1_ORIGINAL           32845
 #define ID_DUMMYPOPUP_FILTERS           32846
+#define IDM_AR_CUSTOM                   32874
+#define IDM_SIZE_SEPARATOR_1            32875
+#define IDM_SIZE_SEPARATOR_2            32876
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -66,7 +69,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        156
-#define _APS_NEXT_COMMAND_VALUE         32873
+#define _APS_NEXT_COMMAND_VALUE         32877
 #define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           110
 #endif

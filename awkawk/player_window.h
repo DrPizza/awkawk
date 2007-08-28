@@ -25,11 +25,11 @@
 
 #include "window.h"
 
+#include "player_menus.h"
+
 _COM_SMARTPTR_TYPEDEF(IDropTarget, __uuidof(IDropTarget));
 _COM_SMARTPTR_TYPEDEF(IDataObject, __uuidof(IDataObject));
 _COM_SMARTPTR_TYPEDEF(ISpecifyPropertyPages, __uuidof(ISpecifyPropertyPages));
-
-struct awkawk;
 
 struct player_window : window
 {
@@ -48,10 +48,9 @@ struct player_window : window
 		reset_msg,
 		render_msg,
 		destroy_device_msg,
-		destroy_d3d_msg,
-		filter_menu_base = WM_USER + 0x100
+		destroy_d3d_msg
 	};
-	void build_filter_menu(HMENU parent_menu, UINT position) const;
+	void build_filter_menu(HMENU parent_menu, UINT position);
 	bool show_filter_properties(size_t chosen) const;
 
 	void open_single_file(const std::wstring& path);
@@ -79,6 +78,7 @@ struct player_window : window
 	BOOL onEraseBackground(HWND wnd, HDC hdc);
 	void onPaint(HWND wnd);
 	void onInitMenu(HWND wnd, HMENU menu);
+	void onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu);
 	void onSysCommand(HWND wnd, UINT command, int x, int y);
 	void onTimer(HWND wnd, UINT id);
 
@@ -123,9 +123,17 @@ struct player_window : window
 		DWORD drag_effect;
 	};
 
+	const std::wstring& get_app_title() const
+	{
+		return app_title;
+	}
+
 private:
+	awkawk* player;
+
 	// window, message loop and associated paraphernalia
 	std::wstring app_title;
+	awkawk_main_menu main_menu;
 	HMENU context_menu;
 	HMENU filter_menu;
 
@@ -143,8 +151,6 @@ private:
 	void update_last_mouse_move_time();
 
 	IDropTargetPtr target;
-
-	awkawk* player;
 
 	player_window(const player_window&);
 };

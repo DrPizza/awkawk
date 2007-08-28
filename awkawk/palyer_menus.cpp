@@ -1,4 +1,4 @@
-//  Copyright (C) 2002 Peter Bright
+//  Copyright (C) 2007 Peter Bright
 //  
 //  This software is provided 'as-is', without any express or implied
 //  warranty.  In no event will the authors be held liable for any damages
@@ -18,32 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
-#pragma once
-#ifndef UTILITY__H
-#define UTILITY__H
+#include "stdafx.h"
 
-namespace utility
-{
-
-template<typename T, int N>
-inline size_t array_size(T(&)[N])
-{
-	return N;
-}
-
-#define ARRAY_SIZE(X)	(sizeof(utility::array_size(X)) ? (sizeof(X) / sizeof((X)[0])) : 0)
-
-template<typename InIter, typename OutIter, typename Pred>
-OutIter copy_if(InIter begin, InIter end, OutIter dest, Pred p)
-{
-	while(begin != end)
-	{
-		if(p(*begin)) { *dest++ = *begin; }
-		++begin;
-	}
-	return dest;
-}
-
-} // namespace utility
-
-#endif // UTILITY__H
+#include "menu.h"
+#include "awkawk.h"
+#include "resource.h"

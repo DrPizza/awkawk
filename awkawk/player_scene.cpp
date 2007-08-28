@@ -24,9 +24,8 @@
 #include "awkawk.h"
 #include "player_scene.h"
 
-player_scene::player_scene(awkawk* player_, window* parent_) : message_handler(parent_),
-                                                               player(player_),
-                                                               controls(new player_controls(player, parent)),
+player_scene::player_scene(awkawk* player_, window* parent_) : player(player_),
+                                                               controls(new player_controls(player, parent_)),
                                                                video(new strip(4)),
                                                                video_texture(NULL)
 {
