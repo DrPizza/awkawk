@@ -20,8 +20,17 @@
 //
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef DEBUG_HPP
 #define DEBUG_HPP
+
+#define NOMINMAX
+#define NTDDI_VERSION NTDDI_LONGHORN
+#define STRICT
+#pragma warning(disable:4995)
+#pragma warning(disable:4996)
+#include <windows.h>
 
 #define DBGHELP_TRANSLATE_TCHAR
 #include <dbghelp.h>

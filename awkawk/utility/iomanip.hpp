@@ -20,6 +20,8 @@
 //
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef IOMANIP_HPP
 #define IOMANIP_HPP
 

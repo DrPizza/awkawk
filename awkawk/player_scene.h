@@ -18,14 +18,15 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef PLAYER_SCENE__H
 #define PLAYER_SCENE__H
-
-#pragma once
 
 #include "stdafx.h"
 #include "strip.h"
 #include "window.h"
+#include "components.h"
 
 #include "player_controls.h"
 
@@ -34,11 +35,16 @@ _COM_SMARTPTR_TYPEDEF(ID3DXMesh, IID_ID3DXMesh);
 
 struct awkawk;
 
-struct player_scene : direct3d_object
+struct player_scene : direct3d_object, component_owner, boost::noncopyable
 {
 	player_scene(awkawk* player_, window* parent_);
 	virtual ~player_scene();
 	void render();
+
+	void add_components(layout* lay)
+	{
+		controls->add_components(lay);
+	}
 
 	// create D3DPOOL_MANAGED resources
 	virtual HRESULT on_device_created(IDirect3DDevice9Ptr new_device)
@@ -64,7 +70,7 @@ struct player_scene : direct3d_object
 		default_video_texture = NULL;
 		return S_OK;
 	}
-	// destroy D3DPOOL_DEFAULT resources
+	// destroy D3DPOOL_MANAGED resources
 	virtual void on_device_destroyed()
 	{
 		video->on_device_destroyed();
@@ -106,8 +112,6 @@ struct player_scene : direct3d_object
 	}
 
 private:
-	player_scene(const player_scene&);
-
 	void calculate_positions();
 	void calculate_colours();
 

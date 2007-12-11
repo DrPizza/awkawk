@@ -77,6 +77,10 @@
 #include <Dvdevcod.h>
 #pragma comment(lib, "strmiids.lib")
 
+#ifdef _DEBUG
+#define D3D_DEBUG_INFO
+#endif
+
 // D3D, VMR9
 #include <d3d9.h>
 #include <d3dx9.h>
@@ -115,6 +119,7 @@ using namespace ATL;
 #include <boost/shared_ptr.hpp>
 #include <boost/shared_array.hpp>
 #include <boost/ptr_container/ptr_container.hpp>
+#include <boost/utility.hpp>
 #include "loki/ScopeGuard.h"
 #include "loki/ScopeGuardExt.h"
 #include "utility/debug.hpp"

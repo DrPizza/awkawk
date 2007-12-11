@@ -480,6 +480,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\menu.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\open_url.cpp"
 				>
 			</File>
@@ -489,6 +493,10 @@
 			</File>
 			<File
 				RelativePath=".\player_menus.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\player_overlay.cpp"
 				>
 			</File>
 			<File
@@ -558,6 +566,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\components.h"
+				>
+			</File>
+			<File
 				RelativePath=".\utility\debug.hpp"
 				>
 			</File>
@@ -595,6 +607,10 @@
 			</File>
 			<File
 				RelativePath=".\player_menus.h"
+				>
+			</File>
+			<File
+				RelativePath=".\player_overlay.h"
 				>
 			</File>
 			<File
@@ -647,6 +663,10 @@
 			</File>
 			<File
 				RelativePath=".\window.h"
+				>
+			</File>
+			<File
+				RelativePath=".\window_hook.h"
 				>
 			</File>
 			<File

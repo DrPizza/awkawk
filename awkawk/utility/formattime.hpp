@@ -20,8 +20,11 @@
 //
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef FORMATTIME__H
 #define FORMATTIME__H
+
 #include <string>
 #include <ctime>
 #include <sstream>

@@ -18,6 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef PLAYERWINDOW__H
 #define PLAYERWINDOW__H
 
@@ -31,7 +33,7 @@ _COM_SMARTPTR_TYPEDEF(IDropTarget, __uuidof(IDropTarget));
 _COM_SMARTPTR_TYPEDEF(IDataObject, __uuidof(IDataObject));
 _COM_SMARTPTR_TYPEDEF(ISpecifyPropertyPages, __uuidof(ISpecifyPropertyPages));
 
-struct player_window : window
+struct player_window : window, boost::noncopyable
 {
 	player_window(awkawk* player_);
 	~player_window();
@@ -50,13 +52,11 @@ struct player_window : window
 		destroy_device_msg,
 		destroy_d3d_msg
 	};
-	void build_filter_menu(HMENU parent_menu, UINT position);
-	bool show_filter_properties(size_t chosen) const;
 
 	void open_single_file(const std::wstring& path);
 
 	// wndproc and associated message handlers
-	LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam);
+	LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam, bool& handled);
 	void onCommand(HWND wnd, int id, HWND control, UINT event);
 	void onContextMenu(HWND wnd, HWND hwndContext, UINT x, UINT y);
 	void onDestroy(HWND wnd);
@@ -134,7 +134,6 @@ private:
 	// window, message loop and associated paraphernalia
 	std::wstring app_title;
 	awkawk_main_menu main_menu;
-	HMENU context_menu;
 	HMENU filter_menu;
 
 	// mouse position tracking
@@ -151,8 +150,6 @@ private:
 	void update_last_mouse_move_time();
 
 	IDropTargetPtr target;
-
-	player_window(const player_window&);
 };
 
 #endif

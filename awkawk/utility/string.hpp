@@ -20,6 +20,8 @@
 //
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef STRING_HPP
 #define STRING_HPP
 

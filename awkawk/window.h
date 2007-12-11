@@ -18,6 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef WINDOW__H
 #define WINDOW__H
 
@@ -27,7 +29,6 @@
 #pragma warning(disable:4995)
 #pragma warning(disable:4996)
 
-#include <objbase.h>
 #include <windows.h>
 #include <windowsx.h>
 
@@ -82,6 +83,23 @@
 #define FORWARD_WM_MENUCOMMAND(hwnd, hmenu, position, fn) \
     (void)(DWORD)(fn)((hwnd), WM_MENUCOMMAND, (WPARAM)(position), (LPARAM)(hmenu))
 
+// void OnUnInitMenuPopup(HWND hwnd, HMENU hmenu, WORD type)
+#define HANDLE_WM_UNINITMENUPOPUP(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd), (HMENU)(wParam), (HIWORD(lParam))), 0L)
+#define FORWARD_WM_UNINITMENUPOPUP(hwnd, hmenu, type, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_UNINITMENUPOPUP, (WPARAM)(hmenu), MAKELPARAM(0, type))
+
+// void OnEnterMenuLoop(HWND hwnd, BOOL popup)
+#define HANDLE_WM_ENTERMENULOOP(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd), (BOOL)(wParam)), 0L)
+#define FORWARD_WM_ENTERMENULOOP(hwnd, popup, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_ENTERMENULOOP, (WPARAM)(popup), 0L)
+
+// void OnExitMenuLoop(HWND hwnd, BOOL popup)
+#define HANDLE_WM_EXITMENULOOP(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd), (BOOL)(wParam)), 0L)
+#define FORWARD_WM_EXITMENULOOP(hwnd, popup, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_EXITMENULOOP, (WPARAM)(popup), 0L)
 
 inline void print_message(UINT message)
 {
@@ -308,9 +326,23 @@ inline void print_message(UINT message)
 	case WM_AFXLAST: dout << "WM_AFXLAST" << std::endl; break;
 	case WM_PENWINFIRST: dout << "WM_PENWINFIRST" << std::endl; break;
 	case WM_PENWINLAST: dout << "WM_PENWINLAST" << std::endl; break;
-	case WM_APP: dout << "WM_APP" << std::endl; break;
-	case WM_USER: dout << "WM_USER" << std::endl; break;
-	default: dout << "Unknown message: " << std::hex << message << std::endl;
+	//case WM_APP: dout << "WM_APP" << std::endl; break;
+	//case WM_USER: dout << "WM_USER" << std::endl; break;
+	default:
+		{
+			if(message >= WM_APP)
+			{
+				dout << "Application-defined: " << std::hex << message << std::endl;
+			}
+			else if(message >= WM_USER)
+			{
+				dout << "User-defined: " << std::hex << message << std::endl;
+			}
+			else
+			{
+				dout << "Unknown message: " << std::hex << message << std::endl;
+			}
+		}
 	}
 }
 
@@ -322,11 +354,7 @@ struct control
 
 	virtual ~control();
 
-	virtual bool handles_message(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam) const
-	{
-		return false;
-	}
-	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam) = 0;
+	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam, bool& handled) = 0;
 
 	const window* get_owning_window() const
 	{
@@ -426,16 +454,23 @@ struct window : control
 		return static_cast<int>(msg.wParam);
 	}
 
-	LRESULT CALLBACK filtering_message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK filtering_message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	{
+		bool handled(false);
 		for(std::set<control*>::const_iterator it(controls.begin()), end(controls.end()); it != end; ++it)
 		{
-			if((*it)->handles_message(wnd, message, wParam, lParam))
+			LRESULT rv((*it)->message_proc(window, message, wParam, lParam, handled));
+			if(handled)
 			{
-				return (*it)->message_proc(wnd, message, wParam, lParam);
+				return rv;
 			}
 		}
-		return message_proc(wnd, message, wParam, lParam);
+		LRESULT rv(message_proc(window, message, wParam, lParam, handled));
+		if(handled)
+		{
+			return rv;
+		}
+		return ::DefWindowProcW(window, message, wParam, lParam);
 	}
 
 	HWND get_window() const
@@ -668,16 +703,32 @@ struct dialogue : control
 		}
 	}
 
-	LRESULT CALLBACK filtering_message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK filtering_message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		for(std::set<control*>::iterator it(controls.begin()), end(controls.end()); it != end; ++it)
+		bool handled(false);
+		for(std::set<control*>::const_iterator it(controls.begin()), end(controls.end()); it != end; ++it)
 		{
-			if((*it)->handles_message(wnd, message, wParam, lParam))
+			LRESULT rv((*it)->message_proc(window, message, wParam, lParam, handled));
+			if(handled)
 			{
-				return (*it)->message_proc(wnd, message, wParam, lParam);
+				return rv;
 			}
+
+			//if((*it)->handles_message(wnd, message, wParam, lParam))
+			//{
+			//	LRESULT rv((*it)->message_proc(wnd, message, wParam, lParam));
+			//	if(rv != 0)
+			//	{
+			//		return rv;
+			//	}
+			//}
 		}
-		return message_proc(wnd, message, wParam, lParam);
+		LRESULT rv(message_proc(window, message, wParam, lParam, handled));
+		if(handled)
+		{
+			return rv;
+		}
+		return ::DefWindowProcW(window, message, wParam, lParam);
 	}
 
 	HWND get_window() const

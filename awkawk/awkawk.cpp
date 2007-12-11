@@ -77,7 +77,7 @@ const awkawk::transition awkawk::transitions[awkawk::max_states][awkawk::max_eve
                           }
 };
 
-awkawk::awkawk() : ui(this),
+awkawk::awkawk() : ui(player_window(this)),
                    media_event_thread(0),
                    render_thread(0),
                    message_port(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1)),
@@ -90,10 +90,25 @@ awkawk::awkawk() : ui(this),
                    playlist(),
                    playlist_position(playlist.begin()),
                    playlist_mode(normal),
-                   ar_mode(original),
-                   wnd_size_mode(one_hundred_percent),
-                   ltrbx_mode(no_letterboxing)
+                   chosen_ar(0),
+                   chosen_lb(0),
+                   wnd_size_mode(one_hundred_percent)
 {
+	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new natural_aspect_ratio(this)));
+	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(4, 3)));
+	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(14, 9)));
+	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(16, 9)));
+	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(1.85f)));
+	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(2.40f)));
+
+	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new natural_letterbox(this)));
+	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(4, 3)));
+	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(14, 9)));
+	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(16, 9)));
+	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(1.85f)));
+	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(2.40f)));
+
+
 	SIZE sz = { 640, 480 };
 	window_size = sz;
 	video_size = sz;
@@ -181,14 +196,14 @@ size_t awkawk::do_stop()
 		FAIL_THROW(media_control->Stop());
 		media_control->GetState(0, &movie_state);
 	}
-	ui.set_on_top(false);
+	get_ui()->set_on_top(false);
 	return 0;
 }
 
 size_t awkawk::do_play()
 {
 	LOCK(graph_cs);
-	ui.set_on_top(true);
+	get_ui()->set_on_top(true);
 	FAIL_THROW(media_control->Run());
 	return 0;
 }
@@ -473,7 +488,7 @@ void awkawk::create_graph()
 	IVMRFilterConfig9Ptr filter_config;
 	FAIL_THROW(vmr9->QueryInterface(&filter_config));
 	FAIL_THROW(filter_config->SetRenderingMode(VMR9Mode_Renderless));
-	set_allocator_presenter(vmr9, ui.get_window());
+	set_allocator_presenter(vmr9, get_ui()->get_window());
 	// Note that we MUST use YUV mixing mode (or no mixing mode at all)
 	// because if we don't, VMR9 can change the state of the D3D device
 	// part-way through our render (and it doesn't tell us it's going to,
@@ -494,6 +509,11 @@ void awkawk::create_graph()
 	mixing_prefs |= MixerPref9_RenderTargetYUV;
 #endif
 	mixing_prefs &= ~MixerPref9_DynamicMask;
+	mixing_prefs &= ~MixerPref9_DecimateMask;
+	mixing_prefs |= MixerPref9_NoDecimation;
+	mixing_prefs |= MixerPref9_ARAdjustXorY;
+	mixing_prefs &= ~MixerPref9_FilteringMask;
+	mixing_prefs |= MixerPref9_PyramidalQuadFiltering;
 	FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
 #endif
 
@@ -573,7 +593,7 @@ void awkawk::create_graph()
 
 	REFERENCE_TIME average_frame_time(get_average_frame_time(graph));
 
-	double frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<double>(average_frame_time));
+	float frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<float>(average_frame_time));
 	set_render_fps(static_cast<unsigned int>(frame_rate));
 }
 
@@ -614,8 +634,9 @@ void awkawk::unregister_graph(void)
 void awkawk::create_ui(int cmd_show)
 {
 	ui.create_window(cmd_show);
-	scene.reset(new player_scene(this, &ui));
-	//ui.add_control(scene.get());
+	scene.reset(new player_scene(this, get_ui()));
+	overlay.reset(new player_overlay(this, get_ui()));
+	scene->add_components(overlay.get());
 }
 
 void awkawk::create_device()
@@ -640,7 +661,7 @@ void awkawk::create_device()
 	UINT device_ordinal(0);
 	for(UINT ord(0); ord < d3d->GetAdapterCount(); ++ord)
 	{
-		if(d3d->GetAdapterMonitor(ord) == ::MonitorFromWindow(ui.get_window(), MONITOR_DEFAULTTONEAREST))
+		if(d3d->GetAdapterMonitor(ord) == ::MonitorFromWindow(get_ui()->get_window(), MONITOR_DEFAULTTONEAREST))
 		{
 			device_ordinal = ord;
 			break;
@@ -654,12 +675,12 @@ void awkawk::create_device()
 	FAIL_THROW(d3d->GetDeviceCaps(device_ordinal, dev_type, &caps));
 	if((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL))
 	{
-		::MessageBoxW(ui.get_window(), L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
+		::MessageBoxW(get_ui()->get_window(), L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
 		throw std::runtime_error("The device does not support non-power of 2 textures.  awkawk cannot continue.");
 	}
 	if(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
 	{
-		::MessageBoxW(ui.get_window(), L"The device does not support non-square textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
+		::MessageBoxW(get_ui()->get_window(), L"The device does not support non-square textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
 		throw std::runtime_error("The device does not support non-square textures.  awkawk cannot continue.");
 	}
 
@@ -678,7 +699,7 @@ void awkawk::create_device()
 	presentation_parameters.MultiSampleQuality = 0;
 #endif
 	presentation_parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	presentation_parameters.hDeviceWindow = ui.get_window();
+	presentation_parameters.hDeviceWindow = get_ui()->get_window();
 	presentation_parameters.Windowed = TRUE;
 	presentation_parameters.EnableAutoDepthStencil = TRUE;
 	presentation_parameters.AutoDepthStencilFormat = D3DFMT_D16;
@@ -687,7 +708,7 @@ void awkawk::create_device()
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, ui.get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &parameters, &scene_device));
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, get_ui()->get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &parameters, &scene_device));
 
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_LIGHTING, FALSE));
@@ -704,12 +725,15 @@ void awkawk::create_device()
 	FAIL_THROW(scene_device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE /*D3DTEXF_LINEAR*/));
 
 	FAIL_THROW(scene->on_device_created(scene_device));
+	FAIL_THROW(overlay->on_device_created(scene_device));
 	FAIL_THROW(scene->on_device_reset());
+	FAIL_THROW(overlay->on_device_reset());
 }
 
 void awkawk::destroy_device()
 {
 	scene->on_device_destroyed();
+	overlay->on_device_destroyed();
 	scene_device = NULL;
 }
 
@@ -721,6 +745,7 @@ void awkawk::reset_device()
 		allocator->begin_device_loss();
 	}
 	FAIL_THROW(scene->on_device_lost());
+	FAIL_THROW(overlay->on_device_lost());
 
 #if 0
 	// this doesn't seem to work satisfactorily; it says it resets OK, but just renders a black window
@@ -749,6 +774,7 @@ void awkawk::reset_device()
 #endif
 
 	FAIL_THROW(scene->on_device_reset());
+	FAIL_THROW(overlay->on_device_reset());
 	if(allocator)
 	{
 		allocator->end_device_loss(scene_device);
@@ -763,7 +789,7 @@ int awkawk::run_ui()
 	cancel_render = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	render_thread = utility::CreateThread(NULL, 0, this, &awkawk::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
 	schedule_render();
-	return ui.pump_messages();
+	return get_ui()->pump_messages();
 }
 
 void awkawk::stop_rendering()
@@ -780,7 +806,7 @@ bool awkawk::needs_display_change() const
 	D3DDEVICE_CREATION_PARAMETERS parameters;
 	scene_device->GetCreationParameters(&parameters);
 	HMONITOR device_monitor(d3d->GetAdapterMonitor(parameters.AdapterOrdinal));
-	HMONITOR window_monitor(::MonitorFromWindow(ui.get_window(), MONITOR_DEFAULTTONEAREST));
+	HMONITOR window_monitor(::MonitorFromWindow(get_ui()->get_window(), MONITOR_DEFAULTTONEAREST));
 	return device_monitor != window_monitor;
 }
 
@@ -830,6 +856,7 @@ void awkawk::render()
 				l.reset(new utility::critical_section::lock(*stream_cs));
 			}
 			scene->render();
+			overlay->render();
 		}
 		FAIL_THROW(scene_device->Present(NULL, NULL, NULL, NULL));
 	}
@@ -843,8 +870,8 @@ DWORD awkawk::render_thread_proc(void*)
 {
 	try
 	{
-		ui.send_message(player_window::create_d3d_msg, 0, 0);
-		ui.send_message(player_window::create_device_msg, 0, 0);
+		get_ui()->send_message(player_window::create_d3d_msg, 0, 0);
+		get_ui()->send_message(player_window::create_device_msg, 0, 0);
 		HANDLE evts[] = { render_event, render_timer, cancel_render };
 		bool continue_rendering(true);
 		while(continue_rendering)
@@ -858,10 +885,10 @@ DWORD awkawk::render_thread_proc(void*)
 				{
 					if(needs_display_change())
 					{
-						ui.post_message(player_window::reset_device_msg, 0, 0);
+						get_ui()->post_message(player_window::reset_device_msg, 0, 0);
 					}
-					ui.post_message(player_window::reset_msg, 0, 0);
-					ui.post_message(player_window::render_msg, 0, 0);
+					get_ui()->post_message(player_window::reset_msg, 0, 0);
+					get_ui()->post_message(player_window::render_msg, 0, 0);
 				}
 				catch(_com_error& ce)
 				{
@@ -874,8 +901,8 @@ DWORD awkawk::render_thread_proc(void*)
 				break;
 			}
 		}
-		ui.post_message(player_window::destroy_device_msg, 0, 0);
-		ui.post_message(player_window::destroy_d3d_msg, 0, 0);
+		get_ui()->post_message(player_window::destroy_device_msg, 0, 0);
+		get_ui()->post_message(player_window::destroy_d3d_msg, 0, 0);
 	}
 	catch(_com_error& ce)
 	{

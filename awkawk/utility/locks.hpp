@@ -20,15 +20,16 @@
 //
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef LOCKS_HPP
 #define LOCKS_HPP
 
-#if defined DEBUG || defined _DEBUG
-#define TRACK_LOCKS
-#endif
-
 #define NOMINMAX
+#define NTDDI_VERSION NTDDI_LONGHORN
 #define STRICT
+#pragma warning(disable:4995)
+#pragma warning(disable:4996)
 #include <windows.h>
 
 #include <list>
@@ -40,6 +41,10 @@
 #include "iterator.hpp"
 #include "loki/ScopeGuard.h"
 #include "loki/ScopeGuardExt.h"
+
+#if defined DEBUG || defined _DEBUG
+#define TRACK_LOCKS
+#endif
 
 namespace utility
 {
@@ -298,6 +303,9 @@ struct critical_section
 	{
 #ifdef TRACK_LOCKS
 		tracker.attempt(return_address, address_of_return_address, &cs);
+#else
+		UNREFERENCED_PARAMETER(return_address);
+		UNREFERENCED_PARAMETER(address_of_return_address);
 #endif
 		::EnterCriticalSection(&cs);
 		::InterlockedIncrement(&count);
@@ -310,6 +318,9 @@ struct critical_section
 	{
 #ifdef TRACK_LOCKS
 		tracker.attempt(return_address, address_of_return_address, &cs);
+#else
+		UNREFERENCED_PARAMETER(return_address);
+		UNREFERENCED_PARAMETER(address_of_return_address);
 #endif
 		if(TRUE == ::TryEnterCriticalSection(&cs))
 		{
@@ -331,6 +342,9 @@ struct critical_section
 		::LeaveCriticalSection(&cs);
 #ifdef TRACK_LOCKS
 		tracker.release(return_address, address_of_return_address, &cs);
+#else
+		UNREFERENCED_PARAMETER(return_address);
+		UNREFERENCED_PARAMETER(address_of_return_address);
 #endif
 	}
 

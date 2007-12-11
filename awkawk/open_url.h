@@ -18,6 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef LOAD_URL__H
 #define LOAD_URL__H
 
@@ -40,7 +42,7 @@ struct open_url_dialogue : dialogue
 		browse_local
 	};
 
-	LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam);
+	LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam, bool& handled);
 
 	std::wstring get_location() const
 	{

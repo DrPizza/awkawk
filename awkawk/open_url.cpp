@@ -22,7 +22,7 @@
 
 #include "open_url.h"
 
-LRESULT CALLBACK open_url_dialogue::message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK open_url_dialogue::message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
 {
 	switch(message)
 	{

@@ -23,8 +23,8 @@
 #include "awkawk.h"
 
 allocator_presenter::allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
-                                                                                     player(player_),
-                                                                                     device(device_)
+                                                                                         player(player_),
+                                                                                         device(device_)
 {
 }
 

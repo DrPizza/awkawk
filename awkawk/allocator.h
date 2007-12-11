@@ -18,6 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef ALLOCATOR__H
 #define ALLOCATOR__H
 
@@ -31,7 +33,7 @@ _COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocatorNotify9, __uuidof(IVMRSurfaceAllocator
 // These are QIed and may at some point be worth implementing
 // IVMRMonitorConfig9
 // IVMRSurfaceAllocatorEx9
-struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, device_loss_handler
+struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, device_loss_handler, boost::noncopyable
 {
 	allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_);
 	virtual ~allocator_presenter();
@@ -89,8 +91,6 @@ struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRIma
 		return texture_locks.find(id) != texture_locks.end();
 	}
 private:
-	allocator_presenter(const allocator_presenter&);
-
 	long ref_count;
 
 	mutable utility::critical_section cs;
