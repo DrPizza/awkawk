@@ -18,6 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef UTIL__H
 #define UTIL__H
 
@@ -108,7 +110,7 @@ inline IDirect3DTexture9Ptr load_texture_from_resource(IDirect3DDevice9Ptr devic
 	HGLOBAL glob(::LoadResource(::GetModuleHandle(NULL), res));
 	void* data(::LockResource(glob));
 	IDirect3DTexture9Ptr texture;
-	FAIL_THROW(D3DXCreateTextureFromFileInMemoryEx(device, data, size, D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 1, D3DFMT_FROM_FILE, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, info, NULL, &texture));
+	FAIL_THROW(D3DXCreateTextureFromFileInMemoryEx(device, data, size, D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, D3DFMT_FROM_FILE, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, info, NULL, &texture));
 	return texture;
 }
 
@@ -432,6 +434,30 @@ T clamp(T value, T min_, T max_)
 	using std::min;
 	using std::max;
 	return max(min(value, max_), min_);
+}
+
+inline D3DXMATRIX* clamp_to_zero(D3DXMATRIX* m, float threshold)
+{
+	for(size_t i(0); i < 4; ++i)
+	{
+		for(size_t j(0); j < 4; ++j)
+		{
+			if(abs(m->m[i][j]) < threshold)
+			{
+				m->m[i][j] = 0.0f;
+			}
+		}
+	}
+	return m;
+}
+
+template<typename T>
+inline std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, const D3DXMATRIX& m)
+{
+	return os << m._11 << T(' ') << m._12 << T(' ') << m._13 << T(' ') << m._14 << T('\n')
+	          << m._21 << T(' ') << m._22 << T(' ') << m._23 << T(' ') << m._24 << T('\n')
+	          << m._31 << T(' ') << m._32 << T(' ') << m._33 << T(' ') << m._34 << T('\n')
+	          << m._41 << T(' ') << m._42 << T(' ') << m._43 << T(' ') << m._44;
 }
 
 inline void free_media_type(AM_MEDIA_TYPE& mt)

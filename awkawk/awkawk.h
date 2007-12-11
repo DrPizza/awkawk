@@ -18,6 +18,8 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
+#pragma once
+
 #ifndef PLAYER__H
 #define PLAYER__H
 
@@ -27,6 +29,7 @@
 
 #include "player_window.h"
 #include "player_scene.h"
+#include "player_overlay.h"
 #include "allocator.h"
 
 _COM_SMARTPTR_TYPEDEF(IFilterGraph, __uuidof(IFilterGraph));
@@ -47,7 +50,7 @@ _COM_SMARTPTR_TYPEDEF(IPin, __uuidof(IPin));
 _COM_SMARTPTR_TYPEDEF(IMediaEventEx, __uuidof(IMediaEventEx));
 _COM_SMARTPTR_TYPEDEF(IVMRDeinterlaceControl9, __uuidof(IVMRDeinterlaceControl9));
 
-struct awkawk
+struct awkawk : boost::noncopyable
 {
 	awkawk();
 	~awkawk();
@@ -219,27 +222,180 @@ struct awkawk
 		}
 	}
 
-	enum aspect_ratio_mode
+	struct aspect_ratio
 	{
-		original = IDM_AR_ORIGINAL,
-		onethreethree_to_one = IDM_AR_133TO1,
-		onefivefive_to_one = IDM_AR_155TO1,
-		onesevenseven_to_one = IDM_AR_177TO1,
-		oneeightfive_to_one = IDM_AR_185TO1,
-		twofourzero_to_one = IDM_AR_240TO1
+		virtual float get_muliplier() const = 0;
+
+		virtual const std::wstring get_name() const = 0;
+
+		virtual ~aspect_ratio()
+		{
+		}
 	};
 
-	aspect_ratio_mode get_aspect_ratio_mode() const
+	struct fixed_aspect_ratio : aspect_ratio
 	{
-		return ar_mode;
+		fixed_aspect_ratio(unsigned int width_, unsigned int height_) : width(width_), height(height_), ratio(static_cast<float>(width) / static_cast<float>(height))
+		{
+		}
+
+		fixed_aspect_ratio(float ratio_) : width(0), height(0), ratio(ratio_)
+		{
+		}
+
+		virtual float get_muliplier() const
+		{
+			return ratio;
+		}
+
+		virtual const std::wstring get_name() const
+		{
+			std::wstringstream wss;
+			if(width != 0 && height != 0)
+			{
+				wss << width << L":" << height;
+			}
+			else
+			{
+				wss << std::fixed << std::setprecision(2) << ratio << L":1";
+			}
+			return wss.str();
+		}
+
+	private:
+		unsigned int width;
+		unsigned int height;
+		float ratio;
+	};
+
+	struct natural_aspect_ratio : aspect_ratio
+	{
+		natural_aspect_ratio(awkawk* player_) : player(player_)
+		{
+		}
+
+		virtual float get_muliplier() const
+		{
+			SIZE sz(player->get_video_dimensions());
+			return static_cast<float>(sz.cx) / static_cast<float>(sz.cy);
+		}
+
+		virtual const std::wstring get_name() const
+		{
+			std::wstringstream wss;
+			wss << L"Original (" << std::fixed << std::setprecision(2) << get_muliplier() << L":1)";
+			return wss.str();
+		}
+
+	private:
+		awkawk* player;
+	};
+
+	std::vector<boost::shared_ptr<aspect_ratio> > available_ratios;
+
+	size_t get_aspect_ratio_mode() const
+	{
+		return chosen_ar;
 	}
 
-	void set_aspect_ratio_mode(aspect_ratio_mode mode)
+	void set_aspect_ratio_mode(size_t new_ar)
 	{
 		LOCK(player_cs);
-		ar_mode = mode;
+		chosen_ar = new_ar;
 		apply_sizing_policy();
 	}
+
+	struct letterbox
+	{
+		virtual float get_muliplier() const = 0;
+
+		virtual SIZE get_boxed_size(float actual_ar, SIZE current_size) const = 0;
+
+		virtual const std::wstring get_name() const = 0;
+
+		virtual ~letterbox()
+		{
+		}
+	};
+
+	struct fixed_letterbox : letterbox
+	{
+		fixed_letterbox(unsigned int width_, unsigned int height_) : width(width_), height(height_), ratio(static_cast<float>(width) / static_cast<float>(height))
+		{
+		}
+
+		fixed_letterbox(float ratio_) : width(0), height(0), ratio(ratio_)
+		{
+		}
+
+		virtual float get_muliplier() const
+		{
+			return ratio;
+		}
+
+		virtual SIZE get_boxed_size(float actual_ar, SIZE current_size) const
+		{
+			if(actual_ar > get_muliplier())
+			{
+				current_size.cx = static_cast<LONG>(static_cast<float>(current_size.cy) * get_muliplier());
+			}
+			else
+			{
+				current_size.cy = static_cast<LONG>(static_cast<float>(current_size.cx) / get_muliplier());
+			}
+			return current_size;
+		}
+
+		virtual const std::wstring get_name() const
+		{
+			std::wstringstream wss;
+			if(width != 0 && height != 0)
+			{
+				wss << width << L":" << height;
+			}
+			else
+			{
+				wss << std::fixed << std::setprecision(2) << ratio << L":1";
+			}
+			wss << L" Original";
+			return wss.str();
+		}
+
+	private:
+		unsigned int width;
+		unsigned int height;
+		float ratio;
+	};
+
+	struct natural_letterbox : letterbox
+	{
+		natural_letterbox(awkawk* player_) : player(player_)
+		{
+		}
+
+		virtual float get_muliplier() const
+		{
+			SIZE sz(player->get_video_dimensions());
+			return static_cast<float>(sz.cx) / static_cast<float>(sz.cy);
+		}
+
+		virtual SIZE get_boxed_size(float actual_ar, SIZE current_size) const
+		{
+			return current_size;
+		}
+
+		virtual const std::wstring get_name() const
+		{
+			std::wstringstream wss;
+			wss << L"No letterboxing (" << std::fixed << std::setprecision(2) << get_muliplier() << L":1)";
+			return wss.str();
+		}
+
+	private:
+		awkawk* player;
+	};
+
+	std::vector<boost::shared_ptr<letterbox> > available_letterboxes;
 
 	enum window_size_mode
 	{
@@ -261,34 +417,24 @@ struct awkawk
 		apply_sizing_policy();
 	}
 
-	enum letterbox_mode
+	size_t get_letterbox_mode() const
 	{
-		no_letterboxing = IDM_NOLETTERBOXING,
-		four_to_three_original = IDM_4_TO_3_ORIGINAL,
-		fourteen_to_nine_original = IDM_14_TO_9_ORIGINAL,
-		sixteen_to_nine_original = IDM_16_TO_9_ORIGINAL,
-		oneeightfive_to_one_original = IDM_185_TO_1_ORIGINAL,
-		twofourzero_to_one_original = IDM_240_TO_1_ORIGINAL
-	};
-
-	letterbox_mode get_letterbox_mode() const
-	{
-		return ltrbx_mode;
+		return chosen_lb;
 	}
 
-	void set_letterbox_mode(letterbox_mode mode)
+	void set_letterbox_mode(size_t mode)
 	{
 		LOCK(player_cs);
-		ltrbx_mode = mode;
+		chosen_lb = mode;
 		apply_sizing_policy();
 	}
 
-	double get_size_multiplier() const
+	float get_size_multiplier() const
 	{
 		switch(wnd_size_mode)
 		{
 		case free:
-			return static_cast<double>(window_size.cx) / static_cast<double>(video_size.cx);
+			return static_cast<float>(window_size.cx) / static_cast<float>(video_size.cx);
 		case fifty_percent:
 			return 0.5;
 		case one_hundred_percent:
@@ -300,25 +446,9 @@ struct awkawk
 		}
 	}
 
-	double get_aspect_ratio() const
+	float get_aspect_ratio() const
 	{
-		switch(ar_mode)
-		{
-		case original:
-			return static_cast<double>(video_size.cx) / static_cast<double>(video_size.cy);
-		case onethreethree_to_one:
-			return 4.0 / 3.0;
-		case onefivefive_to_one:
-			return 14.0 / 9.0;
-		case onesevenseven_to_one:
-			return 16.0 / 9.0;
-		case oneeightfive_to_one:
-			return 1.85;
-		case twofourzero_to_one:
-			return 2.40;
-		default:
-			__assume(0);
-		}
+		return available_ratios[chosen_ar]->get_muliplier();
 	}
 
 	void set_window_dimensions(SIZE sz)
@@ -334,85 +464,29 @@ struct awkawk
 	void size_window_from_video()
 	{
 		LOCK(player_cs);
-		SIZE new_size = { static_cast<LONG>(static_cast<double>(video_size.cx) * get_size_multiplier()),
-		                  static_cast<LONG>(static_cast<double>(video_size.cy) * get_size_multiplier()) };
+		SIZE new_size = { static_cast<LONG>(static_cast<float>(video_size.cx) * get_size_multiplier()),
+		                  static_cast<LONG>(static_cast<float>(video_size.cy) * get_size_multiplier()) };
 
-		if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) > get_aspect_ratio())
+		if(static_cast<float>(new_size.cx) / static_cast<float>(new_size.cx) > get_aspect_ratio())
 		{
 			new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / get_aspect_ratio());
 		}
-		else if(static_cast<double>(new_size.cx) / static_cast<double>(new_size.cx) < get_aspect_ratio())
+		else if(static_cast<float>(new_size.cx) / static_cast<float>(new_size.cx) < get_aspect_ratio())
 		{
 			new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * get_aspect_ratio());
 		}
-		switch(get_letterbox_mode())
-		{
-		case no_letterboxing:
-			break;
-		case four_to_three_original:
-			if(get_aspect_ratio() > 4.0 / 3.0)
-			{
-				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (4.0f / 3.0f));
-			}
-			else
-			{
-				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (4.0f / 3.0f));
-			}
-			break;
-		case fourteen_to_nine_original:
-			if(get_aspect_ratio() > 14.0 / 9.0)
-			{
-				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (14.0f / 9.0f));
-			}
-			else
-			{
-				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (14.0f / 9.0f));
-			}
-			break;
-		case sixteen_to_nine_original:
-			if(get_aspect_ratio() > 16.0 / 9.0)
-			{
-				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (16.0f / 9.0f));
-			}
-			else
-			{
-				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (16.0f / 9.0f));
-			}
-			break;
-		case oneeightfive_to_one_original:
-			if(get_aspect_ratio() > 1.85)
-			{
-				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (1.85f));
-			}
-			else
-			{
-				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (1.85f));
-			}
-			break;
-		case twofourzero_to_one_original:
-			if(get_aspect_ratio() > 2.40)
-			{
-				new_size.cx = static_cast<LONG>(static_cast<float>(new_size.cy) * (2.40f));
-			}
-			else
-			{
-				new_size.cy = static_cast<LONG>(static_cast<float>(new_size.cx) / (2.40f));
-			}
-			break;
-		default:
-			__assume(0);
-		}
+		new_size = available_letterboxes[chosen_lb]->get_boxed_size(get_aspect_ratio(), new_size);
 		window_size = new_size;
-		ui.resize_window(window_size.cx, window_size.cy);
+		get_ui()->resize_window(window_size.cx, window_size.cy);
 	}
 
 	void size_window_from_screen()
 	{
 		LOCK(player_cs);
-		WINDOWPLACEMENT placement(ui.get_placement());
+		WINDOWPLACEMENT placement(get_ui()->get_placement());
 		placement.rcNormalPosition.right = placement.rcNormalPosition.left + video_size.cx;
 		placement.rcNormalPosition.bottom = placement.rcNormalPosition.top + video_size.cy;
-		ui.set_placement(&placement);
+		get_ui()->set_placement(&placement);
 	}
 
 	void size_scene_from_window()
@@ -425,29 +499,7 @@ struct awkawk
 	{
 		LOCK(player_cs);
 		float window_ar(static_cast<float>(window_size.cx) / static_cast<float>(window_size.cy));
-		float video_ar(static_cast<float>(get_aspect_ratio()));
-		switch(get_letterbox_mode())
-		{
-		case no_letterboxing:
-			break;
-		case four_to_three_original:
-			video_ar = 4.0f / 3.0f;
-			break;
-		case fourteen_to_nine_original:
-			video_ar = 14.0f / 9.0f;
-			break;
-		case sixteen_to_nine_original:
-			video_ar = 16.0f / 9.0f;
-			break;
-		case oneeightfive_to_one_original:
-			video_ar = 1.85f;
-			break;
-		case twofourzero_to_one_original:
-			video_ar = 2.40f;
-			break;
-		default:
-			__assume(0);
-		}
+		float video_ar(available_letterboxes[chosen_lb]->get_muliplier());
 		if(window_ar > video_ar)
 		{
 			scene_size.cx = static_cast<LONG>(static_cast<float>(window_size.cy) * video_ar);
@@ -458,7 +510,6 @@ struct awkawk
 			scene_size.cx = static_cast<LONG>(window_size.cx);
 			scene_size.cy = static_cast<LONG>(static_cast<float>(window_size.cx) / video_ar);
 		}
-		
 	}
 
 	void update_scene_dimensions()
@@ -471,62 +522,13 @@ struct awkawk
 		{
 			size_scene_from_window();
 		}
-		switch(get_letterbox_mode())
+		if(get_aspect_ratio() > available_letterboxes[chosen_lb]->get_muliplier())
 		{
-		case no_letterboxing:
-			break;
-		case four_to_three_original:
-			if(get_aspect_ratio() > 4.0 / 3.0)
-			{
-				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
-			}
-			else
-			{
-				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
-			}
-			break;
-		case fourteen_to_nine_original:
-			if(get_aspect_ratio() > 14.0 / 9.0)
-			{
-				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
-			}
-			else
-			{
-				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
-			}
-			break;
-		case sixteen_to_nine_original:
-			if(get_aspect_ratio() > 16.0 / 9.0)
-			{
-				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
-			}
-			else
-			{
-				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
-			}
-			break;
-		case oneeightfive_to_one_original:
-			if(get_aspect_ratio() > 1.85)
-			{
-				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
-			}
-			else
-			{
-				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
-			}
-			break;
-		case twofourzero_to_one_original:
-			if(get_aspect_ratio() > 2.40)
-			{
-				scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
-			}
-			else
-			{
-				scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
-			}
-			break;
-		default:
-			__assume(0);
+			scene_size.cx = static_cast<LONG>(static_cast<float>(scene_size.cy) * get_aspect_ratio());
+		}
+		else
+		{
+			scene_size.cy = static_cast<LONG>(static_cast<float>(scene_size.cx) / get_aspect_ratio());
 		}
 	}
 
@@ -590,9 +592,63 @@ struct awkawk
 			LOCK(graph_cs);
 			LONGLONG end(0);
 			seeking->GetStopPosition(&end);
-			LONGLONG position(static_cast<LONGLONG>(percentage * static_cast<float>(end) / 100.0f));
+			LONGLONG position(static_cast<LONGLONG>(percentage * static_cast<float>(end) / 100.0));
 			seeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
 		}
+	}
+
+	float get_play_time() const
+	{
+		static const REFERENCE_TIME ticks_in_one_second(10000000);
+		try
+		{
+			LOCK(graph_cs);
+			if(get_state() != unloaded)
+			{
+				REFERENCE_TIME current(0);
+				FAIL_THROW(seeking->GetCurrentPosition(&current));
+				return static_cast<float>(current) / ticks_in_one_second;
+			}
+		}
+		catch(_com_error& ce)
+		{
+			switch(ce.Error())
+			{
+			case E_NOTIMPL:
+			case E_FAIL:
+				return -1.0f;
+			default:
+				throw;
+			}
+		}
+		return -1.0f;
+	}
+
+	float get_total_time() const
+	{
+		static const REFERENCE_TIME ticks_in_one_second(10000000);
+		try
+		{
+			LOCK(graph_cs);
+			if(get_state() != unloaded)
+			{
+				REFERENCE_TIME duration(0);
+				FAIL_THROW(seeking->GetDuration(&duration));
+				return static_cast<float>(duration) / ticks_in_one_second;
+			}
+		}
+		catch(_com_error& ce)
+		{
+			switch(ce.Error())
+			{
+			case E_NOTIMPL:
+			case E_FAIL:
+				return -1.0f;
+			default:
+				throw;
+			}
+		}
+		return -1.0f;
 	}
 
 	float get_playback_position() const
@@ -630,7 +686,7 @@ struct awkawk
 			LOCK(graph_cs);
 			LONG volume(0);
 			audio->get_Volume(&volume);
-			return (static_cast<float>(volume) / static_cast<float>(100));
+			return (static_cast<float>(volume) / 100.0f);
 		}
 		return -std::numeric_limits<float>::infinity();
 	}
@@ -640,7 +696,7 @@ struct awkawk
 		if(get_state() != unloaded)
 		{
 			LOCK(graph_cs);
-			LONG volume(static_cast<LONG>(vol * static_cast<float>(100)));
+			LONG volume(static_cast<LONG>(vol * 100.0f));
 			audio->put_Volume(volume);
 		}
 	}
@@ -649,7 +705,7 @@ struct awkawk
 	float get_linear_volume() const
 	{
 		float raw_volume(get_volume());
-		if(raw_volume <= -100.0f)
+		if(raw_volume <= -100.0)
 		{
 			return 0;
 		}
@@ -703,12 +759,12 @@ struct awkawk
 		return fps;
 	}
 
-	const player_window* get_ui() const
+	const window* get_ui() const
 	{
 		return &ui;
 	}
 
-	player_window* get_ui()
+	window* get_ui()
 	{
 		return &ui;
 	}
@@ -813,6 +869,7 @@ private:
 	IDirect3DSurface9Ptr render_target;
 
 	std::auto_ptr<player_scene> scene;
+	std::auto_ptr<player_overlay> overlay;
 
 	// video stats needed for controlling the window
 	mutable utility::critical_section player_cs;
@@ -822,8 +879,9 @@ private:
 	SIZE window_size; // true size of the window
 
 	window_size_mode wnd_size_mode;
-	aspect_ratio_mode ar_mode;
-	letterbox_mode ltrbx_mode;
+	size_t chosen_ar;
+	//letterbox_mode ltrbx_mode;
+	size_t chosen_lb;
 
 	bool fullscreen;
 

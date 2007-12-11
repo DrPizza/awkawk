@@ -21,13 +21,18 @@
 // Description: Win32 CreateThread wrappers, including support for VC++'s "named threads"
 
 #pragma once
+
 #ifndef THREADS__H
 #define THREADS__H
 
-#include <memory>
 #define NOMINMAX
+#define NTDDI_VERSION NTDDI_LONGHORN
 #define STRICT
+#pragma warning(disable:4995)
+#pragma warning(disable:4996)
 #include <windows.h>
+
+#include <memory>
 
 namespace utility
 {
@@ -60,10 +65,10 @@ struct ThreadInfoMemberFn
 	typedef P parameter_type;
 	typedef F function_type;
 	
-	T* obj;
 	function_type function;
-	P data;
+	T* obj;
 	const char* name;
+	P data;
 	ThreadInfoMemberFn(class_type* f, function_type fp, parameter_type d, const char* n) : obj(f), function(fp), data(d), name(n) {}
 private:
 	ThreadInfoMemberFn<T, P, F>& operator=(const ThreadInfoMemberFn<T, P, F>&);

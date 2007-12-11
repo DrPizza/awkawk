@@ -23,11 +23,11 @@
 #include "player_menus.h"
 #include "awkawk.h"
 
-awkawk_menu::awkawk_menu(awkawk* player_, window* owner, const wchar_t* caption) : menu(owner, caption), player(player_)
+awkawk_menu::awkawk_menu(awkawk* player_, window* owner, const std::wstring& caption) : menu(owner, 0, caption), player(player_)
 {
 }
 
-awkawk_menu::awkawk_menu(awkawk* player_, window* owner, const wchar_t* caption, menu* parent) : menu(owner, caption, parent), player(player_)
+awkawk_menu::awkawk_menu(awkawk* player_, window* owner, menu* parent, const std::wstring& caption) : menu(owner, parent, 0, caption), player(player_), menu_item(parent)
 {
 }
 
@@ -36,22 +36,6 @@ void awkawk_play_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL win
 	::EnableMenuItem(get_menu(), IDM_PLAY, player->permitted(awkawk::play) ? MF_ENABLED : MF_GRAYED);
 	::EnableMenuItem(get_menu(), IDM_PAUSE, player->permitted(awkawk::pause) ? MF_ENABLED : MF_GRAYED);
 	::EnableMenuItem(get_menu(), IDM_STOP, player->permitted(awkawk::stop) ? MF_ENABLED : MF_GRAYED);
-}
-
-void awkawk_play_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
-{
-	switch(id)
-	{
-	case IDM_PAUSE:
-		player->post_event(awkawk::pause);
-		break;
-	case IDM_PLAY:
-		player->post_event(awkawk::play);
-		break;
-	case IDM_STOP:
-		player->post_event(awkawk::stop);
-		break;
-	}
 }
 
 void awkawk_mode_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
@@ -64,23 +48,24 @@ void awkawk_mode_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL win
 	::CheckMenuRadioItem(get_menu(), IDM_PLAYMODE_NORMAL, IDM_PLAYMODE_SHUFFLE, player->get_playmode(), MF_BYCOMMAND);
 }
 
-void awkawk_mode_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
+LRESULT CALLBACK awkawk_size_menu::message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
 {
-	switch(id)
+	handled = false;
+	switch(message)
 	{
-	case IDM_PLAYMODE_NORMAL:
-		player->set_playmode(awkawk::normal);
-		break;
-	case IDM_PLAYMODE_REPEATALL:
-		player->set_playmode(awkawk::repeat_all);
-		break;
-	case IDM_PLAYMODE_REPEATTRACK:
-		player->set_playmode(awkawk::repeat_single);
-		break;
-	case IDM_PLAYMODE_SHUFFLE:
-		player->set_playmode(awkawk::shuffle);
+	case WM_COMMAND:
+		{
+			if(HIWORD(wParam) == 0
+			&& ((LOWORD(wParam) >= ar_menu_base && LOWORD(wParam) < ar_menu_base + player->available_ratios.size())
+			||  (LOWORD(wParam) >= lb_menu_base && LOWORD(wParam) < lb_menu_base + player->available_letterboxes.size())))
+			{
+				handled = true;
+				return HANDLE_WM_COMMAND(window, wParam, lParam, onCommand);
+			}
+		}
 		break;
 	}
+	return awkawk_menu::message_proc(window, message, wParam, lParam, handled);
 }
 
 void awkawk_size_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
@@ -91,96 +76,72 @@ void awkawk_size_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL win
 	::EnableMenuItem(get_menu(), IDM_SIZE_FREE, MF_ENABLED);
 	::CheckMenuRadioItem(get_menu(), IDM_SIZE_50, IDM_SIZE_FREE, player->get_window_size_mode(), MF_BYCOMMAND);
 
-	::EnableMenuItem(get_menu(), IDM_AR_ORIGINAL, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_AR_133TO1, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_AR_155TO1, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_AR_177TO1, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_AR_185TO1, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_AR_240TO1, MF_ENABLED);
-	::CheckMenuItem(get_menu(), IDM_AR_240TO1, MF_CHECKED);
-	::CheckMenuRadioItem(get_menu(), IDM_AR_ORIGINAL, IDM_AR_240TO1, player->get_aspect_ratio_mode(), MF_BYCOMMAND);
-	::EnableMenuItem(get_menu(), IDM_AR_CUSTOM, MF_GRAYED);
+	UINT position(5);
+	UINT ar_id(ar_menu_base);
+	for(size_t i(0); i < player->available_ratios.size(); ++i)
+	{
+		insert(new menu_entry(this, ar_id++, player->available_ratios[i]->get_name()), position++);
+	}
+	::CheckMenuRadioItem(get_menu(), 5, 5 + player->available_ratios.size(), 5 + player->get_aspect_ratio_mode(), MF_BYPOSITION);
 
-	::EnableMenuItem(get_menu(), IDM_NOLETTERBOXING, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_4_TO_3_ORIGINAL, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_14_TO_9_ORIGINAL, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_16_TO_9_ORIGINAL, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_185_TO_1_ORIGINAL, MF_ENABLED);
-	::EnableMenuItem(get_menu(), IDM_240_TO_1_ORIGINAL, MF_ENABLED);
-	::CheckMenuRadioItem(get_menu(), IDM_NOLETTERBOXING, IDM_240_TO_1_ORIGINAL, player->get_letterbox_mode(), MF_BYCOMMAND);
+	++position;
+	UINT letterbox_base(position);
+	UINT lb_id(lb_menu_base);
+	for(size_t i(0); i < player->available_letterboxes.size(); ++i)
+	{
+		insert(new menu_entry(this, lb_id++, player->available_letterboxes[i]->get_name()), position++);
+	}
+	::CheckMenuRadioItem(get_menu(), letterbox_base, letterbox_base + player->available_letterboxes.size(), letterbox_base + player->get_letterbox_mode(), MF_BYPOSITION);
+}
+
+void awkawk_size_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
+{
+	for(size_t i(0); i < player->available_ratios.size(); ++i)
+	{
+		remove(5);
+	}
+	for(size_t i(0); i < player->available_letterboxes.size(); ++i)
+	{
+		remove(6);
+	}
 }
 
 void awkawk_size_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
 {
-	switch(id)
+	if(id >= ar_menu_base && id < ar_menu_base + player->available_ratios.size())
 	{
-	case IDM_SIZE_50:
-		player->set_window_size_mode(awkawk::fifty_percent);
-		break;
-	case IDM_SIZE_100:
-		player->set_window_size_mode(awkawk::one_hundred_percent);
-		break;
-	case IDM_SIZE_200:
-		player->set_window_size_mode(awkawk::two_hundred_percent);
-		break;
-	case IDM_SIZE_FREE:
-		player->set_window_size_mode(awkawk::free);
-		break;
-	case IDM_AR_ORIGINAL:
-		player->set_aspect_ratio_mode(awkawk::original);
-		break;
-	case IDM_AR_133TO1:
-		player->set_aspect_ratio_mode(awkawk::onethreethree_to_one);
-		break;
-	case IDM_AR_155TO1:
-		player->set_aspect_ratio_mode(awkawk::onefivefive_to_one);
-		break;
-	case IDM_AR_177TO1:
-		player->set_aspect_ratio_mode(awkawk::onesevenseven_to_one);
-		break;
-	case IDM_AR_185TO1:
-		player->set_aspect_ratio_mode(awkawk::oneeightfive_to_one);
-		break;
-	case IDM_AR_240TO1:
-		player->set_aspect_ratio_mode(awkawk::twofourzero_to_one);
-		break;
-	case IDM_NOLETTERBOXING:
-		player->set_letterbox_mode(awkawk::no_letterboxing);
-		break;
-	case IDM_4_TO_3_ORIGINAL:
-		player->set_letterbox_mode(awkawk::four_to_three_original);
-		break;
-	case IDM_14_TO_9_ORIGINAL:
-		player->set_letterbox_mode(awkawk::fourteen_to_nine_original);
-		break;
-	case IDM_16_TO_9_ORIGINAL:
-		player->set_letterbox_mode(awkawk::sixteen_to_nine_original);
-		break;
-	case IDM_185_TO_1_ORIGINAL:
-		player->set_letterbox_mode(awkawk::oneeightfive_to_one_original);
-		break;
-	case IDM_240_TO_1_ORIGINAL:
-		player->set_letterbox_mode(awkawk::twofourzero_to_one_original);
-		break;
+		player->set_aspect_ratio_mode(id - ar_menu_base);
+	}
+	if(id >= lb_menu_base && id < lb_menu_base + player->available_letterboxes.size())
+	{
+		player->set_letterbox_mode(id - lb_menu_base);
 	}
 }
 
-void awkawk_filter_menu::build_filter_menu(UINT position)
+LRESULT CALLBACK awkawk_filter_menu::message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
 {
-	if(get_menu() != 0)
+	handled = false;
+	switch(message)
 	{
-		int count(::GetMenuItemCount(get_menu()));
-		for(int i(0); i < count; ++i)
+	case WM_COMMAND:
 		{
-			::DeleteMenu(get_menu(), filter_menu_base + i, MF_BYCOMMAND);
+			if(HIWORD(wParam) == 0
+			&& LOWORD(wParam) >= filter_menu_base
+			&& LOWORD(wParam) <  filter_menu_base + player->get_filters().size())
+			{
+				handled = true;
+				return HANDLE_WM_COMMAND(window, wParam, lParam, onCommand);
+			}
 		}
-		::DestroyMenu(get_menu());
-		set_menu(0);
+		break;
 	}
+	return awkawk_menu::message_proc(window, message, wParam, lParam, handled);
+}
+
+void awkawk_filter_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+{
 	if(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop))
 	{
-		set_menu(::CreatePopupMenu());
-
 		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 		UINT flt_id(filter_menu_base);
 		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
@@ -189,67 +150,57 @@ void awkawk_filter_menu::build_filter_menu(UINT position)
 			FILTER_INFO fi = {0};
 			filter->QueryFilterInfo(&fi);
 			IFilterGraphPtr ptr(fi.pGraph, false);
-			
+
+			append(new menu_entry(this, flt_id++, fi.achName));
+
 			ISpecifyPropertyPagesPtr spp;
 			filter->QueryInterface(&spp);
-			DWORD state(MFS_ENABLED);
+
 			if(!spp)
 			{
-				state = MFS_DISABLED;
+				::EnableMenuItem(get_menu(), get_items().back()->get_id(), MF_GRAYED);
 			}
-			
-			MENUITEMINFOW info = { sizeof(MENUITEMINFOW) };
-			info.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
-			info.wID = flt_id;
-			info.dwTypeData = fi.achName;
-			info.fState = state;
-			::InsertMenuItemW(get_menu(), flt_id++, FALSE, &info);
 		}
 	}
 	MENUITEMINFOW info = { sizeof(MENUITEMINFOW) };
+	const UINT position(get_parent()->get_offset(this));
 	::GetMenuItemInfoW(get_parent()->get_menu(), position, TRUE, &info);
 	info.fMask = MIIM_SUBMENU;
 	info.hSubMenu = get_menu();
 	::SetMenuItemInfoW(get_parent()->get_menu(), position, TRUE, &info);
 }
 
-bool awkawk_filter_menu::show_filter_properties(size_t chosen) const
+void awkawk_filter_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
 {
-	std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
-	if(chosen < filters.size())
+	if(get_menu() != 0)
 	{
-		FILTER_INFO fi = {0};
-		IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
-		filter->QueryFilterInfo(&fi);
-		IFilterGraphPtr ptr(fi.pGraph, false);
-
-		ISpecifyPropertyPagesPtr spp;
-		filter->QueryInterface(&spp);
-		if(spp)
+		while(get_items().size() > 0)
 		{
-			IUnknownPtr unk;
-			filter->QueryInterface(&unk);
-			IUnknown* unks[] = { unk.GetInterfacePtr() };
-			CAUUID uuids;
-			spp->GetPages(&uuids);
-			ON_BLOCK_EXIT(&CoTaskMemFree, uuids.pElems);
-			::OleCreatePropertyFrame(player->get_ui()->get_window(), 0, 0, fi.achName, 1, unks, uuids.cElems, uuids.pElems, 0, 0, NULL);
-			return true;
+			remove(0);
 		}
 	}
-	return false;
-}
-
-void awkawk_filter_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
-{
-	build_filter_menu(get_parent()->get_offset(this));
 }
 
 void awkawk_filter_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
 {
-	if(!show_filter_properties(id - (filter_menu_base)))
+	size_t chosen(id - filter_menu_base);
+	std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
+	IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
+	FILTER_INFO fi = {0};
+	filter->QueryFilterInfo(&fi);
+	IFilterGraphPtr ptr(fi.pGraph, false);
+
+	ISpecifyPropertyPagesPtr spp;
+	filter->QueryInterface(&spp);
+	if(spp)
 	{
-		FORWARD_WM_COMMAND(wnd, id, control, event, ::DefWindowProcW);
+		IUnknownPtr unk;
+		filter->QueryInterface(&unk);
+		IUnknown* unks[] = { unk.GetInterfacePtr() };
+		CAUUID uuids;
+		spp->GetPages(&uuids);
+		ON_BLOCK_EXIT(&CoTaskMemFree, uuids.pElems);
+		::OleCreatePropertyFrame(player->get_ui()->get_window(), 0, 0, fi.achName, 1, unks, uuids.cElems, uuids.pElems, 0, 0, NULL);
 	}
 }
 
@@ -263,28 +214,4 @@ void awkawk_main_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL win
 	::EnableMenuItem(get_menu(), 6, play_menu_enabled ? MF_ENABLED | MF_BYPOSITION : MF_GRAYED | MF_DISABLED | MF_BYPOSITION);
 	::EnableMenuItem(get_menu(), IDM_CLOSE_FILE, play_menu_enabled ? MF_ENABLED : MF_GRAYED);
 	::EnableMenuItem(get_menu(), IDM_EXIT, MF_ENABLED);
-}
-
-void awkawk_main_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
-{
-	switch(id)
-	{
-	case IDM_OPEN_FILE:
-	case IDM_OPEN_URL:
-		{
-			player->get_ui()->open_single_file(id == IDM_OPEN_FILE ? player->get_ui()->get_local_path() : player->get_ui()->get_remote_path());
-		}
-		break;
-	case IDM_CLOSE_FILE:
-		{
-			player->get_ui()->set_window_text(player->get_ui()->get_app_title().c_str());
-			player->send_event(awkawk::stop);
-			player->send_event(awkawk::unload);
-			player->clear_files();
-		}
-		break;
-	case IDM_EXIT:
-		player->get_ui()->destroy_window();
-		break;
-	}
 }

@@ -21,8 +21,10 @@
 // Description
 
 #pragma once
+
 #ifndef DEBUGSTRINGSTREAM__H
 #define DEBUGSTRINGSTREAM__H
+
 #include <sstream>
 #include "../loki/singleton.h"
 
@@ -54,8 +56,8 @@ struct basic_debugstringbuf : std::basic_stringbuf<Elem, Tr, Alloc>
 protected:
 	int sync(void)
 	{
-		outputDebugString_(str().c_str());
-		str(string_type());
+		outputDebugString_(this->str().c_str());
+		this->str(string_type());
 		return 0;
 	}
 private:
@@ -64,9 +66,8 @@ private:
 };
 
 template<class Elem, class Tr = std::char_traits<Elem>, class Alloc = std::allocator<Elem> >
-class basic_debugostringstream : public std::basic_ostream<Elem, Tr>
+struct basic_debugostringstream : std::basic_ostream<Elem, Tr>
 {
-public:
 	typedef basic_debugstringbuf<Elem, Tr, Alloc> buffer_type;
 	typedef std::basic_ostream<Elem, Tr> base_type;
 	typedef basic_debugostringstream<Elem, Tr, Alloc> my_type;
@@ -74,7 +75,7 @@ public:
 	basic_debugostringstream() : base_type(new buffer_type()) {}
 	virtual ~basic_debugostringstream()
 	{
-		delete static_cast<const buffer_type*>(rdbuf());
+		delete this->rdbuf();
 	}
 private:
 	basic_debugostringstream(const basic_debugostringstream&);
