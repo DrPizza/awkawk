@@ -96,7 +96,7 @@ template <typename T, typename P, typename P2>
 HANDLE CreateThread(SECURITY_ATTRIBUTES* sa, SIZE_T stackSize, T* obj, DWORD(T::* func)(P), P2 data, DWORD flags, DWORD* tid)
 {
 	typedef DWORD(T::* F)(P);
-	std::auto_ptr<utility::ThreadInfoMemberFn<T, P, F> > ti(new utility::ThreadInfoMemberFn<T, P, F>(obj, func, data, 0));
+	std::auto_ptr<utility::ThreadInfoMemberFn<T, P, F> > ti(new utility::ThreadInfoMemberFn<T, P, F>(obj, func, data, NULL));
 	HANDLE rv(::CreateThread(sa, stackSize, utility::ThreadDispatchMemberFn<T, P, F>, static_cast<void*>(ti.get()), flags, tid));
 	if(NULL != rv) { ti.release(); }
 	return rv;
@@ -132,7 +132,7 @@ DWORD WINAPI ThreadDispatchNonMemberFn(void* data)
 	try
 	{
 		std::auto_ptr<utility::ThreadInfoNonMemberFn<P, F> > ti(static_cast<utility::ThreadInfoNonMemberFn<P, F>*>(data));
-		if(ti->name != 0)
+		if(ti->name != NULL)
 		{
 			utility::SetThreadName(-1, ti->name);
 		}
@@ -148,7 +148,7 @@ template <typename P, typename P2>
 HANDLE CreateThread(SECURITY_ATTRIBUTES* sa, SIZE_T stackSize, DWORD(*func)(P), P2 data, DWORD flags, DWORD* tid)
 {
 	typedef DWORD(*F)(P);
-	std::auto_ptr<utility::ThreadInfoNonMemberFn<P, F> > ti(new utility::ThreadInfoNonMemberFn<P, F>(func, data, 0));
+	std::auto_ptr<utility::ThreadInfoNonMemberFn<P, F> > ti(new utility::ThreadInfoNonMemberFn<P, F>(func, data, NULL));
 	HANDLE rv(::CreateThread(sa, stackSize, utility::ThreadDispatchNonMemberFn<P, F>, static_cast<void*>(ti.get()), flags, tid));
 	if(NULL != rv) { ti.release(); }
 	return rv;
