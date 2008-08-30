@@ -22,9 +22,10 @@
 
 #pragma once
 
-#ifndef DEBUGSTRINGSTREAM__H
-#define DEBUGSTRINGSTREAM__H
+#ifndef DEBUGSTRINGSTREAM__HPP
+#define DEBUGSTRINGSTREAM__HPP
 
+#include "locking_stream.hpp"
 #include <sstream>
 #include "../loki/singleton.h"
 
@@ -98,6 +99,9 @@ namespace
 
 extern dstream& dout;
 extern wdstream& wdout;
+
+extern locking_ostream<char> locked_dout;
+extern locking_ostream<wchar_t> locked_wdout;
 
 } // namespace utility
 

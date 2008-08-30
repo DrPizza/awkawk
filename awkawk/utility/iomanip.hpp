@@ -1,5 +1,3 @@
-// utility/iomanip.hpp
-
 //  Copyright (C) 2002-2006 Peter Bright
 //
 //  This software is provided 'as-is', without any express or implied
@@ -22,8 +20,8 @@
 
 #pragma once
 
-#ifndef IOMANIP_HPP
-#define IOMANIP_HPP
+#ifndef IOMANIP__HPP
+#define IOMANIP__HPP
 
 #include <iosfwd>
 

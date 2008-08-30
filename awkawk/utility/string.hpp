@@ -1,5 +1,3 @@
-// utility/string.hpp
-
 //  Copyright (C) 2002-2006 Peter Bright
 //
 //  This software is provided 'as-is', without any express or implied
@@ -22,8 +20,8 @@
 
 #pragma once
 
-#ifndef STRING_HPP
-#define STRING_HPP
+#ifndef STRING__HPP
+#define STRING__HPP
 
 #include <cstring>
 

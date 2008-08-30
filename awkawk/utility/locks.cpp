@@ -55,7 +55,14 @@ std::set<utility::lock_tracker::cs_sequence> get_all_sequences(const std::list<u
 			break;
 		case lock_tracker::lock_manipulation::release:
 			{
-				current_sequence.erase(--(std::find_if(current_sequence.rbegin(), current_sequence.rend(), std::bind1st(section_equality(), *lit)).base()));
+				if(current_sequence.rend() == std::find_if(current_sequence.rbegin(), current_sequence.rend(), std::bind1st(section_equality(), *lit)))
+				{
+					std::cerr << "warning: the section at " << lit->section << " was unlocked more times than it was locked" << std::endl;
+				}
+				else
+				{
+					current_sequence.erase(--(std::find_if(current_sequence.rbegin(), current_sequence.rend(), std::bind1st(section_equality(), *lit)).base()));
+				}
 			}
 			break;
 		}

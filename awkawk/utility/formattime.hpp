@@ -1,5 +1,3 @@
-// utility/formatTime.hpp
-
 //  Copyright (C) 2002-2005 Peter Bright
 //
 //  This software is provided 'as-is', without any express or implied

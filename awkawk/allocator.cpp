@@ -20,6 +20,7 @@
 
 #include "stdafx.h"
 
+#include "allocator.h"
 #include "awkawk.h"
 
 allocator_presenter::allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_) : ref_count(0),

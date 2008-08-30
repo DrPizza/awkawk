@@ -48,9 +48,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/MP"
 				Optimization="0"
-				AdditionalIncludeDirectories="C:\Program Files\Microsoft Platform SDK\Samples\Multimedia\DirectShow\VMR9\inc"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_ATL_ATTRIBUTES"
 				StringPooling="true"
 				MinimalRebuild="true"
@@ -135,9 +134,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/MP"
 				Optimization="0"
-				AdditionalIncludeDirectories="C:\Program Files\Microsoft Platform SDK\Samples\Multimedia\DirectShow\VMR9\inc"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_ATL_ATTRIBUTES"
 				StringPooling="true"
 				MinimalRebuild="true"
@@ -148,7 +146,6 @@
 				AssemblerOutput="2"
 				BrowseInformation="1"
 				WarningLevel="4"
-				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -226,7 +223,7 @@
 				Optimization="3"
 				FavorSizeOrSpeed="2"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="C:\Program Files\Microsoft Platform SDK\Samples\Multimedia\DirectShow\VMR9\inc"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;_ATL_ATTRIBUTES"
 				StringPooling="true"
 				ExceptionHandling="2"
@@ -317,7 +314,7 @@
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="true"
-				AdditionalIncludeDirectories="C:\Program Files\Microsoft Platform SDK\Samples\Multimedia\DirectShow\VMR9\inc"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;_ATL_ATTRIBUTES"
 				StringPooling="true"
 				ExceptionHandling="2"
@@ -326,7 +323,6 @@
 				AssemblerOutput="2"
 				BrowseInformation="1"
 				WarningLevel="4"
-				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -489,11 +485,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\player_direct_show.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\player_menus.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\player_overlay.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\player_playlist.cpp"
 				>
 			</File>
 			<File
@@ -587,6 +591,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\utility\locking_stream.hpp"
+				>
+			</File>
+			<File
 				RelativePath=".\utility\locks.hpp"
 				>
 			</File>
@@ -603,11 +611,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\player_direct_show.h"
+				>
+			</File>
+			<File
 				RelativePath=".\player_menus.h"
 				>
 			</File>
 			<File
 				RelativePath=".\player_overlay.h"
+				>
+			</File>
+			<File
+				RelativePath=".\player_playlist.h"
 				>
 			</File>
 			<File
@@ -624,6 +640,10 @@
 			</File>
 			<File
 				RelativePath=".\loki\ScopeGuardExt.h"
+				>
+			</File>
+			<File
+				RelativePath=".\state_machine.h"
 				>
 			</File>
 			<File

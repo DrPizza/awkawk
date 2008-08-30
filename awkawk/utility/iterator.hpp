@@ -1,5 +1,3 @@
-// utility/iterator.hpp
-
 //  Copyright (C) 2002-2007 Peter Bright
 //
 //  This software is provided 'as-is', without any express or implied
@@ -22,8 +20,8 @@
 
 #pragma once
 
-#ifndef ITERATOR_HPP
-#define ITERATOR_HPP
+#ifndef ITERATOR__HPP
+#define ITERATOR__HPP
 
 #include <iterator>
 

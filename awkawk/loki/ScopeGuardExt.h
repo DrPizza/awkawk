@@ -1,9 +1,9 @@
 #pragma once
 
-#include "scopeguard.h"
-
 #ifndef SCOPEGUARDEXT__H
 #define SCOPEGUARDEXT__H
+
+#include "scopeguard.h"
 
 namespace Loki
 {

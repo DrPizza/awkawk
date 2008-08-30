@@ -24,78 +24,19 @@
 #define PLAYER__H
 
 #include "stdafx.h"
-#include "resource.h"
 #include "util.h"
 
+#include "player_playlist.h"
 #include "player_window.h"
 #include "player_scene.h"
 #include "player_overlay.h"
-#include "allocator.h"
 
-_COM_SMARTPTR_TYPEDEF(IFilterGraph, __uuidof(IFilterGraph));
-_COM_SMARTPTR_TYPEDEF(IFilterGraph2, __uuidof(IFilterGraph2));
-_COM_SMARTPTR_TYPEDEF(IBaseFilter, __uuidof(IBaseFilter));
-_COM_SMARTPTR_TYPEDEF(IMediaControl, __uuidof(IMediaControl));
-_COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocator9, __uuidof(IVMRSurfaceAllocator9));
-_COM_SMARTPTR_TYPEDEF(IVMRFilterConfig9, __uuidof(IVMRFilterConfig9));
-_COM_SMARTPTR_TYPEDEF(IVMRMixerControl9, __uuidof(IVMRMixerControl9));
-_COM_SMARTPTR_TYPEDEF(IRunningObjectTable, __uuidof(IRunningObjectTable));
-_COM_SMARTPTR_TYPEDEF(IMoniker, __uuidof(IMoniker));
-_COM_SMARTPTR_TYPEDEF(IMediaSeeking, __uuidof(IMediaSeeking));
-_COM_SMARTPTR_TYPEDEF(IBasicAudio, __uuidof(IBasicAudio));
-_COM_SMARTPTR_TYPEDEF(IBasicVideo2, __uuidof(IBasicVideo2));
-_COM_SMARTPTR_TYPEDEF(IEnumFilters, __uuidof(IEnumFilters));
-_COM_SMARTPTR_TYPEDEF(IEnumPins, __uuidof(IEnumPins));
-_COM_SMARTPTR_TYPEDEF(IPin, __uuidof(IPin));
-_COM_SMARTPTR_TYPEDEF(IMediaEventEx, __uuidof(IMediaEventEx));
-_COM_SMARTPTR_TYPEDEF(IVMRDeinterlaceControl9, __uuidof(IVMRDeinterlaceControl9));
+struct player_direct_show;
 
 struct awkawk : boost::noncopyable
 {
 	awkawk();
 	~awkawk();
-
-	void add_file(const std::wstring& path)
-	{
-		playlist.push_back(path);
-		if(playlist.size() == 1)
-		{
-			playlist_position = playlist.begin();
-		}
-	}
-
-	void clear_files()
-	{
-		playlist.clear();
-		playlist_position = playlist.begin();
-	}
-
-	enum state
-	{
-		unloaded,
-		stopped,
-		paused,
-		playing,
-		max_states
-	};
-
-	state get_state() const { return current_state; }
-
-	std::string state_name(state st) const
-	{
-		switch(st)
-		{
-		case unloaded:
-			return "unloaded";
-		case stopped:
-			return "stopped";
-		case paused:
-			return "paused";
-		case playing:
-			return "playing";
-		}
-		return "error";
-	}
 
 	enum event
 	{
@@ -140,53 +81,21 @@ struct awkawk : boost::noncopyable
 		return "(not an event)";
 	}
 
-	void post_event(event evt)
-	{
-		dout << "posting " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
-		::PostQueuedCompletionStatus(message_port, static_cast<DWORD>(evt), 0, NULL);
-		dout << "posted " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
-	}
+	void post_message(event evt);
+	void send_message(event evt);
+	bool permitted(event evt);
 
-	void send_event(event evt)
-	{
-		OVERLAPPED o = {0};
-		o.hEvent = ::CreateEventW(NULL, FALSE, FALSE, NULL);
-		ON_BLOCK_EXIT(&::CloseHandle, o.hEvent);
-		dout << "sending " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
-		::PostQueuedCompletionStatus(message_port, static_cast<DWORD>(evt), 0, &o);
-		::WaitForSingleObject(o.hEvent, INFINITE);
-		dout << "sent " << event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
-	}
-
-	bool permitted(event evt) const
-	{
-		return transitions[current_state][evt].next_states.length != 0;
-	}
-
-	enum play_mode
-	{
-		normal = IDM_PLAYMODE_NORMAL, // advance through playlist, stop & rewind when the last file is played
-		repeat_all = IDM_PLAYMODE_REPEATALL, // advance through the playlist, rewind & continue playing when the last file is played
-		repeat_single = IDM_PLAYMODE_REPEATTRACK, // do not advance through playlist, rewind track & continue playing
-		shuffle = IDM_PLAYMODE_SHUFFLE // advance through playlist randomly, no concept of a "last file"
-	};
-
-	play_mode get_playmode() const
-	{
-		return playlist_mode;
-	}
-
-	void set_playmode(play_mode pm)
-	{
-		playlist_mode = pm;
-	}
-
-	OAFilterState get_movie_state() const
-	{
-		OAFilterState state;
-		FAIL_THROW(media_control->GetState(0, &state));
-		return state;
-	}
+	size_t do_load();
+	size_t do_stop();
+	size_t do_pause();
+	size_t do_resume();
+	size_t do_play();
+	size_t do_unload();
+	size_t do_ending();
+	size_t do_previous();
+	size_t do_next();
+	size_t do_rwnd();
+	size_t do_ffwd();
 
 	void create_ui(int cmdShow);
 	int run_ui();
@@ -201,16 +110,12 @@ struct awkawk : boost::noncopyable
 	void reset_device();
 	bool needs_display_change() const;
 
-	std::vector<CAdapt<IBaseFilterPtr> > get_filters()
+	std::auto_ptr<player_direct_show> dshow;
+	std::auto_ptr<player_playlist> plist;
+
+	void set_filename(const std::wstring& name)
 	{
-		std::vector<CAdapt<IBaseFilterPtr> > rv;
-		IEnumFiltersPtr filtEn;
-		graph->EnumFilters(&filtEn);
-		for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
-		{
-			rv.push_back(flt);
-		}
-		return rv;
+		scene->set_filename(name);
 	}
 
 	void set_cursor_position(const POINT& pos)
@@ -585,141 +490,6 @@ struct awkawk : boost::noncopyable
 		return video_size;
 	}
 
-	void set_playback_position(float percentage)
-	{
-		if(get_state() != unloaded)
-		{
-			LOCK(graph_cs);
-			LONGLONG end(0);
-			seeking->GetStopPosition(&end);
-			LONGLONG position(static_cast<LONGLONG>(percentage * static_cast<float>(end) / 100.0));
-			seeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-		}
-	}
-
-	float get_play_time() const
-	{
-		static const REFERENCE_TIME ticks_in_one_second(10000000);
-		try
-		{
-			LOCK(graph_cs);
-			if(get_state() != unloaded)
-			{
-				REFERENCE_TIME current(0);
-				FAIL_THROW(seeking->GetCurrentPosition(&current));
-				return static_cast<float>(current) / ticks_in_one_second;
-			}
-		}
-		catch(_com_error& ce)
-		{
-			switch(ce.Error())
-			{
-			case E_NOTIMPL:
-			case E_FAIL:
-				return -1.0f;
-			default:
-				throw;
-			}
-		}
-		return -1.0f;
-	}
-
-	float get_total_time() const
-	{
-		static const REFERENCE_TIME ticks_in_one_second(10000000);
-		try
-		{
-			LOCK(graph_cs);
-			if(get_state() != unloaded)
-			{
-				REFERENCE_TIME duration(0);
-				FAIL_THROW(seeking->GetDuration(&duration));
-				return static_cast<float>(duration) / ticks_in_one_second;
-			}
-		}
-		catch(_com_error& ce)
-		{
-			switch(ce.Error())
-			{
-			case E_NOTIMPL:
-			case E_FAIL:
-				return -1.0f;
-			default:
-				throw;
-			}
-		}
-		return -1.0f;
-	}
-
-	float get_playback_position() const
-	{
-		try
-		{
-			LOCK(graph_cs);
-			if(get_state() != unloaded)
-			{
-				LONGLONG current(0), duration(0);
-				FAIL_THROW(seeking->GetCurrentPosition(&current));
-				FAIL_THROW(seeking->GetDuration(&duration));
-				return 100.0f * static_cast<float>(current) / static_cast<float>(duration);
-			}
-		}
-		catch(_com_error& ce)
-		{
-			switch(ce.Error())
-			{
-			case E_NOTIMPL:
-			case E_FAIL:
-				return -1.0f;
-			default:
-				throw;
-			}
-		}
-		return -1.0f;
-	}
-
-	// in dB, from -100.0 to 0.0
-	float get_volume() const
-	{
-		if(get_state() != unloaded)
-		{
-			LOCK(graph_cs);
-			LONG volume(0);
-			audio->get_Volume(&volume);
-			return (static_cast<float>(volume) / 100.0f);
-		}
-		return -std::numeric_limits<float>::infinity();
-	}
-
-	void set_volume(float vol)
-	{
-		if(get_state() != unloaded)
-		{
-			LOCK(graph_cs);
-			LONG volume(static_cast<LONG>(vol * 100.0f));
-			audio->put_Volume(volume);
-		}
-	}
-
-	// linearized such that 0 dB = 1, -6 dB ~= 0.5, -inf dB = 0.0 (except directshow is annoying, and doesn't go to -inf, only -100)
-	float get_linear_volume() const
-	{
-		float raw_volume(get_volume());
-		if(raw_volume <= -100.0)
-		{
-			return 0;
-		}
-		return std::pow(10.0f, get_volume() / 20.0f);
-	}
-
-	void set_linear_volume(float vol)
-	{
-		vol = clamp(vol, 0.0f, 1.0f);
-		vol = std::log10(vol) * 20.0f;
-		vol = clamp(vol, -100.0f, 0.0f);
-		set_volume(vol);
-	}
-
 	bool is_fullscreen() const
 	{
 		return fullscreen;
@@ -736,10 +506,6 @@ struct awkawk : boost::noncopyable
 		set_fullscreen(!is_fullscreen());
 	}
 
-	std::wstring get_file_name() const
-	{
-		return *playlist_position;
-	}
 
 	void set_render_fps(unsigned int fps_)
 	{
@@ -761,12 +527,12 @@ struct awkawk : boost::noncopyable
 
 	const window* get_ui() const
 	{
-		return &ui;
+		return ui.get();
 	}
 
 	window* get_ui()
 	{
-		return &ui;
+		return ui.get();
 	}
 
 	void signal_new_frame() const
@@ -776,61 +542,12 @@ struct awkawk : boost::noncopyable
 
 	void stop_rendering();
 
-	typedef std::list<std::wstring> playlist_type;
+	IDirect3DDevice9Ptr get_scene_device()
+	{
+		return scene_device;
+	}
 
 private:
-	state current_state;
-
-	typedef size_t (awkawk::*state_fun)(void);
-	typedef array<state> state_array;
-
-	friend struct transition;
-
-	struct transition
-	{
-		state_fun fun;
-		array<state> next_states;
-
-		state execute(awkawk* awk) const
-		{
-			return next_states.length > 0 ? next_states[(awk->*fun)()]
-			                              : awk->current_state;
-		}
-	};
-
-	static const transition transitions[max_states][max_events];
-
-	size_t do_load();
-	size_t do_stop();
-	size_t do_pause();
-	size_t do_resume();
-	size_t do_play();
-	size_t do_unload();
-	size_t do_ending();
-	size_t do_previous();
-	size_t do_next();
-	size_t do_rwnd();
-	size_t do_ffwd();
-
-	void set_allocator_presenter(IBaseFilterPtr filter, HWND window);
-	void create_graph();
-	void destroy_graph();
-
-	REFERENCE_TIME get_average_frame_time(IFilterGraphPtr grph) const;
-	SIZE get_video_size() const;
-
-	void register_graph(IUnknownPtr unknown);
-	void unregister_graph();
-
-	HANDLE media_event;
-	HANDLE cancel_media_event;
-	HANDLE media_event_thread;
-	DWORD media_event_thread_proc(void*);
-
-	HANDLE message_port;
-	HANDLE message_thread;
-	DWORD message_thread_proc(void*);
-
 	::tm convert_win32_time(LONGLONG w32Time);
 
 	// rendering
@@ -841,26 +558,7 @@ private:
 	DWORD render_thread_proc(void*);
 	unsigned int fps;
 
-	// ROT registration
-	DWORD rot_key;
-
-	// DirectShow gubbins
-	mutable utility::critical_section graph_cs;
-
-	DWORD_PTR user_id;
-	IFilterGraph2Ptr graph;
-	IBaseFilterPtr vmr9;
-	IMediaControlPtr media_control;
-	IMediaSeekingPtr seeking;
-	IBasicAudioPtr audio;
-	IBasicVideo2Ptr video;
-	IMediaEventExPtr events;
-
-	bool has_video;
-
-	IVMRSurfaceAllocator9Ptr vmr_surface_allocator;
-	allocator_presenter* allocator;
-	player_window ui;
+	std::auto_ptr<player_window> ui;
 
 	// direct3d gubbins
 	IDirect3D9Ptr d3d;
@@ -880,16 +578,9 @@ private:
 
 	window_size_mode wnd_size_mode;
 	size_t chosen_ar;
-	//letterbox_mode ltrbx_mode;
 	size_t chosen_lb;
 
 	bool fullscreen;
-
-	playlist_type playlist;
-	playlist_type::iterator playlist_position;
-	play_mode playlist_mode;
-
-//	std::wstring file;
 };
 
 #endif

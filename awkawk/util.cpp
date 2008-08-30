@@ -22,13 +22,13 @@
 #include "util.h"
 
 #ifdef DEBUG
-std::ostream& dout = std::cout;
-std::wostream& wdout = std::wcout;
-std::ostream& derr = std::cerr;
-std::wostream& wderr = std::wcerr;
+utility::locking_ostream<char> dout(std::cout);
+utility::locking_ostream<wchar_t> wdout(std::wcout);
+utility::locking_ostream<char> derr(std::cerr);
+utility::locking_ostream<wchar_t> wderr(std::wcerr);
 #else
-std::ostream& dout = utility::dout;
-std::wostream& wdout = utility::wdout;
-std::ostream& derr = utility::dout;
-std::wostream& wderr = utility::wdout;
+utility::locking_ostream<char> dout(utility::dout);
+utility::locking_ostream<wchar_t> wdout(utility::wdout);
+utility::locking_ostream<char> derr(utility::dout);
+utility::locking_ostream<wchar_t> wderr(utility::wdout);
 #endif

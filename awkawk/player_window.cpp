@@ -23,13 +23,14 @@
 #include "player_window.h"
 #include "open_url.h"
 #include "awkawk.h"
+#include "player_direct_show.h"
 #include "resource.h"
 
 player_window::player_window(awkawk* player_) : window(L"awkawk class", CS_DBLCLKS, ::LoadIconW(instance, MAKEINTRESOURCEW(IDI_PLAYER)), ::LoadCursorW(NULL, MAKEINTRESOURCEW(IDC_ARROW)), static_cast<HBRUSH>(::GetStockObject(BLACK_BRUSH)), NULL, MAKEINTRESOURCEW(IDR_ACCELERATORS)),
                                                 player(player_),
                                                 tracking(false),
                                                 dragging(false),
-                                                main_menu(player, player->get_ui())
+                                                main_menu(player, this)
 {
 	boost::scoped_array<wchar_t> buffer(new wchar_t[256]);
 	::LoadStringW(instance, IDS_APP_TITLE, buffer.get(), 256);
@@ -46,12 +47,12 @@ std::wstring player_window::get_local_path() const
 	boost::scoped_array<wchar_t> buffer(new wchar_t[0xffff]);
 	buffer[0] = L'\0';
 
-	static const wchar_t szFilter[] = L"Video Files (.asf, .avi, .mpg, .mpeg, .vob, .qt, .wmv, .mp4)\0*.ASF;*.AVI;*.MPG;*.MPEG;*.VOB;*.QT;*.WMV;*.MP4\0"
-	                                  L"All Files (*.*)\0*.*\0";
+	static const wchar_t filter[] = L"Video Files (.asf, .avi, .mpg, .mpeg, .vob, .qt, .wmv, .mp4)\0*.ASF;*.AVI;*.MPG;*.MPEG;*.VOB;*.QT;*.WMV;*.MP4\0"
+	                                L"All Files (*.*)\0*.*\0";
 	ofn.lStructSize = sizeof(OPENFILENAMEW);
 	ofn.hwndOwner = get_window();
 	ofn.hInstance = NULL;
-	ofn.lpstrFilter = szFilter;
+	ofn.lpstrFilter = filter;
 	ofn.nFilterIndex = 1;
 	ofn.lpstrCustomFilter = NULL;
 	ofn.nMaxCustFilter = 0;
@@ -101,18 +102,18 @@ void player_window::open_single_file(const std::wstring& path)
 		std::copy(path.begin(), path.end(), buffer.get());
 		::PathStripPathW(buffer.get());
 		set_window_text(buffer.get());
-		if(player->get_state() != awkawk::unloaded)
+		if(player->dshow->get_graph_state() != player_direct_show::unloaded)
 		{
-			if(player->get_state() != awkawk::stopped)
+			if(player->dshow->get_graph_state() != player_direct_show::stopped)
 			{
-				player->send_event(awkawk::stop);
+				player->send_message(awkawk::stop);
 			}
-			player->send_event(awkawk::unload);
-			player->clear_files();
+			player->send_message(awkawk::unload);
+			player->plist->clear_files();
 		}
-		player->add_file(path);
-		player->post_event(awkawk::load);
-		player->post_event(awkawk::play);
+		player->plist->add_file(path);
+		player->post_message(awkawk::load);
+		player->post_message(awkawk::play);
 	}
 }
 
@@ -350,9 +351,9 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 		case IDM_CLOSE_FILE:
 			{
 				set_window_text(app_title.c_str());
-				player->send_event(awkawk::stop);
-				player->send_event(awkawk::unload);
-				player->clear_files();
+				player->send_message(awkawk::stop);
+				player->send_message(awkawk::unload);
+				player->plist->clear_files();
 			}
 			break;
 		case IDM_EXIT:
@@ -360,26 +361,26 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			break;
 			// play menu
 		case IDM_PLAY:
-			player->post_event(awkawk::play);
+			player->post_message(awkawk::play);
 			break;
 		case IDM_PAUSE:
-			player->post_event(awkawk::pause);
+			player->post_message(awkawk::pause);
 			break;
 		case IDM_STOP:
-			player->post_event(awkawk::stop);
+			player->post_message(awkawk::stop);
 			break;
 			// mode menu
 		case IDM_PLAYMODE_NORMAL:
-			player->set_playmode(awkawk::normal);
+			player->plist->set_playmode(player_playlist::normal);
 			break;
 		case IDM_PLAYMODE_REPEATALL:
-			player->set_playmode(awkawk::repeat_all);
+			player->plist->set_playmode(player_playlist::repeat_all);
 			break;
 		case IDM_PLAYMODE_REPEATTRACK:
-			player->set_playmode(awkawk::repeat_single);
+			player->plist->set_playmode(player_playlist::repeat_single);
 			break;
 		case IDM_PLAYMODE_SHUFFLE:
-			player->set_playmode(awkawk::shuffle);
+			player->plist->set_playmode(player_playlist::shuffle);
 			break;
 			// size menu
 		case IDM_SIZE_50:
@@ -396,10 +397,10 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			break;
 			// miscellaneous
 		case IDM_NEXT:
-			player->post_event(awkawk::next);
+			player->post_message(awkawk::next);
 			break;
 		case IDM_PREV:
-			player->post_event(awkawk::previous);
+			player->post_message(awkawk::previous);
 			break;
 		default:
 			if(id < WM_USER)
@@ -422,14 +423,14 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 
 void player_window::onDestroy(HWND)
 {
-	if(player->get_state() != awkawk::unloaded)
+	if(player->dshow->get_graph_state() != player_direct_show::unloaded)
 	{
-		if(player->get_state() != awkawk::stopped)
+		if(player->dshow->get_graph_state() != player_direct_show::stopped)
 		{
-			player->send_event(awkawk::stop);
+			player->send_message(awkawk::stop);
 		}
-		player->send_event(awkawk::unload);
-		player->clear_files();
+		player->send_message(awkawk::unload);
+		player->plist->clear_files();
 	}
 	player->stop_rendering();
 	::RevokeDragDrop(get_window());

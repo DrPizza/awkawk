@@ -27,6 +27,8 @@
 #include "resource.h"
 #include "util.h"
 
+struct awkawk;
+
 _COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocatorNotify9, __uuidof(IVMRSurfaceAllocatorNotify9));
 
 //////////////////////////////////
