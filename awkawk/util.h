@@ -25,16 +25,23 @@
 
 #include "stdafx.h"
 
+#include "utility/locking_stream.hpp"
+
 #define FAIL_THROW(x) do { HRESULT CREATE_NAME(hr); if(FAILED(CREATE_NAME(hr) = ( x ))) { _com_raise_error(CREATE_NAME(hr)); } } while(0)
 #define FAIL_RET(x) do { HRESULT CREATE_NAME(hr); if(FAILED(CREATE_NAME(hr) = ( x ))) { return CREATE_NAME(hr); } } while(0)
 #define CREATE_NAME(name) CREATE_NAME_IND(name, __LINE__)
 #define CREATE_NAME_IND(first, second) PASTE_2(first, second)
 #define PASTE_2(a, b) a ## b
 
-extern std::ostream& dout;
-extern std::wostream& wdout;
-extern std::ostream& derr;
-extern std::wostream& wderr;
+//extern std::ostream& dout;
+//extern std::wostream& wdout;
+//extern std::ostream& derr;
+//extern std::wostream& wderr;
+
+extern utility::locking_ostream<char> dout;
+extern utility::locking_ostream<wchar_t> wdout;
+extern utility::locking_ostream<char> derr;
+extern utility::locking_ostream<wchar_t> wderr;
 
 template<typename T>
 inline std::basic_ostream<T>& operator<<(std::basic_ostream<T>& lhs, const GUID& rhs)
@@ -84,6 +91,7 @@ inline RECT normalize(const RECT& r)
 	return rv;
 }
 
+// TODO use direct3d_object (below) instead
 struct device_loss_handler
 {
 	virtual void begin_device_loss() = 0;

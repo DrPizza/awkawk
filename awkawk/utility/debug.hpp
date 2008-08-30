@@ -1,5 +1,3 @@
-// utility/debug.hpp
-
 //  Copyright (C) 2002-2007 Peter Bright
 //
 //  This software is provided 'as-is', without any express or implied
@@ -22,8 +20,8 @@
 
 #pragma once
 
-#ifndef DEBUG_HPP
-#define DEBUG_HPP
+#ifndef DEBUG__HPP
+#define DEBUG__HPP
 
 #define NOMINMAX
 #define NTDDI_VERSION NTDDI_LONGHORN

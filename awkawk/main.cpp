@@ -158,7 +158,7 @@ void show_locks()
 				break;
 			}
 			dout << " " << lit->section << " ";
-			utility::print_caller_info(dout, lit->return_address, lit->address_of_return_address);
+			utility::print_caller_info(utility::dout, lit->return_address, lit->address_of_return_address);
 			dout << std::endl;
 		}
 	}
@@ -176,6 +176,8 @@ BOOL WINAPI ctrl_c_handler(DWORD type)
 		return FALSE;
 	}
 }
+
+#include "utility/locking_stream.hpp"
 
 int wmain(int argc, wchar_t* argv[])
 {

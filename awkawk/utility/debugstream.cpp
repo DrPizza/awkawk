@@ -25,4 +25,7 @@ namespace utility
 {
 dstream& dout = DebugStreams::Instance().dout;
 wdstream& wdout = DebugStreams::Instance().wdout;
+
+locking_ostream<char> locked_dout(DebugStreams::Instance().dout);
+locking_ostream<wchar_t> locked_wdout(DebugStreams::Instance().wdout);
 }

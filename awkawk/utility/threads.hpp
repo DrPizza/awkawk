@@ -18,8 +18,6 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
-// Description: Win32 CreateThread wrappers, including support for VC++'s "named threads"
-
 #pragma once
 
 #ifndef THREADS__H

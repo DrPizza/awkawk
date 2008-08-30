@@ -22,74 +22,13 @@
 
 #include "awkawk.h"
 #include "text.h"
+#include "player_direct_show.h"
 
-
-const awkawk::transition awkawk::transitions[awkawk::max_states][awkawk::max_events] =
-{
-/* state    | event         | handler             | exit states */
-/* ------------------- */ {
-/* unloaded | load     */   { &awkawk::do_load    , awkawk::state_array() << awkawk::stopped                    },
-/*          | stop     */   { NULL                , awkawk::state_array()                                       },
-/*          | pause    */   { NULL                , awkawk::state_array()                                       },
-/*          | play     */   { NULL                , awkawk::state_array()                                       },
-/*          | unload   */   { NULL                , awkawk::state_array()                                       },
-/*          | ending   */   { NULL                , awkawk::state_array()                                       },
-/*          | previous */   { NULL                , awkawk::state_array()                                       },
-/*          | next     */   { NULL                , awkawk::state_array()                                       },
-/*          | rwnd     */   { NULL                , awkawk::state_array()                                       },
-/*          | ffwd     */   { NULL                , awkawk::state_array()                                       }
-                          },
-                          {
-/* stopped  | load     */   { NULL                , awkawk::state_array()                                       },
-/*          | stop     */   { NULL                , awkawk::state_array()                                       },
-/*          | pause    */   { &awkawk::do_play    , awkawk::state_array() << awkawk::playing                    },
-/*          | play     */   { &awkawk::do_play    , awkawk::state_array() << awkawk::playing                    },
-/*          | unload   */   { &awkawk::do_unload  , awkawk::state_array() << awkawk::unloaded                   },
-/*          | ending   */   { NULL                , awkawk::state_array()                                       },
-/*          | previous */   { &awkawk::do_previous, awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | next     */   { &awkawk::do_next    , awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | rwnd     */   { NULL                , awkawk::state_array()                                       },
-/*          | ffwd     */   { NULL                , awkawk::state_array()                                       }
-                          },
-                          {
-/* paused   | load     */   { NULL                , awkawk::state_array()                                       },
-/*          | stop     */   { &awkawk::do_stop    , awkawk::state_array() << awkawk::stopped                    },
-/*          | pause    */   { &awkawk::do_resume  , awkawk::state_array() << awkawk::playing                    },
-/*          | play     */   { &awkawk::do_resume  , awkawk::state_array() << awkawk::playing                    },
-/*          | unload   */   { NULL                , awkawk::state_array()                                       },
-/*          | ending   */   { NULL                , awkawk::state_array()                                       },
-/*          | previous */   { &awkawk::do_previous, awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | next     */   { &awkawk::do_next    , awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | rwnd     */   { NULL                , awkawk::state_array()                                       },
-/*          | ffwd     */   { NULL                , awkawk::state_array()                                       }
-                          },
-                          {
-/* playing  | load     */   { NULL                , awkawk::state_array()                                       },
-/*          | stop     */   { &awkawk::do_stop    , awkawk::state_array() << awkawk::stopped                    },
-/*          | pause    */   { &awkawk::do_pause   , awkawk::state_array() << awkawk::paused                     },
-/*          | play     */   { &awkawk::do_pause   , awkawk::state_array() << awkawk::paused                     },
-/*          | unload   */   { NULL                , awkawk::state_array()                                       },
-/*          | ending   */   { &awkawk::do_ending  , awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | previous */   { &awkawk::do_previous, awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | next     */   { &awkawk::do_next    , awkawk::state_array() << awkawk::stopped << awkawk::playing },
-/*          | rwnd     */   { &awkawk::do_rwnd    , awkawk::state_array() << awkawk::playing                    },
-/*          | ffwd     */   { &awkawk::do_ffwd    , awkawk::state_array() << awkawk::playing                    }
-                          }
-};
-
-awkawk::awkawk() : ui(player_window(this)),
-                   media_event_thread(0),
+awkawk::awkawk() : ui(new player_window(this)),
+                   dshow(new player_direct_show(this)),
+                   plist(new player_playlist()),
                    render_thread(0),
-                   message_port(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1)),
-                   message_thread(utility::CreateThread(NULL, 0, this, &awkawk::message_thread_proc, static_cast<void*>(0), "Message thread", 0, 0)),
-                   user_id(0xabcd),
-                   allocator(NULL),
-                   current_state(unloaded),
                    fullscreen(false),
-                   has_video(false),
-                   playlist(),
-                   playlist_position(playlist.begin()),
-                   playlist_mode(normal),
                    chosen_ar(0),
                    chosen_lb(0),
                    wnd_size_mode(one_hundred_percent)
@@ -108,48 +47,30 @@ awkawk::awkawk() : ui(player_window(this)),
 	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(1.85f)));
 	available_letterboxes.push_back(boost::shared_ptr<letterbox>(new fixed_letterbox(2.40f)));
 
-
 	SIZE sz = { 640, 480 };
 	window_size = sz;
 	video_size = sz;
 	scene_size = sz;
-
-	LOCK(graph_cs);
-	FAIL_THROW(graph.CreateInstance(CLSID_FilterGraph));
-	FAIL_THROW(graph->QueryInterface(&events));
-	HANDLE evt(0);
-	FAIL_THROW(events->GetEventHandle(reinterpret_cast<OAEVENT*>(&evt)));
-	::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &media_event, 0, FALSE, DUPLICATE_SAME_ACCESS);
-	cancel_media_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
-	media_event_thread = utility::CreateThread(NULL, 0, this, &awkawk::media_event_thread_proc, static_cast<void*>(0), "Media Event thread", 0, 0);
 }
 
 awkawk::~awkawk()
 {
-	if(get_state() != unloaded)
-	{
-		if(get_state() != stopped)
-		{
-			send_event(stop);
-		}
-		send_event(unload);
-	}
-	{
-		::SetEvent(cancel_media_event);
-		::WaitForSingleObject(media_event_thread, INFINITE);
-		::CloseHandle(media_event_thread);
-		::CloseHandle(cancel_media_event);
-		::CloseHandle(media_event);
-	}
-	{
-		::PostQueuedCompletionStatus(message_port, 0, 1, NULL);
-		::WaitForSingleObject(message_thread, INFINITE);
-		::CloseHandle(message_thread);
-		::CloseHandle(message_port);
-	}
-	LOCK(graph_cs);
-	events = NULL;
-	graph = NULL;
+	dshow.reset();
+}
+
+void awkawk::post_message(event evt)
+{
+	return dshow->post_message(evt);
+}
+
+void awkawk::send_message(event evt)
+{
+	return dshow->send_message(evt);
+}
+
+bool awkawk::permitted(awkawk::event evt)
+{
+	return dshow->permitted(evt);
 }
 
 void awkawk::create_d3d()
@@ -166,6 +87,10 @@ void awkawk::create_d3d()
 		if(S_OK == d3dcreate9ex(D3D_SDK_VERSION, &ptr))
 		{
 			d3d9 = ptr;
+		}
+		else
+		{
+			dout << "Attempt to use D3D9Ex failed, falling back to D3D9" << std::endl;
 		}
 	}
 	if(d3d9 == NULL)
@@ -185,439 +110,6 @@ void awkawk::destroy_d3d()
 	d3d = NULL;
 }
 
-size_t awkawk::do_stop()
-{
-	dout << __FUNCSIG__ << std::endl;
-	LOCK(graph_cs);
-	OAFilterState movie_state;
-	media_control->GetState(0, &movie_state);
-	while(movie_state != State_Stopped)
-	{
-		FAIL_THROW(media_control->Stop());
-		media_control->GetState(0, &movie_state);
-	}
-	get_ui()->set_on_top(false);
-	return 0;
-}
-
-size_t awkawk::do_play()
-{
-	LOCK(graph_cs);
-	get_ui()->set_on_top(true);
-	FAIL_THROW(media_control->Run());
-	return 0;
-}
-
-size_t awkawk::do_pause()
-{
-	dout << __FUNCSIG__ << std::endl;
-	LOCK(graph_cs);
-	OAFilterState movie_state;
-	media_control->GetState(0, &movie_state);
-	while(movie_state != State_Paused)
-	{
-		FAIL_THROW(media_control->Pause());
-		media_control->GetState(0, &movie_state);
-	}
-	return 0;
-}
-
-size_t awkawk::do_resume()
-{
-	LOCK(graph_cs);
-	FAIL_THROW(media_control->Run());
-	return 0;
-}
-
-size_t awkawk::do_ffwd()
-{
-	LOCK(graph_cs);
-	// TODO
-	return 0;
-}
-
-size_t awkawk::do_next()
-{
-	LOCK(graph_cs);
-	if(playlist.empty())
-	{
-		return 0;
-	}
-	awkawk::state initial_state(get_state());
-	do_stop();
-	LONGLONG current(0);
-	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-	do_unload();
-	bool hit_end(playlist_position == --playlist.end());
-	switch(playlist_mode)
-	{
-	case repeat_single: // when the user presses 'next' in repeat single, we move forward normally
-	case repeat_all: // continue on wraparound
-		hit_end = false;
-	case normal: // stop on wraparound
-		{
-			++playlist_position;
-			if(playlist_position == playlist.end())
-			{
-				playlist_position = playlist.begin();
-			}
-			do_load();
-			if(initial_state == playing && !hit_end)
-			{
-				do_play();
-				return 1;
-			}
-		}
-		break;
-	case shuffle:
-		break;
-	}
-	return 0;
-}
-
-size_t awkawk::do_rwnd()
-{
-	LOCK(graph_cs);
-	// TODO
-	return 0;
-}
-
-size_t awkawk::do_previous()
-{
-	LOCK(graph_cs);
-	if(playlist.empty())
-	{
-		return 0;
-	}
-	awkawk::state initial_state(get_state());
-	if(initial_state != unloaded)
-	{
-		do_stop();
-		do_unload();
-	}
-	switch(playlist_mode)
-	{
-	case normal:
-	case repeat_single:
-	case repeat_all:
-		{
-			if(playlist_position == playlist.begin())
-			{
-				playlist_position = playlist.end();
-			}
-			--playlist_position;
-			do_load();
-			if(initial_state == playing)
-			{
-				do_play();
-				return 1;
-			}
-		}
-		break;
-	case shuffle:
-		break;
-	}
-	return 0;
-}
-
-size_t awkawk::do_load()
-{
-	dout << __FUNCSIG__ << std::endl;
-	LOCK(graph_cs);
-	try
-	{
-		scene->set_filename(*playlist_position);
-		create_graph();
-	}
-	catch(_com_error& ce)
-	{
-		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	}
-	return 0;
-}
-
-size_t awkawk::do_unload()
-{
-	LOCK(graph_cs);
-	LONGLONG current(0);
-	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-	destroy_graph();
-	scene->set_filename(L"");
-	return 0;
-}
-
-void awkawk::destroy_graph()
-{
-	LOCK(graph_cs);
-	unregister_graph();
-
-	IEnumFiltersPtr filtEn;
-	graph->EnumFilters(&filtEn);
-	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL); graph->EnumFilters(&filtEn))
-	{
-		//FILTER_INFO fi = {0};
-		//flt->QueryFilterInfo(&fi);
-		//IFilterGraphPtr ptr(fi.pGraph, false);
-		//wdout << L"Removing " << fi.achName << std::endl;
-		graph->RemoveFilter(flt);
-	}
-
-	vmr_surface_allocator = NULL;
-	allocator = NULL;
-	media_control = NULL;
-	seeking = NULL;
-	vmr9 = NULL;
-	audio = NULL;
-	video = NULL;
-
-	set_render_fps(25);
-	schedule_render();
-
-	has_video = false;
-}
-
-void awkawk::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
-{
-	LOCK(graph_cs);
-	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
-	FAIL_THROW(filter->QueryInterface(&surface_allocator_notify));
-
-	allocator = new allocator_presenter(this, scene_device);
-	vmr_surface_allocator.Attach(allocator, true);
-
-	FAIL_THROW(surface_allocator_notify->AdviseSurfaceAllocator(user_id, vmr_surface_allocator));
-	FAIL_THROW(vmr_surface_allocator->AdviseNotify(surface_allocator_notify));
-	FAIL_THROW(surface_allocator_notify->SetD3DDevice(scene_device, ::MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY)));
-}
-
-REFERENCE_TIME awkawk::get_average_frame_time(IFilterGraphPtr grph) const
-{
-	IEnumFiltersPtr filtEn;
-	grph->EnumFilters(&filtEn);
-	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
-	{
-		IEnumPinsPtr pinEn;
-		flt->EnumPins(&pinEn);
-		for(IPinPtr pin; S_OK == pinEn->Next(1, &pin, NULL);)
-		{
-			AM_MEDIA_TYPE mt;
-			pin->ConnectionMediaType(&mt);
-			ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
-			if(mt.majortype == MEDIATYPE_Video)
-			{
-				REFERENCE_TIME averageFrameTime(0);
-				if(mt.formattype == FORMAT_MPEGVideo)
-				{
-					MPEG1VIDEOINFO* info(reinterpret_cast<MPEG1VIDEOINFO*>(mt.pbFormat));
-					averageFrameTime = info->hdr.AvgTimePerFrame;
-				}
-				else if(mt.formattype == FORMAT_MPEG2Video)
-				{
-					MPEG2VIDEOINFO* info(reinterpret_cast<MPEG2VIDEOINFO*>(mt.pbFormat));
-					averageFrameTime = info->hdr.AvgTimePerFrame;
-				}
-				else if(mt.formattype == FORMAT_VideoInfo)
-				{
-					VIDEOINFOHEADER* info(reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat));
-					averageFrameTime = info->AvgTimePerFrame;
-				}
-				else if(mt.formattype == FORMAT_VideoInfo2)
-				{
-					VIDEOINFOHEADER2* info(reinterpret_cast<VIDEOINFOHEADER2*>(mt.pbFormat));
-					averageFrameTime = info->AvgTimePerFrame;
-				}
-				if(averageFrameTime != 0)
-				{
-					return averageFrameTime;
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-SIZE awkawk::get_video_size() const
-{
-	IEnumPinsPtr pinEn;
-	vmr9->EnumPins(&pinEn);
-	for(IPinPtr pin; S_OK == pinEn->Next(1, &pin, NULL);)
-	{
-		AM_MEDIA_TYPE mt;
-		pin->ConnectionMediaType(&mt);
-		ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
-		if(mt.majortype == MEDIATYPE_Video)
-		{
-			SIZE sz = {0};
-			if(mt.formattype == FORMAT_MPEGVideo)
-			{
-				MPEG1VIDEOINFO* info(reinterpret_cast<MPEG1VIDEOINFO*>(mt.pbFormat));
-				sz.cx = info->hdr.bmiHeader.biWidth;
-				sz.cy = info->hdr.bmiHeader.biHeight;
-			}
-			else if(mt.formattype == FORMAT_MPEG2Video)
-			{
-				MPEG2VIDEOINFO* info(reinterpret_cast<MPEG2VIDEOINFO*>(mt.pbFormat));
-				sz.cy = info->hdr.bmiHeader.biHeight;
-				sz.cx = (sz.cy * info->hdr.dwPictAspectRatioX) / info->hdr.dwPictAspectRatioY;
-			}
-			else if(mt.formattype == FORMAT_VideoInfo)
-			{
-				VIDEOINFOHEADER* info(reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat));
-				sz.cx = info->bmiHeader.biWidth;
-				sz.cy = info->bmiHeader.biHeight;
-			}
-			else if(mt.formattype == FORMAT_VideoInfo2)
-			{
-				VIDEOINFOHEADER2* info(reinterpret_cast<VIDEOINFOHEADER2*>(mt.pbFormat));
-				sz.cy = info->bmiHeader.biHeight;
-				sz.cx = (sz.cy * info->dwPictAspectRatioX) / info->dwPictAspectRatioY;
-			}
-			if(sz.cx != 0 && sz.cy != 0)
-			{
-				return sz;
-			}
-		}
-	}
-	derr << "Warning: no size detected" << std::endl;
-	return get_video_dimensions();
-}
-
-void awkawk::create_graph()
-{
-	FAIL_THROW(vmr9.CreateInstance(CLSID_VideoMixingRenderer9, NULL, CLSCTX_INPROC_SERVER));
-	IVMRFilterConfig9Ptr filter_config;
-	FAIL_THROW(vmr9->QueryInterface(&filter_config));
-	FAIL_THROW(filter_config->SetRenderingMode(VMR9Mode_Renderless));
-	set_allocator_presenter(vmr9, get_ui()->get_window());
-	// Note that we MUST use YUV mixing mode (or no mixing mode at all)
-	// because if we don't, VMR9 can change the state of the D3D device
-	// part-way through our render (and it doesn't tell us it's going to,
-	// so we have no opportunity to protect ourselves from its stupidity)
-	// when it performs colour space conversions.
-	// Further, if we do not use mixing mode then we cannot use VMR deinterlacing.
-	// It's all rather sad.
-#define USE_MIXING_MODE
-#define USE_YUV_MIXING_MODE
-#ifdef USE_MIXING_MODE
-	FAIL_THROW(filter_config->SetNumberOfStreams(1));
-	IVMRMixerControl9Ptr mixer_control;
-	FAIL_THROW(vmr9->QueryInterface(&mixer_control));
-	DWORD mixing_prefs(0);
-	FAIL_THROW(mixer_control->GetMixingPrefs(&mixing_prefs));
-	mixing_prefs &= ~MixerPref9_RenderTargetMask;
-#ifdef USE_YUV_MIXING_MODE
-	mixing_prefs |= MixerPref9_RenderTargetYUV;
-#endif
-	mixing_prefs &= ~MixerPref9_DynamicMask;
-	mixing_prefs &= ~MixerPref9_DecimateMask;
-	mixing_prefs |= MixerPref9_NoDecimation;
-	mixing_prefs |= MixerPref9_ARAdjustXorY;
-	mixing_prefs &= ~MixerPref9_FilteringMask;
-	mixing_prefs |= MixerPref9_PyramidalQuadFiltering;
-	FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
-#endif
-
-	FAIL_THROW(graph->AddFilter(vmr9, L"Video Mixing Renderer 9"));
-
-	_bstr_t current_item(playlist_position->c_str());
-	const HRESULT render_result(graph->RenderFile(current_item, NULL));
-	switch(render_result)
-	{
-	case S_OK:
-		break;
-	case VFW_S_AUDIO_NOT_RENDERED:
-		dout << "Partial success: The audio was not rendered." << std::endl;
-		break;
-	case VFW_S_DUPLICATE_NAME:
-		dout << "Success: The Filter Graph Manager modified the filter name to avoid duplication." << std::endl;
-		break;
-	case VFW_S_PARTIAL_RENDER:
-		dout << "Partial success: Some of the streams in this movie are in an unsupported format." << std::endl;
-		break;
-	case VFW_S_VIDEO_NOT_RENDERED:
-		dout << "Partial success: The video was not rendered." << std::endl;
-		break;
-	case VFW_E_CANNOT_CONNECT:
-		dout << "Failure: No combination of intermediate filters could be found to make the connection." << std::endl;
-		break;
-	case VFW_E_CANNOT_LOAD_SOURCE_FILTER:
-		dout << "Failure: The source filter for this file could not be loaded." << std::endl;
-		break;
-	case VFW_E_CANNOT_RENDER:
-		dout << "Failure: No combination of filters could be found to render the stream." << std::endl;
-		break;
-	case VFW_E_INVALID_FILE_FORMAT:
-		dout << "Failure: The file format is invalid." << std::endl;
-		break;
-	case VFW_E_NOT_FOUND:
-		dout << "Failure: An object or name was not found." << std::endl;
-		break;
-	case VFW_E_UNKNOWN_FILE_TYPE:
-		dout << "Failure: The media type of this file is not recognized." << std::endl;
-		break;
-	case VFW_E_UNSUPPORTED_STREAM:
-		dout << "Failure: Cannot play back the file: the format is not supported." << std::endl;
-		break;
-	case E_ABORT:
-	case E_FAIL:
-	case E_INVALIDARG:
-	case E_OUTOFMEMORY:
-	case E_POINTER:
-		_com_raise_error(render_result);
-		break;
-	default:
-		dout << "Unknown error: " << std::hex << render_result << std::dec << std::endl;
-	}
-	register_graph(graph);
-
-	FAIL_THROW(graph->QueryInterface(&media_control));
-	FAIL_THROW(graph->QueryInterface(&seeking));
-	set_playback_position(0.0f);
-	FAIL_THROW(graph->QueryInterface(&audio));
-	FAIL_THROW(graph->QueryInterface(&video));
-
-	IEnumPinsPtr pinEn;
-	vmr9->EnumPins(&pinEn);
-	for(IPinPtr pin; S_OK == pinEn->Next(1, &pin, NULL);)
-	{
-		AM_MEDIA_TYPE mt;
-		pin->ConnectionMediaType(&mt);
-		ON_BLOCK_EXIT(&free_media_type, Loki::ByRef(mt));
-		has_video = has_video || (mt.formattype != FORMAT_None) && (mt.formattype != GUID_NULL);
-	}
-
-	if(has_video)
-	{
-		set_video_dimensions(get_video_size());
-	}
-
-	REFERENCE_TIME average_frame_time(get_average_frame_time(graph));
-
-	float frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<float>(average_frame_time));
-	set_render_fps(static_cast<unsigned int>(frame_rate));
-}
-
-void awkawk::register_graph(IUnknownPtr unknown)
-{
-	IRunningObjectTablePtr rot;
-	FAIL_THROW(::GetRunningObjectTable(0, &rot));
-
-	std::wstringstream wss;
-	// graphedit looks for ROT objects named "FilterGraph".
-	wss << L"FilterGraph " << reinterpret_cast<void*>(unknown.GetInterfacePtr()) << L" pid " << std::hex << ::GetCurrentProcessId() << std::endl;
-
-	IMonikerPtr moniker;
-	FAIL_THROW(::CreateItemMoniker(L"!", wss.str().c_str(), &moniker));
-	FAIL_THROW(rot->Register(ROTFLAGS_REGISTRATIONKEEPSALIVE, unknown, moniker, &rot_key));
-}
-
-void awkawk::unregister_graph(void)
-{
-	IRunningObjectTablePtr rot;
-	FAIL_THROW(::GetRunningObjectTable(0, &rot));
-	rot->Revoke(rot_key);
-}
-
 ::tm awkawk::convert_win32_time(LONGLONG w32Time)
 {
 	::tm t = {0};
@@ -633,7 +125,7 @@ void awkawk::unregister_graph(void)
 
 void awkawk::create_ui(int cmd_show)
 {
-	ui.create_window(cmd_show);
+	ui->create_window(cmd_show);
 	scene.reset(new player_scene(this, get_ui()));
 	overlay.reset(new player_overlay(this, get_ui()));
 	scene->add_components(overlay.get());
@@ -708,7 +200,7 @@ void awkawk::create_device()
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
-	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, get_ui()->get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES, &parameters, &scene_device));
+	FAIL_THROW(d3d->CreateDevice(device_ordinal, dev_type, get_ui()->get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE, &parameters, &scene_device));
 
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE));
 	FAIL_THROW(scene_device->SetRenderState(D3DRS_LIGHTING, FALSE));
@@ -739,11 +231,9 @@ void awkawk::destroy_device()
 
 void awkawk::reset_device()
 {
-	LOCK(graph_cs);
-	if(allocator)
-	{
-		allocator->begin_device_loss();
-	}
+	// TODO This was locked for a reason
+	LOCK(dshow->graph_cs);
+	dshow->begin_device_loss();
 	FAIL_THROW(scene->on_device_lost());
 	FAIL_THROW(overlay->on_device_lost());
 
@@ -775,10 +265,7 @@ void awkawk::reset_device()
 
 	FAIL_THROW(scene->on_device_reset());
 	FAIL_THROW(overlay->on_device_reset());
-	if(allocator)
-	{
-		allocator->end_device_loss(scene_device);
-	}
+	dshow->end_device_loss(scene_device);
 }
 
 int awkawk::run_ui()
@@ -831,10 +318,11 @@ void awkawk::render()
 {
 	try
 	{
-		LOCK(graph_cs);
-		scene->set_video_texture(has_video ? allocator->get_video_texture(user_id) : NULL);
-		scene->set_volume(get_linear_volume());
-		scene->set_playback_position(get_playback_position());
+		// TODO This was locked for a reason
+		LOCK(dshow->graph_cs);
+		scene->set_video_texture(dshow->get_has_video() ? dshow->allocator->get_video_texture(dshow->get_user_id()) : NULL);
+		scene->set_volume(dshow->get_linear_volume());
+		scene->set_playback_position(dshow->get_playback_position());
 
 		static D3DCOLOR col(D3DCOLOR_ARGB(0xff, 0, 0, 0));
 		//col = col == D3DCOLOR_ARGB(0xff, 0xff, 0, 0) ? D3DCOLOR_ARGB(0xff, 0, 0xff, 0)
@@ -850,9 +338,9 @@ void awkawk::render()
 			FAIL_THROW(scene_device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			boost::shared_ptr<utility::critical_section> stream_cs;
 			std::auto_ptr<utility::critical_section::lock> l;
-			if(has_video && allocator->rendering(user_id))
+			if(dshow->get_has_video() && dshow->allocator->rendering(dshow->get_user_id()))
 			{
-				stream_cs = allocator->get_cs(user_id);
+				stream_cs = dshow->allocator->get_cs(dshow->get_user_id());
 				l.reset(new utility::critical_section::lock(*stream_cs));
 			}
 			scene->render();
@@ -915,352 +403,57 @@ DWORD awkawk::render_thread_proc(void*)
 	return 0;
 }
 
+size_t awkawk::do_load()
+{
+	return 0;
+}
+
+size_t awkawk::do_stop()
+{
+	return 0;
+}
+
+size_t awkawk::do_pause()
+{
+	return 0;
+}
+
+size_t awkawk::do_resume()
+{
+	return 0;
+}
+
+size_t awkawk::do_play()
+{
+	return 0;
+}
+
+size_t awkawk::do_unload()
+{
+	return 0;
+}
+
 size_t awkawk::do_ending()
 {
-	do_stop();
-	LONGLONG current(0);
-	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-	do_unload();
-	bool hit_end(playlist_position == --playlist.end());
-	switch(playlist_mode)
-	{
-	case repeat_all: // continue on wraparound
-		hit_end = false; // there is no end
-	case normal:     // stop on wraparound
-		{
-			++playlist_position;
-			if(playlist_position == playlist.end())
-			{
-				playlist_position = playlist.begin();
-			}
-			do_load();
-			if(!hit_end)
-			{
-				do_play();
-				return 1;
-			}
-		}
-		break;
-	case repeat_single:
-		{
-			do_load();
-			do_play();
-			return 1;
-		}
-		break;
-	case shuffle:
-		break;
-	}
 	return 0;
 }
 
-DWORD awkawk::message_thread_proc(void*)
+size_t awkawk::do_previous()
 {
-	bool quit_received(false);
-	DWORD message(0);
-	ULONG_PTR key(0);
-	OVERLAPPED* overlapped(NULL);
-	while(FALSE != ::GetQueuedCompletionStatus(message_port, &message, &key, &overlapped, quit_received ? 0 : INFINITE))
-	{
-		switch(key)
-		{
-		case 0:
-			{
-				event evt(static_cast<event>(message));
-				if(permitted(evt))
-				{
-					dout << "current state: " << state_name(current_state) << std::endl;
-					current_state = transitions[current_state][evt].execute(this);
-					dout << "new state: " << state_name(current_state) << std::endl;
-				}
-				else
-				{
-					dout << "the event " << event_name(evt) << " is not permitted in state " << state_name(current_state) << std::endl;
-				}
-				if(overlapped != NULL)
-				{
-					::SetEvent(overlapped->hEvent);
-				}
-			}
-			break;
-		case 1:
-			quit_received = true;
-			break;
-		}
-	}
-	dout << "exiting" << std::endl;
 	return 0;
 }
 
-DWORD awkawk::media_event_thread_proc(void*)
+size_t awkawk::do_next()
 {
-	try
-	{
-		HANDLE evts[] = { media_event, cancel_media_event };
-		while(::WaitForMultipleObjects(ARRAY_SIZE(evts), evts, FALSE, INFINITE) == WAIT_OBJECT_0)
-		{
-			long event_code;
-			LONG_PTR param1;
-			LONG_PTR param2;
-			FAIL_THROW(events->GetEvent(&event_code, &param1, &param2, INFINITE));
-			ON_BLOCK_EXIT_OBJ(*events, &IMediaEvent::FreeEventParams, event_code, param1, param2);
-			switch(event_code)
-			{
-			case EC_COMPLETE:
-				{
-					dout << "EC_COMPLETE" << std::endl;
-					post_event(ending);
-				}
-				break;
-			// ( HRESULT, void ) : defaulted (special)
-			case EC_USERABORT: dout << "EC_USERABORT" << std::endl; break;
-			// ( void, void ) : application
-			case EC_ERRORABORT: dout << "EC_ERRORABORT" << std::endl; break;
-			// ( HRESULT, void ) : application
-			case EC_TIME: dout << "EC_TIME" << std::endl; break;
-			// ( DWORD, DWORD ) : application
-			case EC_REPAINT: dout << "EC_REPAINT" << std::endl; break;
-			// ( IPin * (could be NULL), void ) : defaulted
-			case EC_STREAM_ERROR_STOPPED: dout << "EC_STREAM_ERROR_STOPPED" << std::endl; break;
-			case EC_STREAM_ERROR_STILLPLAYING: dout << "EC_STREAM_ERROR_STILLPLAYING" << std::endl; break;
-			// ( HRESULT, DWORD ) : application
-			case EC_ERROR_STILLPLAYING: dout << "EC_ERROR_STILLPLAYING" << std::endl; break;
-			// ( HRESULT, void ) : application
-			case EC_PALETTE_CHANGED: dout << "EC_PALETTE_CHANGED" << std::endl; break;
-			// ( void, void ) : application
-			case EC_VIDEO_SIZE_CHANGED:
-				// the documentation says that this message doesn't get sent in renderless mode.
-				// at least on Vista, the documentation is full of shit.
-				{
-					dout << "EC_VIDEO_SIZE_CHANGED: " << std::dec << LOWORD(param1) << " x " << HIWORD(param1) << std::endl;
-				}
-				break;
-			// ( DWORD, void ) : application
-			// LOWORD of the DWORD is the new width, HIWORD is the new height.
-			case EC_QUALITY_CHANGE: dout << "EC_QUALITY_CHANGE" << std::endl; break;
-			// ( void, void ) : application
-			case EC_SHUTTING_DOWN: dout << "EC_SHUTTING_DOWN" << std::endl; break;
-			// ( void, void ) : internal
-			case EC_CLOCK_CHANGED: dout << "EC_CLOCK_CHANGED" << std::endl; break;
-			// ( void, void ) : application
-			case EC_PAUSED: dout << "EC_PAUSED" << std::endl; break;
-			// ( HRESULT, void ) : application
-			case EC_OPENING_FILE: dout << "EC_OPENING_FILE" << std::endl; break;
-			case EC_BUFFERING_DATA: dout << "EC_BUFFERING_DATA" << std::endl; break;
-			// ( BOOL, void ) : application
-			case EC_FULLSCREEN_LOST: dout << "EC_FULLSCREEN_LOST" << std::endl; break;
-			// ( void, IBaseFilter * ) : application
-			case EC_ACTIVATE: dout << "EC_ACTIVATE" << std::endl; break;
-			// ( BOOL, IBaseFilter * ) : internal
-			case EC_NEED_RESTART: dout << "EC_NEED_RESTART" << std::endl; break;
-			// ( void, void ) : defaulted
-			case EC_WINDOW_DESTROYED: dout << "EC_WINDOW_DESTROYED" << std::endl; break;
-			// ( IBaseFilter *, void ) : internal
-			case EC_DISPLAY_CHANGED: dout << "EC_DISPLAY_CHANGED" << std::endl; break;
-			// ( IPin *, void ) : internal
-			case EC_STARVATION: dout << "EC_STARVATION" << std::endl; break;
-			// ( void, void ) : defaulted
-			case EC_OLE_EVENT: dout << "EC_OLE_EVENT" << std::endl; break;
-			// ( BSTR, BSTR ) : application
-			case EC_NOTIFY_WINDOW: dout << "EC_NOTIFY_WINDOW" << std::endl; break;
-			// ( HWND, void ) : internal
-			case EC_STREAM_CONTROL_STOPPED: dout << "EC_STREAM_CONTROL_STOPPED" << std::endl; break;
-			// ( IPin * pSender, DWORD dwCookie )
-			case EC_STREAM_CONTROL_STARTED: dout << "EC_STREAM_CONTROL_STARTED" << std::endl; break;
-			// ( IPin * pSender, DWORD dwCookie )
-			case EC_END_OF_SEGMENT: dout << "EC_END_OF_SEGMENT" << std::endl; break;
-			// ( const REFERENCE_TIME *pStreamTimeAtEndOfSegment, DWORD dwSegmentNumber )
-			case EC_SEGMENT_STARTED: dout << "EC_SEGMENT_STARTED" << std::endl; break;
-			// ( const REFERENCE_TIME *pStreamTimeAtStartOfSegment, DWORD dwSegmentNumber)
-			case EC_LENGTH_CHANGED: dout << "EC_LENGTH_CHANGED" << std::endl; break;
-			// (void, void)
-			case EC_DEVICE_LOST: dout << "EC_DEVICE_LOST" << std::endl; break;
-			// (IUnknown, 0)
-			case EC_STEP_COMPLETE: dout << "EC_STEP_COMPLETE" << std::endl; break;
-			// (BOOL bCacelled, void)
-			case EC_TIMECODE_AVAILABLE: dout << "EC_TIMECODE_AVAILABLE" << std::endl; break;
-			// Param1 has a pointer to the sending object
-			// Param2 has the device ID of the sending object
-			case EC_EXTDEVICE_MODE_CHANGE: dout << "EC_EXTDEVICE_MODE_CHANGE" << std::endl; break;
-			// Param1 has the new mode
-			// Param2 has the device ID of the sending object
-			case EC_STATE_CHANGE: dout << "EC_STATE_CHANGE" << std::endl; break;
-			// ( FILTER_STATE, BOOL bInternal)
-			case EC_GRAPH_CHANGED: dout << "EC_GRAPH_CHANGED" << std::endl; break;
-			// Sent by filter to notify interesting graph changes
-			case EC_CLOCK_UNSET: dout << "EC_CLOCK_UNSET" << std::endl; break;
-			// ( void, void ) : application
-			case EC_VMR_RENDERDEVICE_SET: dout << "EC_VMR_RENDERDEVICE_SET" << std::endl; break;
-			// (Render_Device type, void)
-			case EC_VMR_SURFACE_FLIPPED: dout << "EC_VMR_SURFACE_FLIPPED" << std::endl; break;
-			// (hr - Flip return code, void)
-			case EC_VMR_RECONNECTION_FAILED: dout << "EC_VMR_RECONNECTION_FAILED" << std::endl; break;
-			// (hr - ReceiveConnection return code, void)
-			case EC_PREPROCESS_COMPLETE: dout << "EC_PREPROCESS_COMPLETE" << std::endl; break;
-			// Param1 = 0, Param2 = IBaseFilter ptr of sending filter
-			case EC_CODECAPI_EVENT: dout << "EC_CODECAPI_EVENT" << std::endl; break;
-			// Param1 = UserDataPointer, Param2 = VOID* Data
-			case EC_WMT_INDEX_EVENT: dout << "EC_WMT_INDEX_EVENT" << std::endl; break;
-			// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
-			// lParam2 is specific to the lParam event
-			case EC_WMT_EVENT: dout << "EC_WMT_EVENT" << std::endl; break;
-			// lParam1 is one of the enum WMT_STATUS messages listed below, sent by the WindowsMedia SDK
-			// lParam2 is a pointer an AM_WMT_EVENT_DATA structure where,
-			//                          hrStatus is the status code sent by the wmsdk
-			//                          pData is specific to the lParam1 event
-			case EC_BUILT: dout << "EC_BUILT" << std::endl; break;
-			// Sent to notify transition from unbuilt to built state
-			case EC_UNBUILT: dout << "EC_UNBUILT" << std::endl; break;
-			// Sent to notify transtion from built to unbuilt state
-			case EC_DVD_DOMAIN_CHANGE: dout << "EC_DVD_DOMAIN_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, void ) 
-			case EC_DVD_TITLE_CHANGE: dout << "EC_DVD_TITLE_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, void ) 
-			case EC_DVD_CHAPTER_START: dout << "EC_DVD_CHAPTER_START" << std::endl; break;
-			// Parameters: ( DWORD, void ) 
-			case EC_DVD_AUDIO_STREAM_CHANGE: dout << "EC_DVD_AUDIO_STREAM_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, void ) 
-			case EC_DVD_SUBPICTURE_STREAM_CHANGE: dout << "EC_DVD_SUBPICTURE_STREAM_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, BOOL ) 
-			case EC_DVD_ANGLE_CHANGE: dout << "EC_DVD_ANGLE_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, DWORD ) 
-			case EC_DVD_BUTTON_CHANGE: dout << "EC_DVD_BUTTON_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, DWORD ) 
-			case EC_DVD_VALID_UOPS_CHANGE: dout << "EC_DVD_VALID_UOPS_CHANGE" << std::endl; break;
-			// Parameters: ( DWORD, void ) 
-			case EC_DVD_STILL_ON: dout << "EC_DVD_STILL_ON" << std::endl; break;
-			// Parameters: ( BOOL, DWORD ) 
-			case EC_DVD_STILL_OFF: dout << "EC_DVD_STILL_OFF" << std::endl; break;
-			// Parameters: ( void, void ) 
-			case EC_DVD_CURRENT_TIME: dout << "EC_DVD_CURRENT_TIME" << std::endl; break;
-			// Parameters: ( DWORD, BOOL ) 
-			case EC_DVD_ERROR: dout << "EC_DVD_ERROR" << std::endl; break;
-			// Parameters: ( DWORD, void) 
-			case EC_DVD_WARNING: dout << "EC_DVD_WARNING" << std::endl; break;
-			// Parameters: ( DWORD, DWORD) 
-			case EC_DVD_CHAPTER_AUTOSTOP: dout << "EC_DVD_CHAPTER_AUTOSTOP" << std::endl; break;
-			// Parameters: (BOOL, void)
-			case EC_DVD_NO_FP_PGC: dout << "EC_DVD_NO_FP_PGC" << std::endl; break;
-			//  Parameters : (void, void)
-			case EC_DVD_PLAYBACK_RATE_CHANGE: dout << "EC_DVD_PLAYBACK_RATE_CHANGE" << std::endl; break;
-			//  Parameters : (LONG, void)
-			case EC_DVD_PARENTAL_LEVEL_CHANGE: dout << "EC_DVD_PARENTAL_LEVEL_CHANGE" << std::endl; break;
-			//  Parameters : (LONG, void)
-			case EC_DVD_PLAYBACK_STOPPED: dout << "EC_DVD_PLAYBACK_STOPPED" << std::endl; break;
-			//  Parameters : (DWORD, void)
-			case EC_DVD_ANGLES_AVAILABLE: dout << "EC_DVD_ANGLES_AVAILABLE" << std::endl; break;
-			//  Parameters : (BOOL, void)
-			case EC_DVD_PLAYPERIOD_AUTOSTOP: dout << "EC_DVD_PLAYPERIOD_AUTOSTOP" << std::endl; break;
-			// Parameters: (void, void)
-			case EC_DVD_BUTTON_AUTO_ACTIVATED: dout << "EC_DVD_BUTTON_AUTO_ACTIVATED" << std::endl; break;
-			// Parameters: (DWORD button, void)
-			case EC_DVD_CMD_START: dout << "EC_DVD_CMD_START" << std::endl; break;
-			// Parameters: (CmdID, HRESULT)
-			case EC_DVD_CMD_END: dout << "EC_DVD_CMD_END" << std::endl; break;
-			// Parameters: (CmdID, HRESULT)
-			case EC_DVD_DISC_EJECTED: dout << "EC_DVD_DISC_EJECTED" << std::endl; break;
-			// Parameters: none
-			case EC_DVD_DISC_INSERTED: dout << "EC_DVD_DISC_INSERTED" << std::endl; break;
-			// Parameters: none
-			case EC_DVD_CURRENT_HMSF_TIME: dout << "EC_DVD_CURRENT_HMSF_TIME" << std::endl; break;
-			// Parameters: ( ULONG, ULONG ) 
-			case EC_DVD_KARAOKE_MODE: dout << "EC_DVD_KARAOKE_MODE" << std::endl; break;
-			// Parameters: ( BOOL, reserved ) 
-			default:
-				dout << "unknown event: " << event_code << std::endl;
-			}
-		}
-	}
-	catch(_com_error& ce)
-	{
-		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	}
-	catch(std::exception& e)
-	{
-		derr << e.what() << std::endl;
-	}
 	return 0;
 }
 
-#if 0
-
-#define IsInterlaced(x) ((x) & AMINTERLACE_IsInterlaced)
-#define IsSingleField(x) ((x) & AMINTERLACE_1FieldPerSample)
-#define IsField1First(x) ((x) & AMINTERLACE_Field1First)
-
-VMR9_SampleFormat ConvertInterlaceFlags(DWORD dwInterlaceFlags)
+size_t awkawk::do_rwnd()
 {
-	if(IsInterlaced(dwInterlaceFlags))
-	{
-		if(IsSingleField(dwInterlaceFlags))
-		{
-			if(IsField1First(dwInterlaceFlags))
-			{
-				return VMR9_SampleFieldSingleEven;
-			}
-			else
-			{
-				return VMR9_SampleFieldSingleOdd;
-			}
-		}
-		else
-		{
-			if(IsField1First(dwInterlaceFlags))
-			{
-				return VMR9_SampleFieldInterleavedEvenFirst;
-			}
-			else
-			{
-				return VMR9_SampleFieldInterleavedOddFirst;
-			}
-		}
-	}
-	else
-	{
-		return VMR9_SampleProgressiveFrame;  // Not interlaced.
-	}
+	return 0;
 }
 
-
-		if(mt.majortype == MEDIATYPE_Video && mt.formattype == FORMAT_VideoInfo2)
-		{
-			VIDEOINFOHEADER2* info(reinterpret_cast<VIDEOINFOHEADER2*>(mt.pbFormat));
-			switch(ConvertInterlaceFlags(info->dwInterlaceFlags))
-			{
-			case VMR9_SampleProgressiveFrame:
-				dout << "Progressive" << std::endl;
-				break;
-			case VMR9_SampleFieldInterleavedEvenFirst:
-			case VMR9_SampleFieldInterleavedOddFirst:
-			case VMR9_SampleFieldSingleEven:
-			case VMR9_SampleFieldSingleOdd:
-				dout << "Interlaced" << std::endl;
-				{
-					BITMAPINFOHEADER* bmi(&(info->bmiHeader));
-					VMR9VideoDesc desc = { sizeof(VMR9VideoDesc) };
-					desc.dwSampleWidth = bmi->biWidth;
-					desc.dwSampleHeight = std::abs(bmi->biHeight);
-					desc.SampleFormat = ConvertInterlaceFlags(info->dwInterlaceFlags);
-					desc.InputSampleFreq.dwNumerator = 10000000;
-					desc.InputSampleFreq.dwDenominator = info->AvgTimePerFrame;
-					desc.OutputFrameFreq.dwNumerator = desc.InputSampleFreq.dwNumerator * 2;
-					desc.OutputFrameFreq.dwDenominator = desc.InputSampleFreq.dwDenominator;
-					desc.dwFourCC = bmi->biCompression;
-					DWORD num_modes(0);
-					IVMRDeinterlaceControl9Ptr di_control;
-					vmr9->QueryInterface(&di_control);
-					di_control->GetNumberOfDeinterlaceModes(&desc, &num_modes, NULL);
-					boost::scoped_array<GUID> guids(new GUID[num_modes]);
-					dout << "num_modes: " << num_modes << std::endl;
-					di_control->GetNumberOfDeinterlaceModes(&desc, &num_modes, guids.get());
-					for(DWORD i(0); i < num_modes; ++i)
-					{
-						VMR9DeinterlaceCaps caps = { sizeof(VMR9DeinterlaceCaps) };
-						di_control->GetDeinterlaceModeCaps(&(guids[i]), &desc, &caps);
-						dout << guids[i] << std::endl;
-					}
-				}
-				break;
-			}
-		}
-#endif
+size_t awkawk::do_ffwd()
+{
+	return 0;
+}
