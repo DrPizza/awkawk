@@ -26,6 +26,7 @@
 #include "stdafx.h"
 #include "util.h"
 
+#include "state_machine.h"
 #include "player_playlist.h"
 #include "player_window.h"
 #include "player_scene.h"
@@ -33,27 +34,54 @@
 
 struct player_direct_show;
 
+_COM_SMARTPTR_TYPEDEF(IBaseFilter, __uuidof(IBaseFilter));
+
 struct awkawk : boost::noncopyable
 {
 	awkawk();
 	~awkawk();
 
-	enum event
+	enum awkawk_state
+	{
+		unloaded,
+		stopped,
+		paused,
+		playing,
+		max_awkawk_states
+	};
+
+	std::string state_name(awkawk_state st) const
+	{
+		switch(st)
+		{
+		case unloaded:
+			return "unloaded";
+		case stopped:
+			return "stopped";
+		case paused:
+			return "paused";
+		case playing:
+			return "playing";
+		}
+		return "error";
+	}
+
+	enum awkawk_event
 	{
 		load,
 		stop,
 		pause,
 		play,
 		unload,
-		ending,
+		transitioning,
 		previous,
 		next,
 		rwnd,
 		ffwd,
-		max_events
+		max_awkawk_events
 	};
 
-	std::string event_name(event evt) const
+	std::string event_name(awkawk_event evt) const
 	{
 		switch(evt)
 		{
@@ -67,8 +95,8 @@ struct awkawk : boost::noncopyable
 			return"play";
 		case unload:
 			return"unload";
-		case ending:
-			return"ending";
+		case transitioning:
+			return"transitioning";
 		case previous:
 			return"previous";
 		case next:
@@ -81,9 +109,30 @@ struct awkawk : boost::noncopyable
 		return "(not an event)";
 	}
 
-	void post_message(event evt);
-	void send_message(event evt);
-	bool permitted(event evt);
+	typedef transition<awkawk, awkawk_state> transition_type;
+	typedef event_handler<awkawk, awkawk_state, awkawk_event> event_handler_type;
+
+	static const transition_type transitions[max_awkawk_states][max_awkawk_events];
+
+	awkawk_state send_message(awkawk_event evt)
+	{
+		return handler->send_message(evt);
+	}
+
+	void post_message(awkawk_event evt)
+	{
+		return handler->post_message(evt);
+	}
+
+	awkawk_state process_message(DWORD message)
+	{
+		return handler->process_message(message);
+	}
+
+	bool permitted(awkawk_event evt) const
+	{
+		return handler->permitted(evt);
+	}
 
 	size_t do_load();
 	size_t do_stop();
@@ -91,7 +140,7 @@ struct awkawk : boost::noncopyable
 	size_t do_resume();
 	size_t do_play();
 	size_t do_unload();
-	size_t do_ending();
+	size_t do_transition();
 	size_t do_previous();
 	size_t do_next();
 	size_t do_rwnd();
@@ -109,14 +158,6 @@ struct awkawk : boost::noncopyable
 	void destroy_device();
 	void reset_device();
 	bool needs_display_change() const;
-
-	std::auto_ptr<player_direct_show> dshow;
-	std::auto_ptr<player_playlist> plist;
-
-	void set_filename(const std::wstring& name)
-	{
-		scene->set_filename(name);
-	}
 
 	void set_cursor_position(const POINT& pos)
 	{
@@ -547,8 +588,63 @@ struct awkawk : boost::noncopyable
 		return scene_device;
 	}
 
+	awkawk_state get_awkawk_state() const { return current_state; }
+	awkawk_state get_current_state() const { return current_state; }
+	void set_current_state(awkawk_state st) { current_state = st; }
+
+	void add_file(const std::wstring& path)
+	{
+		plist->add_file(path);
+	}
+
+	void clear_files()
+	{
+		plist->clear_files();
+	}
+
+	player_playlist::play_mode get_playmode() const
+	{
+		return plist->get_playmode();
+	}
+
+	void set_playmode(player_playlist::play_mode pm)
+	{
+		plist->set_playmode(pm);
+	}
+
+	std::wstring get_file_name() const
+	{
+		return plist->get_file_name();
+	}
+
+	void open_single_file(const std::wstring& path)
+	{
+		if(get_current_state() != unloaded)
+		{
+			if(get_current_state() != stopped)
+			{
+				send_message(stop);
+			}
+			send_message(unload);
+			plist->clear_files();
+		}
+		plist->add_file(path);
+		post_message(load);
+		post_message(play);
+	}
+
+	float get_volume() const;
+	void set_linear_volume(float vol);
+	void set_playback_position(float pos);
+	float get_play_time() const;
+	std::vector<CAdapt<IBaseFilterPtr> > get_filters() const;
+
 private:
-	::tm convert_win32_time(LONGLONG w32Time);
+	awkawk_state current_state;
+	std::auto_ptr<event_handler_type> handler;
+
+	std::auto_ptr<player_playlist> plist;
+	std::auto_ptr<player_direct_show> dshow;
 
 	// rendering
 	HANDLE render_timer;

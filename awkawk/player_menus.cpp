@@ -46,7 +46,7 @@ void awkawk_mode_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL win
 	::EnableMenuItem(get_menu(), IDM_PLAYMODE_REPEATTRACK, MF_ENABLED);
 	//::EnableMenuItem(playmode_menu, IDM_PLAYMODE_SHUFFLE, MF_ENABLED);
 	::EnableMenuItem(get_menu(), IDM_PLAYMODE_SHUFFLE, MF_GRAYED);
-	::CheckMenuRadioItem(get_menu(), IDM_PLAYMODE_NORMAL, IDM_PLAYMODE_SHUFFLE, player->plist->get_playmode(), MF_BYCOMMAND);
+	::CheckMenuRadioItem(get_menu(), IDM_PLAYMODE_NORMAL, IDM_PLAYMODE_SHUFFLE, player->get_playmode(), MF_BYCOMMAND);
 }
 
 LRESULT CALLBACK awkawk_size_menu::message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
@@ -128,7 +128,7 @@ LRESULT CALLBACK awkawk_filter_menu::message_proc(HWND window, UINT message, WPA
 		{
 			if(HIWORD(wParam) == 0
 			&& LOWORD(wParam) >= filter_menu_base
-			&& LOWORD(wParam) <  filter_menu_base + player->dshow->get_filters().size())
+			&& LOWORD(wParam) <  filter_menu_base + player->get_filters().size())
 			{
 				handled = true;
 				return HANDLE_WM_COMMAND(window, wParam, lParam, onCommand);
@@ -143,7 +143,7 @@ void awkawk_filter_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL w
 {
 	if(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop))
 	{
-		std::vector<CAdapt<IBaseFilterPtr> > filters(player->dshow->get_filters());
+		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 		UINT flt_id(filter_menu_base);
 		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
 		{
@@ -185,7 +185,7 @@ void awkawk_filter_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
 void awkawk_filter_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
 {
 	size_t chosen(id - filter_menu_base);
-	std::vector<CAdapt<IBaseFilterPtr> > filters(player->dshow->get_filters());
+	std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 	IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
 	FILTER_INFO fi = {0};
 	filter->QueryFilterInfo(&fi);

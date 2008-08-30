@@ -102,18 +102,7 @@ void player_window::open_single_file(const std::wstring& path)
 		std::copy(path.begin(), path.end(), buffer.get());
 		::PathStripPathW(buffer.get());
 		set_window_text(buffer.get());
-		if(player->dshow->get_graph_state() != player_direct_show::unloaded)
-		{
-			if(player->dshow->get_graph_state() != player_direct_show::stopped)
-			{
-				player->send_message(awkawk::stop);
-			}
-			player->send_message(awkawk::unload);
-			player->plist->clear_files();
-		}
-		player->plist->add_file(path);
-		player->post_message(awkawk::load);
-		player->post_message(awkawk::play);
+		player->open_single_file(path);
 	}
 }
 
@@ -353,7 +342,7 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 				set_window_text(app_title.c_str());
 				player->send_message(awkawk::stop);
 				player->send_message(awkawk::unload);
-				player->plist->clear_files();
+				player->clear_files();
 			}
 			break;
 		case IDM_EXIT:
@@ -371,16 +360,16 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			break;
 			// mode menu
 		case IDM_PLAYMODE_NORMAL:
-			player->plist->set_playmode(player_playlist::normal);
+			player->set_playmode(player_playlist::normal);
 			break;
 		case IDM_PLAYMODE_REPEATALL:
-			player->plist->set_playmode(player_playlist::repeat_all);
+			player->set_playmode(player_playlist::repeat_all);
 			break;
 		case IDM_PLAYMODE_REPEATTRACK:
-			player->plist->set_playmode(player_playlist::repeat_single);
+			player->set_playmode(player_playlist::repeat_single);
 			break;
 		case IDM_PLAYMODE_SHUFFLE:
-			player->plist->set_playmode(player_playlist::shuffle);
+			player->set_playmode(player_playlist::shuffle);
 			break;
 			// size menu
 		case IDM_SIZE_50:
@@ -423,14 +412,14 @@ void player_window::onContextMenu(HWND, HWND, UINT x, UINT y)
 
 void player_window::onDestroy(HWND)
 {
-	if(player->dshow->get_graph_state() != player_direct_show::unloaded)
+	if(player->get_current_state() != awkawk::unloaded)
 	{
-		if(player->dshow->get_graph_state() != player_direct_show::stopped)
+		if(player->get_current_state() != awkawk::stopped)
 		{
 			player->send_message(awkawk::stop);
 		}
 		player->send_message(awkawk::unload);
-		player->plist->clear_files();
+		player->clear_files();
 	}
 	player->stop_rendering();
 	::RevokeDragDrop(get_window());

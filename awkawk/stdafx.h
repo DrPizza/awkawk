@@ -112,8 +112,6 @@
 
 using namespace ATL;
 
-// TODO: reference additional headers your program requires here
-
 #include <boost/scoped_array.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/shared_ptr.hpp>

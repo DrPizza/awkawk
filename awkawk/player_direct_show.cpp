@@ -23,56 +23,44 @@
 #include "player_direct_show.h"
 #include "awkawk.h"
 
-const player_direct_show::transition_type player_direct_show::transitions[player_direct_show::max_graph_states][awkawk::max_events] =
+const player_direct_show::transition_type player_direct_show::transitions[player_direct_show::max_graph_states][player_direct_show::max_graph_events] =
 {
 /* state    | event         | handler                         | exit states */
 /* ------------------- */ {
-/* unloaded | load     */   { &player_direct_show::do_load    , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
-/*          | stop     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | pause    */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | play     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | unload   */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ending   */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | previous */   { &player_direct_show::do_previous, player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | next     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | rwnd     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ffwd     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               }
+/* unloaded | load     */   { &player_direct_show::do_load      , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
+/*          | stop     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | pause    */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | play     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | unload   */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | rwnd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | ffwd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               }
                           },
                           {
-/* stopped  | load     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | stop     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | pause    */   { &player_direct_show::do_play    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | play     */   { &player_direct_show::do_play    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | unload   */   { &player_direct_show::do_unload  , player_direct_show::transition_type::state_array() << player_direct_show::unloaded                                                               },
-/*          | ending   */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | previous */   { &player_direct_show::do_previous, player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | next     */   { &player_direct_show::do_next    , player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | rwnd     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ffwd     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               }
+/* stopped  | load     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | stop     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | pause    */   { &player_direct_show::do_play      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
+/*          | play     */   { &player_direct_show::do_play      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
+/*          | unload   */   { &player_direct_show::do_unload    , player_direct_show::transition_type::state_array() << player_direct_show::unloaded                                                               },
+/*          | rwnd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | ffwd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               }
                           },
                           {
-/* paused   | load     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | stop     */   { &player_direct_show::do_stop    , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
-/*          | pause    */   { &player_direct_show::do_resume  , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | play     */   { &player_direct_show::do_resume  , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | unload   */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ending   */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | previous */   { &player_direct_show::do_previous, player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | next     */   { &player_direct_show::do_next    , player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | rwnd     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ffwd     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               }
+/* paused   | load     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | stop     */   { &player_direct_show::do_stop      , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
+/*          | pause    */   { &player_direct_show::do_resume    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
+/*          | play     */   { &player_direct_show::do_resume    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
+/*          | unload   */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | rwnd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | ffwd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               }
                           },
                           {
-/* playing  | load     */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | stop     */   { &player_direct_show::do_stop    , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
-/*          | pause    */   { &player_direct_show::do_pause   , player_direct_show::transition_type::state_array() << player_direct_show::paused                                                                 },
-/*          | play     */   { &player_direct_show::do_pause   , player_direct_show::transition_type::state_array() << player_direct_show::paused                                                                 },
-/*          | unload   */   { NULL                            , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ending   */   { &player_direct_show::do_ending  , player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | previous */   { &player_direct_show::do_previous, player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | next     */   { &player_direct_show::do_next    , player_direct_show::transition_type::state_array() << player_direct_show::unloaded << player_direct_show::stopped << player_direct_show::playing },
-/*          | rwnd     */   { &player_direct_show::do_rwnd    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | ffwd     */   { &player_direct_show::do_ffwd    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                }
+/* playing  | load     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | stop     */   { &player_direct_show::do_stop      , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
+/*          | pause    */   { &player_direct_show::do_pause     , player_direct_show::transition_type::state_array() << player_direct_show::paused                                                                 },
+/*          | play     */   { &player_direct_show::do_pause     , player_direct_show::transition_type::state_array() << player_direct_show::paused                                                                 },
+/*          | unload   */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
+/*          | rwnd     */   { &player_direct_show::do_rwnd      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
+/*          | ffwd     */   { &player_direct_show::do_ffwd      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                }
                           }
 };
 
@@ -87,14 +75,12 @@ size_t player_direct_show::do_stop()
 		FAIL_THROW(media_control->Stop());
 		media_control->GetState(0, &movie_state);
 	}
-	player->get_ui()->set_on_top(false);
 	return 0;
 }
 
 size_t player_direct_show::do_play()
 {
 	LOCK(graph_cs);
-	player->get_ui()->set_on_top(true);
 	FAIL_THROW(media_control->Run());
 	return 0;
 }
@@ -127,69 +113,10 @@ size_t player_direct_show::do_ffwd()
 	return 0;
 }
 
-size_t player_direct_show::do_next()
-{
-	if(player->plist->empty())
-	{
-		return 0;
-	}
-	LOCK(graph_cs);
-	graph_state initial_state(get_graph_state());
-	if(initial_state != unloaded)
-	{
-		process_message(awkawk::stop);
-		LONGLONG current(0);
-		seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-		process_message(awkawk::unload);
-	}
-
-	player->plist->do_next();
-
-	if(!player->plist->after_end())
-	{
-		process_message(awkawk::load);
-		if(initial_state == playing)
-		{
-			process_message(awkawk::play);
-			return 2;
-		}
-		return 1;
-	}
-	return 0;
-}
-
 size_t player_direct_show::do_rwnd()
 {
 	LOCK(graph_cs);
 	// TODO write rwnd code
-	return 0;
-}
-
-size_t player_direct_show::do_previous()
-{
-	if(player->plist->empty())
-	{
-		return 0;
-	}
-	LOCK(graph_cs);
-	graph_state initial_state(get_graph_state());
-	if(initial_state != unloaded)
-	{
-		process_message(awkawk::stop);
-		process_message(awkawk::unload);
-	}
-	player->plist->do_previous();
-
-	if(!player->plist->before_start())
-	{
-		process_message(awkawk::load);
-		if(initial_state == playing)
-		{
-			process_message(awkawk::play);
-			return 2;
-		}
-		return 1;
-	}
 	return 0;
 }
 
@@ -199,7 +126,6 @@ size_t player_direct_show::do_load()
 	LOCK(graph_cs);
 	try
 	{
-		player->set_filename(player->plist->get_file_name());
 		create_graph();
 	}
 	catch(_com_error& ce)
@@ -215,7 +141,6 @@ size_t player_direct_show::do_unload()
 	LONGLONG current(0);
 	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
 	destroy_graph();
-	player->set_filename(L"");
 	has_video = false;
 	return 0;
 }
@@ -243,11 +168,11 @@ void player_direct_show::destroy_graph()
 	vmr9 = NULL;
 	audio = NULL;
 	video = NULL;
+	has_video = false;
 
 	player->set_render_fps(25);
 	player->schedule_render();
 
-	has_video = false;
 }
 
 void player_direct_show::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
@@ -393,7 +318,7 @@ void player_direct_show::create_graph()
 
 	FAIL_THROW(graph->AddFilter(vmr9, L"Video Mixing Renderer 9"));
 
-	_bstr_t current_item(player->plist->get_file_name().c_str());
+	_bstr_t current_item(player->get_file_name().c_str());
 	const HRESULT render_result(graph->RenderFile(current_item, NULL));
 	switch(render_result)
 	{
@@ -492,29 +417,6 @@ void player_direct_show::unregister_graph(void)
 	rot->Revoke(rot_key);
 }
 
-size_t player_direct_show::do_ending()
-{
-	if(player->plist->empty())
-	{
-		return 0;
-	}
-	LOCK(graph_cs);
-
-	process_message(awkawk::stop);
-	LONGLONG current(0);
-	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-	process_message(awkawk::unload);
-	player->plist->do_transition();
-
-	if(!player->plist->after_end())
-	{
-		process_message(awkawk::load);
-		process_message(awkawk::play);
-		return 2;
-	}
-	return 0;
-}
-
 DWORD player_direct_show::media_event_thread_proc(void*)
 {
 	try
@@ -532,7 +434,7 @@ DWORD player_direct_show::media_event_thread_proc(void*)
 			case EC_COMPLETE:
 				{
 					dout << "EC_COMPLETE" << std::endl;
-					player->post_message(awkawk::ending);
+					player->post_message(awkawk::transitioning);
 				}
 				break;
 			// ( HRESULT, void ) : defaulted (special)

@@ -389,86 +389,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\utility\debugstream.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-						ObjectFile="$(IntDir)\$(InputName)1.obj"
-						XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath=".\utility\locks.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath=".\main.cpp"
 				>
 			</File>
@@ -552,6 +472,90 @@
 				RelativePath=".\util.cpp"
 				>
 			</File>
+			<Filter
+				Name="utility"
+				>
+				<File
+					RelativePath=".\utility\debugstream.cpp"
+					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+							ObjectFile="$(IntDir)\$(InputName)1.obj"
+							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Debug|x64"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+							ObjectFile="$(IntDir)\$(InputName)1.obj"
+							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Release|Win32"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+							ObjectFile="$(IntDir)\$(InputName)1.obj"
+							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Release|x64"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+							ObjectFile="$(IntDir)\$(InputName)1.obj"
+							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
+						/>
+					</FileConfiguration>
+				</File>
+				<File
+					RelativePath=".\utility\locks.cpp"
+					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Debug|x64"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Release|Win32"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Release|x64"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+							UsePrecompiledHeader="0"
+						/>
+					</FileConfiguration>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -568,34 +572,6 @@
 			</File>
 			<File
 				RelativePath=".\components.h"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\debug.hpp"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\debugstream.hpp"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\formattime.hpp"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\iomanip.hpp"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\iterator.hpp"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\locking_stream.hpp"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\locks.hpp"
 				>
 			</File>
 			<File
@@ -639,19 +615,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\loki\ScopeGuardExt.h"
-				>
-			</File>
-			<File
 				RelativePath=".\state_machine.h"
 				>
 			</File>
 			<File
 				RelativePath=".\stdafx.h"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\string.hpp"
 				>
 			</File>
 			<File
@@ -663,15 +631,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\utility\threads.hpp"
-				>
-			</File>
-			<File
 				RelativePath=".\util.h"
-				>
-			</File>
-			<File
-				RelativePath=".\utility\utility.hpp"
 				>
 			</File>
 			<File
@@ -690,6 +650,58 @@
 				RelativePath=".\xml_playlist.h"
 				>
 			</File>
+			<Filter
+				Name="utility"
+				>
+				<File
+					RelativePath=".\utility\debug.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\debugstream.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\formattime.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\iomanip.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\iterator.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\locking_stream.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\locks.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\string.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\threads.hpp"
+					>
+				</File>
+				<File
+					RelativePath=".\utility\utility.hpp"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="loki"
+				>
+				<File
+					RelativePath=".\loki\ScopeGuardExt.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Resource Files"

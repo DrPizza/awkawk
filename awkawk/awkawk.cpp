@@ -24,9 +24,64 @@
 #include "text.h"
 #include "player_direct_show.h"
 
+const awkawk::transition_type awkawk::transitions[awkawk::max_awkawk_states][awkawk::max_awkawk_events] =
+{
+/* state    | event              | handler             | exit states */
+/* ------------------------ */ {
+/* unloaded | load          */   { &awkawk::do_load      , awkawk::transition_type::state_array() << awkawk::stopped                                        },
+/*          | stop          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | pause         */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | play          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | unload        */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | transitioning */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | next          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | rwnd          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | ffwd          */   { NULL                  , awkawk::transition_type::state_array()                                                           }
+                          },
+                          {
+/* stopped  | load          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | stop          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | pause         */   { &awkawk::do_play      , awkawk::transition_type::state_array() << awkawk::playing                                        },
+/*          | play          */   { &awkawk::do_play      , awkawk::transition_type::state_array() << awkawk::playing                                        },
+/*          | unload        */   { &awkawk::do_unload    , awkawk::transition_type::state_array() << awkawk::unloaded                                       },
+/*          | transitioning */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | next          */   { &awkawk::do_next      , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | rwnd          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | ffwd          */   { NULL                  , awkawk::transition_type::state_array()                                                           }
+                          },
+                          {
+/* paused   | load          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | stop          */   { &awkawk::do_stop      , awkawk::transition_type::state_array() << awkawk::stopped                                        },
+/*          | pause         */   { &awkawk::do_resume    , awkawk::transition_type::state_array() << awkawk::playing                                        },
+/*          | play          */   { &awkawk::do_resume    , awkawk::transition_type::state_array() << awkawk::playing                                        },
+/*          | unload        */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | transitioning */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | next          */   { &awkawk::do_next      , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | rwnd          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | ffwd          */   { NULL                  , awkawk::transition_type::state_array()                                                           }
+                          },
+                          {
+/* playing  | load          */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | stop          */   { &awkawk::do_stop      , awkawk::transition_type::state_array() << awkawk::stopped                                        },
+/*          | pause         */   { &awkawk::do_pause     , awkawk::transition_type::state_array() << awkawk::paused                                         },
+/*          | play          */   { &awkawk::do_pause     , awkawk::transition_type::state_array() << awkawk::paused                                         },
+/*          | unload        */   { NULL                  , awkawk::transition_type::state_array()                                                           },
+/*          | transitioning */   { &awkawk::do_transition, awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | next          */   { &awkawk::do_next      , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
+/*          | rwnd          */   { &awkawk::do_rwnd      , awkawk::transition_type::state_array() << awkawk::playing                                        },
+/*          | ffwd          */   { &awkawk::do_ffwd      , awkawk::transition_type::state_array() << awkawk::playing                                        }
+                          }
+};
+
 awkawk::awkawk() : ui(new player_window(this)),
                    dshow(new player_direct_show(this)),
                    plist(new player_playlist()),
+                   current_state(unloaded),
+                   handler(new event_handler_type(this)),
                    render_thread(0),
                    fullscreen(false),
                    chosen_ar(0),
@@ -56,21 +111,6 @@ awkawk::awkawk() : ui(new player_window(this)),
 awkawk::~awkawk()
 {
 	dshow.reset();
-}
-
-void awkawk::post_message(event evt)
-{
-	return dshow->post_message(evt);
-}
-
-void awkawk::send_message(event evt)
-{
-	return dshow->send_message(evt);
-}
-
-bool awkawk::permitted(awkawk::event evt)
-{
-	return dshow->permitted(evt);
 }
 
 void awkawk::create_d3d()
@@ -108,19 +148,6 @@ void awkawk::create_d3d()
 void awkawk::destroy_d3d()
 {
 	d3d = NULL;
-}
-
-::tm awkawk::convert_win32_time(LONGLONG w32Time)
-{
-	::tm t = {0};
-	t.tm_isdst = 0;
-	w32Time /= 10 * 1000 * 1000; // 10,000,000 win32 ticks per second
-	t.tm_sec = static_cast<int>(w32Time % 60);
-	w32Time /= 60;
-	t.tm_min = static_cast<int>(w32Time % 60);
-	w32Time /= 60;
-	t.tm_hour = static_cast<int>(w32Time);
-	return t;
 }
 
 void awkawk::create_ui(int cmd_show)
@@ -405,55 +432,167 @@ DWORD awkawk::render_thread_proc(void*)
 
 size_t awkawk::do_load()
 {
+	scene->set_filename(plist->get_file_name());
+	dshow->send_message(player_direct_show::load);
 	return 0;
 }
 
 size_t awkawk::do_stop()
 {
+	get_ui()->set_on_top(false);
+	dshow->send_message(player_direct_show::stop);
 	return 0;
 }
 
 size_t awkawk::do_pause()
 {
+	dshow->send_message(player_direct_show::pause);
 	return 0;
 }
 
 size_t awkawk::do_resume()
 {
+	dshow->send_message(player_direct_show::pause);
 	return 0;
 }
 
 size_t awkawk::do_play()
 {
+	get_ui()->set_on_top(true);
+	dshow->send_message(player_direct_show::play);
 	return 0;
 }
 
 size_t awkawk::do_unload()
 {
+	scene->set_filename(L"");
+	dshow->send_message(player_direct_show::unload);
 	return 0;
 }
 
-size_t awkawk::do_ending()
+size_t awkawk::do_transition()
 {
+	if(plist->empty())
+	{
+		return 0;
+	}
+	awkawk_state initial_state(get_current_state());
+	if(unloaded != initial_state)
+	{
+		if(stopped != initial_state)
+		{
+			process_message(stop);
+		}
+		process_message(unload);
+	}
+	plist->do_transition();
+
+	if(!plist->after_end())
+	{
+		process_message(load);
+		if(initial_state == playing)
+		{
+			process_message(play);
+			return 2;
+		}
+		return 1;
+	}
 	return 0;
 }
 
 size_t awkawk::do_previous()
 {
+	if(plist->empty())
+	{
+		return 0;
+	}
+	awkawk_state initial_state(get_current_state());
+	if(unloaded != initial_state)
+	{
+		if(stopped != initial_state)
+		{
+			process_message(stop);
+		}
+		process_message(unload);
+	}
+	plist->do_previous();
+
+	if(!plist->after_end())
+	{
+		process_message(load);
+		if(initial_state == playing)
+		{
+			process_message(play);
+			return 2;
+		}
+		return 1;
+	}
 	return 0;
 }
 
 size_t awkawk::do_next()
 {
+	if(plist->empty())
+	{
+		return 0;
+	}
+	awkawk_state initial_state(get_current_state());
+	if(unloaded != initial_state)
+	{
+		if(stopped != initial_state)
+		{
+			process_message(stop);
+		}
+		process_message(unload);
+	}
+	plist->do_next();
+
+	if(!plist->after_end())
+	{
+		process_message(load);
+		if(initial_state == playing)
+		{
+			process_message(play);
+			return 2;
+		}
+		return 1;
+	}
 	return 0;
 }
 
 size_t awkawk::do_rwnd()
 {
+	dshow->send_message(player_direct_show::rwnd);
 	return 0;
 }
 
 size_t awkawk::do_ffwd()
 {
+	dshow->send_message(player_direct_show::ffwd);
 	return 0;
+}
+
+float awkawk::get_volume() const
+{
+	return dshow->get_volume();
+}
+
+void awkawk::set_linear_volume(float vol)
+{
+	dshow->set_linear_volume(vol);
+}
+
+void awkawk::set_playback_position(float pos)
+{
+	dshow->set_playback_position(pos);
+}
+
+float awkawk::get_play_time() const
+{
+	return dshow->get_play_time();
+}
+
+std::vector<CAdapt<IBaseFilterPtr> > awkawk::get_filters() const
+{
+	return dshow->get_filters();
 }
