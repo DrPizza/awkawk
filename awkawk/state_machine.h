@@ -71,7 +71,7 @@ struct event_handler
 		return handler_type::transitions[handler->get_current_state()][evt].next_states.length != 0;
 	}
 
-	void process_message(message_type evt)
+	state_type process_message(message_type evt)
 	{
 		if(permitted(evt))
 		{
@@ -81,31 +81,33 @@ struct event_handler
 		}
 		else
 		{
-			dout << "the event " << evt << /*player->event_name(evt) << */ " is not permitted in state " << handler->state_name(handler->get_current_state()) << std::endl;
+			dout << "the event " << handler->event_name(evt) << " is not permitted in state " << handler->state_name(handler->get_current_state()) << std::endl;
 		}
+		return handler->get_current_state();
 	}
 
-	void process_message(DWORD evt)
+	state_type process_message(DWORD evt)
 	{
 		return process_message(static_cast<message_type>(evt));
 	}
 
 	void post_message(message_type evt)
 	{
-		dout << "posting " << evt << /*event_name(evt) << */ " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		dout << "posting " << handler->event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
 		::PostQueuedCompletionStatus(message_port, static_cast<DWORD>(evt), 0, NULL);
-		dout << "posted " << evt << /*event_name(evt) << */ " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		dout << "posted " << handler->event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
 	}
 
-	void send_message(message_type evt)
+	state_type send_message(message_type evt)
 	{
 		OVERLAPPED o = {0};
 		o.hEvent = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 		ON_BLOCK_EXIT(&::CloseHandle, o.hEvent);
-		dout << "sending " << evt << /*event_name(evt) << */ " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		dout << "sending " << handler->event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
 		::PostQueuedCompletionStatus(message_port, static_cast<DWORD>(evt), 0, &o);
 		::WaitForSingleObject(o.hEvent, INFINITE);
-		dout << "sent " << evt << /*event_name(evt) << */ " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		dout << "sent " << handler->event_name(evt) << " (" << std::hex << WM_USER + evt << ")" << std::endl;
+		return static_cast<state_type>(reinterpret_cast<size_t>(o.Pointer));
 	}
 
 private:
@@ -125,9 +127,10 @@ private:
 			{
 			case 0:
 				{
-					process_message(message);
+					state_type new_state(process_message(message));
 					if(overlapped != NULL)
 					{
+						overlapped->Pointer = reinterpret_cast<void*>(static_cast<size_t>(new_state));
 						::SetEvent(overlapped->hEvent);
 					}
 				}

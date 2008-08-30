@@ -58,12 +58,46 @@ struct player_direct_show : device_loss_handler, boost::noncopyable
 		max_graph_states
 	};
 
+	enum graph_event
+	{
+		load,
+		stop,
+		pause,
+		play,
+		unload,
+		rwnd,
+		ffwd,
+		max_graph_events
+	};
+
+	std::string event_name(graph_event evt) const
+	{
+		switch(evt)
+		{
+		case load:
+			return"load";
+		case stop:
+			return"stop";
+		case pause:
+			return"pause";
+		case play:
+			return"play";
+		case unload:
+			return"unload";
+		case rwnd:
+			return"rwnd";
+		case ffwd:
+			return"ffwd";
+		}
+		return "(not an event)";
+	}
+
 	typedef transition<player_direct_show, graph_state> transition_type;
-	typedef event_handler<player_direct_show, graph_state, awkawk::event> event_handler_type;
+	typedef event_handler<player_direct_show, graph_state, graph_event> event_handler_type;
 
-	static const transition_type transitions[max_graph_states][awkawk::max_events];
+	static const transition_type transitions[max_graph_states][max_graph_events];
 
-	bool permitted(awkawk::event evt) const
+	bool permitted(graph_event evt) const
 	{
 		return handler->permitted(evt);
 	}
@@ -110,17 +144,17 @@ struct player_direct_show : device_loss_handler, boost::noncopyable
 		graph = NULL;
 	}
 
-	void send_message(awkawk::event evt)
+	graph_state send_message(graph_event evt)
 	{
 		return handler->send_message(evt);
 	}
 
-	void post_message(awkawk::event evt)
+	void post_message(graph_event evt)
 	{
 		return handler->post_message(evt);
 	}
 
-	void process_message(DWORD message)
+	graph_state process_message(DWORD message)
 	{
 		return handler->process_message(message);
 	}
@@ -152,7 +186,7 @@ struct player_direct_show : device_loss_handler, boost::noncopyable
 		return state;
 	}
 
-	std::vector<CAdapt<IBaseFilterPtr> > get_filters() // const
+	std::vector<CAdapt<IBaseFilterPtr> > get_filters() const
 	{
 		std::vector<CAdapt<IBaseFilterPtr> > rv;
 		IEnumFiltersPtr filtEn;
@@ -348,9 +382,6 @@ private:
 	size_t do_resume();
 	size_t do_play();
 	size_t do_unload();
-	size_t do_ending();
-	size_t do_previous();
-	size_t do_next();
 	size_t do_rwnd();
 	size_t do_ffwd();
 
