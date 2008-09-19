@@ -21,14 +21,18 @@
 #include "stdafx.h"
 #include "util.h"
 
-#ifdef DEBUG
-utility::locking_ostream<char> dout(std::cout);
-utility::locking_ostream<wchar_t> wdout(std::wcout);
-utility::locking_ostream<char> derr(std::cerr);
-utility::locking_ostream<wchar_t> wderr(std::wcerr);
-#else
-utility::locking_ostream<char> dout(utility::dout);
-utility::locking_ostream<wchar_t> wdout(utility::wdout);
-utility::locking_ostream<char> derr(utility::dout);
-utility::locking_ostream<wchar_t> wderr(utility::wdout);
-#endif
+//#ifdef DEBUG
+//utility::basic_locking_ostream<char> dout(std::cout);
+//utility::basic_locking_ostream<wchar_t> wdout(std::wcout);
+//utility::basic_locking_ostream<char> derr(std::cerr);
+//utility::basic_locking_ostream<wchar_t> wderr(std::wcerr);
+//#else
+//utility::locking_ostream& dout(utility::locked_dout);
+//utility::wlocking_ostream& wdout(utility::locked_wdout);
+//utility::locking_ostream& derr(utility::locked_dout);
+//utility::wlocking_ostream& wderr(utility::locked_wdout);
+//#endif
+utility::locking_ostream& dout = DebugStreams::Instance().locked_dout;
+utility::wlocking_ostream& wdout = DebugStreams::Instance().locked_wdout;
+utility::locking_ostream& derr = DebugStreams::Instance().locked_dout;
+utility::wlocking_ostream& wderr = DebugStreams::Instance().locked_wdout;

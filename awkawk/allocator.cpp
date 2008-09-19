@@ -65,6 +65,11 @@ STDMETHODIMP allocator_presenter::InitializeDevice(DWORD_PTR id, VMR9AllocationI
 	try
 	{
 		LOCK(cs);
+		// MS's docs say that I should do the SetD3DDevice in here.
+		// However, if I haven't already called SetD3DDevice, I never even get here.  MS is full of shit, I think.
+		// Instead, I call SetD3DDevice in AdviseNotify.
+		//FAIL_THROW(surface_allocator_notify->SetD3DDevice(device, ::MonitorFromWindow(player->get_ui()->get_window(), MONITOR_DEFAULTTOPRIMARY)));
+
 		if(allocation_info->dwFlags & VMR9AllocFlag_3DRenderTarget)
 		{
 			allocation_info->dwFlags |= VMR9AllocFlag_TextureSurface;
@@ -132,7 +137,7 @@ STDMETHODIMP allocator_presenter::AdviseNotify(IVMRSurfaceAllocatorNotify9* surf
 {
 	LOCK(cs);
 	surface_allocator_notify = surface_allocator_notify_;
-	return S_OK;
+	return surface_allocator_notify->SetD3DDevice(device, ::MonitorFromWindow(player->get_ui()->get_window(), MONITOR_DEFAULTTOPRIMARY));
 }
 
 STDMETHODIMP allocator_presenter::StartPresenting(DWORD_PTR id)
@@ -207,7 +212,7 @@ STDMETHODIMP allocator_presenter::QueryInterface(const IID& iid, void** target)
 	{
 		return E_POINTER;
 	}
-	else if(iid == IID_IVMRSurfaceAllocator9)
+	     if(iid == IID_IVMRSurfaceAllocator9)
 	{
 		*target = static_cast<IVMRSurfaceAllocator9*>(this);
 		AddRef();

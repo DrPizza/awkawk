@@ -92,16 +92,23 @@ namespace
 	{
 		utility::dstream dout;
 		utility::wdstream wdout;
+		utility::locking_ostream locked_dout;
+		utility::wlocking_ostream locked_wdout;
+
+		DebugStreamsImpl() : locked_dout(dout), locked_wdout(wdout)
+		{
+		}
 	};
-	// notice that I rely on the CRT to perform initialization of statics in a safe manner.  Using a thread-safe policy crashes during static initialization.
-	typedef Loki::SingletonHolder<DebugStreamsImpl, Loki::CreateStatic, Loki::DefaultLifetime, Loki::SingleThreaded> DebugStreams;
 }
+
+// notice that I rely on the CRT to perform initialization of statics in a safe manner.  Using a thread-safe policy crashes during static initialization.
+typedef Loki::SingletonHolder<utility::DebugStreamsImpl, Loki::CreateUsingNew, Loki::DefaultLifetime, Loki::SingleThreaded> DebugStreams;
 
 extern dstream& dout;
 extern wdstream& wdout;
 
-extern locking_ostream<char> locked_dout;
-extern locking_ostream<wchar_t> locked_wdout;
+extern locking_ostream& locked_dout;
+extern wlocking_ostream& locked_wdout;
 
 } // namespace utility
 

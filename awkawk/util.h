@@ -26,6 +26,7 @@
 #include "stdafx.h"
 
 #include "utility/locking_stream.hpp"
+#include "loki/singleton.h"
 
 #define FAIL_THROW(x) do { HRESULT CREATE_NAME(hr); if(FAILED(CREATE_NAME(hr) = ( x ))) { _com_raise_error(CREATE_NAME(hr)); } } while(0)
 #define FAIL_RET(x) do { HRESULT CREATE_NAME(hr); if(FAILED(CREATE_NAME(hr) = ( x ))) { return CREATE_NAME(hr); } } while(0)
@@ -33,15 +34,30 @@
 #define CREATE_NAME_IND(first, second) PASTE_2(first, second)
 #define PASTE_2(a, b) a ## b
 
-//extern std::ostream& dout;
-//extern std::wostream& wdout;
-//extern std::ostream& derr;
-//extern std::wostream& wderr;
+namespace
+{
+	struct DebugStreamsImpl
+	{
+		utility::locking_ostream locked_dout;
+		utility::wlocking_ostream locked_wdout;
+#ifdef DEBUG
+		//DebugStreamsImpl() : locked_dout(std::cout), locked_wdout(std::wcout)
+		DebugStreamsImpl() : locked_dout(utility::DebugStreams::Instance().dout), locked_wdout(utility::DebugStreams::Instance().wdout)
+#else
+		DebugStreamsImpl() : locked_dout(utility::DebugStreams::Instance().dout), locked_wdout(utility::DebugStreams::Instance().wdout)
+#endif
+		{
+		}
+	};
+}
 
-extern utility::locking_ostream<char> dout;
-extern utility::locking_ostream<wchar_t> wdout;
-extern utility::locking_ostream<char> derr;
-extern utility::locking_ostream<wchar_t> wderr;
+// notice that I rely on the CRT to perform initialization of statics in a safe manner.  Using a thread-safe policy crashes during static initialization.
+typedef Loki::SingletonHolder<DebugStreamsImpl, Loki::CreateUsingNew, Loki::DefaultLifetime, Loki::SingleThreaded> DebugStreams;
+
+extern utility::locking_ostream& dout;
+extern utility::wlocking_ostream& wdout;
+extern utility::locking_ostream& derr;
+extern utility::wlocking_ostream& wderr;
 
 template<typename T>
 inline std::basic_ostream<T>& operator<<(std::basic_ostream<T>& lhs, const GUID& rhs)
