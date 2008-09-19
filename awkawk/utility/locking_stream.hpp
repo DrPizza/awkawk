@@ -29,39 +29,39 @@
 namespace utility
 {
 template<typename E, typename T = std::char_traits<E> >
-struct locking_ostream
+struct basic_locking_ostream
 {
 	utility::critical_section cs;
 	std::basic_ostream<E, T>* s;
 
-	locking_ostream(std::basic_ostream<E, T>& os) : s(&os)
+	basic_locking_ostream(std::basic_ostream<E, T>& os) : s(&os)
 	{
 	}
 
-	struct locking_ostream_helper
+	struct basic_locking_ostream_helper
 	{
-		locking_ostream<E, T>* ls;
+		basic_locking_ostream<E, T>* ls;
 
-		locking_ostream_helper(locking_ostream<E, T>* l) : ls(l)
+		basic_locking_ostream_helper(basic_locking_ostream<E, T>* l) : ls(l)
 		{
 			ls->cs.enter();
 		}
-		locking_ostream_helper(const locking_ostream_helper& rhs) : ls(rhs.ls)
+		basic_locking_ostream_helper(const basic_locking_ostream_helper& rhs) : ls(rhs.ls)
 		{
 			ls->cs.enter();
 		}
-		~locking_ostream_helper()
+		~basic_locking_ostream_helper()
 		{
 			ls->cs.leave();
 		}
 
 		template<typename T>
-		locking_ostream_helper& operator<<(const T& rhs)
+		basic_locking_ostream_helper& operator<<(const T& rhs)
 		{
 			*(ls->s) << rhs;
 			return *this;
 		}
-		locking_ostream_helper& operator<<(std::ostream& (*manip)(std::ostream&))
+		basic_locking_ostream_helper& operator<<(std::ostream& (*manip)(std::ostream&))
 		{
 			*(ls->s) << manip;
 			return *this;
@@ -69,19 +69,22 @@ struct locking_ostream
 	};
 
 	template<typename T>
-	locking_ostream_helper operator<<(const T& rhs)
+	basic_locking_ostream_helper operator<<(const T& rhs)
 	{
-		locking_ostream_helper hlp(this);
+		basic_locking_ostream_helper hlp(this);
 		*s << rhs;
 		return hlp;
 	}
-	locking_ostream_helper operator<<(std::ostream& (*manip)(std::ostream&))
+	basic_locking_ostream_helper operator<<(std::ostream& (*manip)(std::ostream&))
 	{
-		locking_ostream_helper hlp(this);
+		basic_locking_ostream_helper hlp(this);
 		*s << manip;
 		return hlp;
 	}
 };
+
+typedef basic_locking_ostream<char> locking_ostream;
+typedef basic_locking_ostream<wchar_t> wlocking_ostream;
 
 }
 

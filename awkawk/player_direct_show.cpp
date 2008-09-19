@@ -186,7 +186,6 @@ void player_direct_show::set_allocator_presenter(IBaseFilterPtr filter, HWND win
 
 	FAIL_THROW(surface_allocator_notify->AdviseSurfaceAllocator(user_id, vmr_surface_allocator));
 	FAIL_THROW(vmr_surface_allocator->AdviseNotify(surface_allocator_notify));
-	FAIL_THROW(surface_allocator_notify->SetD3DDevice(player->get_scene_device(), ::MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY)));
 }
 
 REFERENCE_TIME player_direct_show::get_average_frame_time(IFilterGraphPtr grph) const

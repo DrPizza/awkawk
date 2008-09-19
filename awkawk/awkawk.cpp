@@ -204,8 +204,10 @@ void awkawk::create_device()
 	}
 
 	std::memset(&presentation_parameters, 0, sizeof(D3DPRESENT_PARAMETERS));
-	presentation_parameters.BackBufferWidth = dm.Width;
-	presentation_parameters.BackBufferHeight = dm.Height;
+	//presentation_parameters.BackBufferWidth = dm.Width;
+	//presentation_parameters.BackBufferHeight = dm.Height;
+	presentation_parameters.BackBufferWidth = std::max(static_cast<UINT>(1920), dm.Width);
+	presentation_parameters.BackBufferHeight = std::max(static_cast<UINT>(1080), dm.Height);
 	presentation_parameters.BackBufferFormat = dm.Format;
 	presentation_parameters.BackBufferCount = 1;
 #ifdef USE_MULTISAMPLING
