@@ -35,7 +35,7 @@ _COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocatorNotify9, __uuidof(IVMRSurfaceAllocator
 // These are QIed and may at some point be worth implementing
 // IVMRMonitorConfig9
 // IVMRSurfaceAllocatorEx9
-struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, device_loss_handler, boost::noncopyable
+struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, direct3d_object, boost::noncopyable
 {
 	allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_);
 	virtual ~allocator_presenter();
@@ -72,9 +72,6 @@ struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRIma
 	virtual STDMETHODIMP_(ULONG) AddRef();
 	virtual STDMETHODIMP_(ULONG) Release();
 
-	void begin_device_loss();
-	void end_device_loss(IDirect3DDevice9Ptr device);
-
 	IDirect3DTexture9Ptr get_video_texture(DWORD_PTR id)
 	{
 		LOCK(cs);
@@ -92,6 +89,33 @@ struct allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRIma
 		LOCK(cs);
 		return texture_locks.find(id) != texture_locks.end();
 	}
+
+protected:
+	// create D3DPOOL_MANAGED resources
+	virtual HRESULT do_on_device_created(IDirect3DDevice9Ptr new_device);
+
+	// create D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_reset()
+	{
+		return S_OK;
+	}
+
+	// destroy D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_lost()
+	{
+		device = NULL;
+		surfaces.clear();
+		video_textures.clear();
+		texture_locks.clear();
+		return S_OK;
+	}
+
+	// destroy D3DPOOL_MANAGED resources
+	virtual void do_on_device_destroyed()
+	{
+		on_device_lost();
+	}
+
 private:
 	long ref_count;
 

@@ -51,30 +51,6 @@ struct strip : direct3d_object
 		vertices.resize(size);
 	}
 
-	// create D3DPOOL_MANAGED resources
-	virtual HRESULT on_device_created(IDirect3DDevice9Ptr new_device)
-	{
-		device = new_device;
-		return S_OK;
-	}
-	// create D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_reset()
-	{
-		FAIL_THROW(device->CreateVertexBuffer(static_cast<UINT>(sizeof(vertex) * vertices.size()), D3DUSAGE_WRITEONLY, strip::vertex::format, D3DPOOL_DEFAULT, &vertex_buffer, NULL));
-		return S_OK;
-	}
-	// destroy D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_lost()
-	{
-		vertex_buffer = NULL;
-		return S_OK;
-	}
-	// destroy D3DPOOL_DEFAULT resources
-	virtual void on_device_destroyed()
-	{
-		device = NULL;
-	}
-
 	void copy_to_buffer()
 	{
 		void* buffer;
@@ -92,6 +68,32 @@ struct strip : direct3d_object
 		FAIL_THROW(device->SetTexture(0, NULL));
 	}
 	std::vector<vertex> vertices;
+
+protected:
+	// create D3DPOOL_MANAGED resources
+	virtual HRESULT do_on_device_created(IDirect3DDevice9Ptr new_device)
+	{
+		device = new_device;
+		return S_OK;
+	}
+	// create D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_reset()
+	{
+		FAIL_THROW(device->CreateVertexBuffer(static_cast<UINT>(sizeof(vertex) * vertices.size()), D3DUSAGE_WRITEONLY, strip::vertex::format, D3DPOOL_DEFAULT, &vertex_buffer, NULL));
+		return S_OK;
+	}
+	// destroy D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_lost()
+	{
+		vertex_buffer = NULL;
+		return S_OK;
+	}
+	// destroy D3DPOOL_MANAGED resources
+	virtual void do_on_device_destroyed()
+	{
+		device = NULL;
+	}
+
 private:
 	IDirect3DVertexBuffer9Ptr vertex_buffer;
 	IDirect3DDevice9Ptr device;

@@ -41,8 +41,8 @@ namespace
 		utility::locking_ostream locked_dout;
 		utility::wlocking_ostream locked_wdout;
 #ifdef DEBUG
-		//DebugStreamsImpl() : locked_dout(std::cout), locked_wdout(std::wcout)
-		DebugStreamsImpl() : locked_dout(utility::DebugStreams::Instance().dout), locked_wdout(utility::DebugStreams::Instance().wdout)
+		DebugStreamsImpl() : locked_dout(std::cout), locked_wdout(std::wcout)
+		//DebugStreamsImpl() : locked_dout(utility::DebugStreams::Instance().dout), locked_wdout(utility::DebugStreams::Instance().wdout)
 #else
 		DebugStreamsImpl() : locked_dout(utility::DebugStreams::Instance().dout), locked_wdout(utility::DebugStreams::Instance().wdout)
 #endif
@@ -107,24 +107,49 @@ inline RECT normalize(const RECT& r)
 	return rv;
 }
 
-// TODO use direct3d_object (below) instead
-struct device_loss_handler
-{
-	virtual void begin_device_loss() = 0;
-	virtual void end_device_loss(IDirect3DDevice9Ptr) = 0;
-};
+//// TODO use direct3d_object (below) instead
+//struct device_loss_handler
+//{
+//	virtual void begin_device_loss() = 0;
+//	virtual void end_device_loss(IDirect3DDevice9Ptr) = 0;
+//};
 
 struct direct3d_object
 {
-	//virtual HRESULT on_device_change() = 0;
 	// create D3DPOOL_MANAGED resources
-	virtual HRESULT on_device_created(IDirect3DDevice9Ptr new_device) = 0;
+	HRESULT on_device_created(IDirect3DDevice9Ptr new_device)
+	{
+		return do_on_device_created(new_device);
+	}
+
 	// create D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_reset() = 0;
+	HRESULT on_device_reset()
+	{
+		return do_on_device_reset();
+	}
+
 	// destroy D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_lost() = 0;
+	HRESULT on_device_lost()
+	{
+		return do_on_device_lost();
+	}
+
+	// destroy D3DPOOL_MANAGED resources
+	void on_device_destroyed()
+	{
+		on_device_lost();
+		do_on_device_destroyed();
+	}
+
+protected:
+	// create D3DPOOL_MANAGED resources
+	virtual HRESULT do_on_device_created(IDirect3DDevice9Ptr new_device) = 0;
+	// create D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_reset() = 0;
 	// destroy D3DPOOL_DEFAULT resources
-	virtual void on_device_destroyed() = 0;
+	virtual HRESULT do_on_device_lost() = 0;
+	// destroy D3DPOOL_MANAGED resources
+	virtual void do_on_device_destroyed() = 0;
 };
 
 inline IDirect3DTexture9Ptr load_texture_from_resource(IDirect3DDevice9Ptr device, int resource_id, D3DXIMAGE_INFO* info)

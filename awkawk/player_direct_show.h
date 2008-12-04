@@ -47,7 +47,7 @@ _COM_SMARTPTR_TYPEDEF(IPin, __uuidof(IPin));
 _COM_SMARTPTR_TYPEDEF(IMediaEventEx, __uuidof(IMediaEventEx));
 _COM_SMARTPTR_TYPEDEF(IVMRDeinterlaceControl9, __uuidof(IVMRDeinterlaceControl9));
 
-struct player_direct_show : device_loss_handler, boost::noncopyable
+struct player_direct_show : direct3d_object, boost::noncopyable
 {
 	enum graph_state
 	{
@@ -336,28 +336,6 @@ struct player_direct_show : device_loss_handler, boost::noncopyable
 	REFERENCE_TIME get_average_frame_time(IFilterGraphPtr grph) const;
 	SIZE get_video_size() const;
 
-	void set_allocator_presenter(IBaseFilterPtr filter, HWND window);
-	void create_graph();
-	void destroy_graph();
-
-	void register_graph(IUnknownPtr unknown);
-	void unregister_graph();
-
-	virtual void begin_device_loss()
-	{
-		if(allocator)
-		{
-			allocator->begin_device_loss();
-		}
-	}
-	virtual void end_device_loss(IDirect3DDevice9Ptr d3d)
-	{
-		if(allocator)
-		{
-			allocator->end_device_loss(d3d);
-		}
-	}
-
 	DWORD_PTR get_user_id() const
 	{
 		return user_id;
@@ -373,7 +351,54 @@ struct player_direct_show : device_loss_handler, boost::noncopyable
 	// TODO make graph_cs non-public
 	mutable utility::critical_section graph_cs;
 
+protected:
+	// create D3DPOOL_MANAGED resources
+	virtual HRESULT do_on_device_created(IDirect3DDevice9Ptr new_device)
+	{
+		if(allocator)
+		{
+			return allocator->on_device_created(new_device);
+		}
+		return S_OK;
+	}
+
+	// create D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_reset()
+	{
+		if(allocator)
+		{
+			return allocator->on_device_reset();
+		}
+		return S_OK;
+	}
+
+	// destroy D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_lost()
+	{
+		if(allocator)
+		{
+			return allocator->on_device_lost();
+		}
+		return S_OK;
+	}
+
+	// destroy D3DPOOL_MANAGED resources
+	virtual void do_on_device_destroyed()
+	{
+		if(allocator)
+		{
+			allocator->on_device_destroyed();
+		}
+	}
+
 private:
+	void set_allocator_presenter(IBaseFilterPtr filter, HWND window);
+	void create_graph();
+	void destroy_graph();
+
+	void register_graph(IUnknownPtr unknown);
+	void unregister_graph();
+
 	std::auto_ptr<event_handler_type> handler;
 
 	size_t do_load();

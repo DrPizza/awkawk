@@ -167,14 +167,15 @@ struct player_overlay : direct3d_object, layout, boost::noncopyable
 		active = area;
 	}
 
+protected:
 	// create D3DPOOL_MANAGED resources
-	virtual HRESULT on_device_created(IDirect3DDevice9Ptr new_device)
+	virtual HRESULT do_on_device_created(IDirect3DDevice9Ptr new_device)
 	{
 		device = new_device;
 		return S_OK;
 	}
 	// create D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_reset()
+	virtual HRESULT do_on_device_reset()
 	{
 		NONCLIENTMETRICSW metrics = { sizeof(NONCLIENTMETRICSW) };
 		::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &metrics, 0);
@@ -182,13 +183,13 @@ struct player_overlay : direct3d_object, layout, boost::noncopyable
 		return S_OK;
 	}
 	// destroy D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_lost()
+	virtual HRESULT do_on_device_lost()
 	{
 		font = NULL;
 		return S_OK;
 	}
 	// destroy D3DPOOL_MANAGED resources
-	virtual void on_device_destroyed()
+	virtual void do_on_device_destroyed()
 	{
 		device = NULL;
 	}

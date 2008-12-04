@@ -65,6 +65,7 @@ const player_direct_show::transition_type player_direct_show::transitions[player
 };
 
 size_t player_direct_show::do_stop()
+try
 {
 	dout << __FUNCSIG__ << std::endl;
 	LOCK(graph_cs);
@@ -77,15 +78,27 @@ size_t player_direct_show::do_stop()
 	}
 	return 0;
 }
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
+}
 
 size_t player_direct_show::do_play()
+try
 {
 	LOCK(graph_cs);
 	FAIL_THROW(media_control->Run());
 	return 0;
 }
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
+}
 
 size_t player_direct_show::do_pause()
+try
 {
 	dout << __FUNCSIG__ << std::endl;
 	LOCK(graph_cs);
@@ -98,44 +111,67 @@ size_t player_direct_show::do_pause()
 	}
 	return 0;
 }
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
+}
 
 size_t player_direct_show::do_resume()
+try
 {
 	LOCK(graph_cs);
 	FAIL_THROW(media_control->Run());
 	return 0;
 }
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
+}
 
 size_t player_direct_show::do_ffwd()
+try
 {
 	LOCK(graph_cs);
 	// TODO write ffwd code
 	return 0;
 }
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
+}
 
 size_t player_direct_show::do_rwnd()
+try
 {
 	LOCK(graph_cs);
 	// TODO write rwnd code
 	return 0;
 }
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
+}
 
 size_t player_direct_show::do_load()
+try
 {
 	dout << __FUNCSIG__ << std::endl;
 	LOCK(graph_cs);
-	try
-	{
-		create_graph();
-	}
-	catch(_com_error& ce)
-	{
-		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	}
+	create_graph();
 	return 0;
+}
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
 }
 
 size_t player_direct_show::do_unload()
+try
 {
 	LOCK(graph_cs);
 	LONGLONG current(0);
@@ -143,6 +179,11 @@ size_t player_direct_show::do_unload()
 	destroy_graph();
 	has_video = false;
 	return 0;
+}
+catch(_com_error& ce)
+{
+	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+	return ~0;
 }
 
 void player_direct_show::destroy_graph()
@@ -287,11 +328,19 @@ void player_direct_show::create_graph()
 	FAIL_THROW(vmr9->QueryInterface(&filter_config));
 	FAIL_THROW(filter_config->SetRenderingMode(VMR9Mode_Renderless));
 	set_allocator_presenter(vmr9, player->get_ui()->get_window());
+
 	// Note that we MUST use YUV mixing mode (or no mixing mode at all)
 	// because if we don't, VMR9 can change the state of the D3D device
 	// part-way through our render (and it doesn't tell us it's going to,
 	// so we have no opportunity to protect ourselves from its stupidity)
 	// when it performs colour space conversions.
+	// This is because we do not perform rendering in the VMR thread (why
+	// not? Because then we can't reset the device from the right thread;
+	// the whole thing seems like a mess).
+	// The real solution is for the AP to have its own private device,
+	// so that video decoding is decoupled from on-screen rendering. But this
+	// means making cross-thread calls which means that D3D will still barf
+	// when resetting the device.
 	// Further, if we do not use mixing mode then we cannot use VMR deinterlacing.
 	// It's all rather sad.
 #define USE_MIXING_MODE
@@ -302,16 +351,16 @@ void player_direct_show::create_graph()
 	FAIL_THROW(vmr9->QueryInterface(&mixer_control));
 	DWORD mixing_prefs(0);
 	FAIL_THROW(mixer_control->GetMixingPrefs(&mixing_prefs));
-	mixing_prefs &= ~MixerPref9_RenderTargetMask;
 #ifdef USE_YUV_MIXING_MODE
+	mixing_prefs &= ~MixerPref9_RenderTargetMask;
 	mixing_prefs |= MixerPref9_RenderTargetYUV;
 #endif
 	mixing_prefs &= ~MixerPref9_DynamicMask;
 	mixing_prefs &= ~MixerPref9_DecimateMask;
 	mixing_prefs |= MixerPref9_NoDecimation;
 	mixing_prefs |= MixerPref9_ARAdjustXorY;
-	mixing_prefs &= ~MixerPref9_FilteringMask;
-	mixing_prefs |= MixerPref9_PyramidalQuadFiltering;
+	//mixing_prefs &= ~MixerPref9_FilteringMask;
+	//mixing_prefs |= MixerPref9_PyramidalQuadFiltering;
 	FAIL_THROW(mixer_control->SetMixingPrefs(mixing_prefs));
 #endif
 

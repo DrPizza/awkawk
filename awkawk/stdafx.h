@@ -28,7 +28,7 @@
 #pragma comment(lib, "delayimp.lib")
 
 #define NOMINMAX
-#define NTDDI_VERSION NTDDI_LONGHORN
+#define NTDDI_VERSION NTDDI_VISTA
 #define STRICT
 #define ISOLATION_AWARE_ENABLED 1
 #pragma warning(disable:4995)

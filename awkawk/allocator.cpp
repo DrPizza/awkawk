@@ -33,20 +33,14 @@ allocator_presenter::~allocator_presenter()
 {
 }
 
-void allocator_presenter::begin_device_loss()
+HRESULT allocator_presenter::do_on_device_created(IDirect3DDevice9Ptr new_device)
 {
-	LOCK(cs);
-	device = NULL;
-	surfaces.clear();
-	video_textures.clear();
-	texture_locks.clear();
-}
-
-void allocator_presenter::end_device_loss(IDirect3DDevice9Ptr device_)
-{
-	LOCK(cs);
-	device = device_;
-	FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(player->get_ui()->get_window(), MONITOR_DEFAULTTOPRIMARY)));
+	device = new_device;
+	if(surface_allocator_notify)
+	{
+		FAIL_THROW(surface_allocator_notify->ChangeD3DDevice(device, ::MonitorFromWindow(player->get_ui()->get_window(), MONITOR_DEFAULTTOPRIMARY)));
+	}
+	return S_OK;
 }
 
 //IVMRSurfaceAllocator9
@@ -65,10 +59,13 @@ STDMETHODIMP allocator_presenter::InitializeDevice(DWORD_PTR id, VMR9AllocationI
 	try
 	{
 		LOCK(cs);
-		// MS's docs say that I should do the SetD3DDevice in here.
-		// However, if I haven't already called SetD3DDevice, I never even get here.  MS is full of shit, I think.
-		// Instead, I call SetD3DDevice in AdviseNotify.
-		//FAIL_THROW(surface_allocator_notify->SetD3DDevice(device, ::MonitorFromWindow(player->get_ui()->get_window(), MONITOR_DEFAULTTOPRIMARY)));
+
+dout << "requesting format                         " << std::hex << allocation_info->Format << std::endl;
+dout << "requesting VMR9AllocFlag_3DRenderTarget   " << !!(VMR9AllocFlag_3DRenderTarget & allocation_info->dwFlags) << std::endl;
+dout << "requesting VMR9AllocFlag_DXVATarget       " << !!(VMR9AllocFlag_DXVATarget & allocation_info->dwFlags) << std::endl;
+dout << "requesting VMR9AllocFlag_TextureSurface   " << !!(VMR9AllocFlag_TextureSurface & allocation_info->dwFlags) << std::endl;
+dout << "requesting VMR9AllocFlag_OffscreenSurface " << !!(VMR9AllocFlag_OffscreenSurface & allocation_info->dwFlags) << std::endl;
+dout << "requesting VMR9AllocFlag_RGBDynamicSwitch " << !!(VMR9AllocFlag_RGBDynamicSwitch & allocation_info->dwFlags) << std::endl;
 
 		if(allocation_info->dwFlags & VMR9AllocFlag_3DRenderTarget)
 		{
@@ -89,7 +86,8 @@ STDMETHODIMP allocator_presenter::InitializeDevice(DWORD_PTR id, VMR9AllocationI
 			static_cast<IDirect3DSurface9Ptr&>(surfaces[id][i]).Attach(raw_surfaces[i], false);
 		}
 		IDirect3DTexture9Ptr txtr;
-		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &txtr, NULL));
+		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8/*D3DFMT_A8R8G8B8*/, D3DPOOL_DEFAULT, &txtr, NULL));
+
 		video_textures[id] = txtr;
 	}
 	catch(_com_error& ce)
@@ -166,6 +164,10 @@ STDMETHODIMP allocator_presenter::StopPresenting(DWORD_PTR id)
 
 STDMETHODIMP allocator_presenter::PresentImage(DWORD_PTR id, VMR9PresentationInfo* presentation_info)
 {
+	if(surface_allocator_notify == NULL)
+	{
+		return E_UNEXPECTED;
+	}
 	if(presentation_info == NULL)
 	{
 		return E_POINTER;
