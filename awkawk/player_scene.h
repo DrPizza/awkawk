@@ -46,38 +46,6 @@ struct player_scene : direct3d_object, component_owner, boost::noncopyable
 		controls->add_components(lay);
 	}
 
-	// create D3DPOOL_MANAGED resources
-	virtual HRESULT on_device_created(IDirect3DDevice9Ptr new_device)
-	{
-		device = new_device;
-		FAIL_RET(controls->on_device_created(device));
-		FAIL_RET(video->on_device_created(device));
-		return S_OK;
-	}
-	// create D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_reset()
-	{
-		default_video_texture = load_texture_from_resource(device, IDR_BACKGROUND, &default_video_texture_info);
-		FAIL_RET(controls->on_device_reset());
-		FAIL_RET(video->on_device_reset());
-		return S_OK;
-	}
-	// destroy D3DPOOL_DEFAULT resources
-	virtual HRESULT on_device_lost()
-	{
-		FAIL_RET(controls->on_device_lost());
-		FAIL_RET(video->on_device_lost());
-		default_video_texture = NULL;
-		return S_OK;
-	}
-	// destroy D3DPOOL_MANAGED resources
-	virtual void on_device_destroyed()
-	{
-		video->on_device_destroyed();
-		controls->on_device_destroyed();
-		device = NULL;
-	}
-
 	void set_cursor_position(POINT pt)
 	{
 		LOCK(cs);
@@ -109,6 +77,39 @@ struct player_scene : direct3d_object, component_owner, boost::noncopyable
 	void set_playback_position(float pos_)
 	{
 		controls->set_playback_position(pos_);
+	}
+
+protected:
+	// create D3DPOOL_MANAGED resources
+	virtual HRESULT do_on_device_created(IDirect3DDevice9Ptr new_device)
+	{
+		device = new_device;
+		FAIL_RET(controls->on_device_created(device));
+		FAIL_RET(video->on_device_created(device));
+		return S_OK;
+	}
+	// create D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_reset()
+	{
+		default_video_texture = load_texture_from_resource(device, IDR_BACKGROUND, &default_video_texture_info);
+		FAIL_RET(controls->on_device_reset());
+		FAIL_RET(video->on_device_reset());
+		return S_OK;
+	}
+	// destroy D3DPOOL_DEFAULT resources
+	virtual HRESULT do_on_device_lost()
+	{
+		FAIL_RET(controls->on_device_lost());
+		FAIL_RET(video->on_device_lost());
+		default_video_texture = NULL;
+		return S_OK;
+	}
+	// destroy D3DPOOL_MANAGED resources
+	virtual void do_on_device_destroyed()
+	{
+		video->on_device_destroyed();
+		controls->on_device_destroyed();
+		device = NULL;
 	}
 
 private:

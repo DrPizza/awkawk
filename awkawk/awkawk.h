@@ -26,6 +26,7 @@
 #include "stdafx.h"
 #include "util.h"
 
+#include "direct3d.h"
 #include "state_machine.h"
 #include "player_playlist.h"
 #include "player_window.h"
@@ -629,6 +630,7 @@ struct awkawk : boost::noncopyable
 			plist->clear_files();
 		}
 		plist->add_file(path);
+		plist->do_next();
 		post_message(load);
 		post_message(play);
 	}
@@ -657,10 +659,11 @@ private:
 	std::auto_ptr<player_window> ui;
 
 	// direct3d gubbins
-	IDirect3D9Ptr d3d;
+	direct3d9 d3d9;
+
 	IDirect3DDevice9Ptr scene_device;
 	D3DPRESENT_PARAMETERS presentation_parameters;
-	IDirect3DSurface9Ptr render_target;
+	void set_device_state();
 
 	std::auto_ptr<player_scene> scene;
 	std::auto_ptr<player_overlay> overlay;

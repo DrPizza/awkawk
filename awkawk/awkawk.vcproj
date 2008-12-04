@@ -377,6 +377,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\direct3d.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\main.cpp"
 				>
 			</File>
@@ -560,6 +564,10 @@
 			</File>
 			<File
 				RelativePath=".\components.h"
+				>
+			</File>
+			<File
+				RelativePath=".\direct3d.h"
 				>
 			</File>
 			<File

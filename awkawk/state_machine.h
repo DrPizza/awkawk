@@ -39,8 +39,9 @@ struct transition
 
 	state_type execute(handler_type* hnd) const
 	{
-		return next_states.length > 0 ? next_states[(hnd->*fun)()]
-		                              : hnd->get_current_state();
+		size_t next((hnd->*fun)());
+		return next_states.length > 0 && (next != ~0) ? next_states[next]
+		                                              : hnd->get_current_state();
 	}
 };
 
