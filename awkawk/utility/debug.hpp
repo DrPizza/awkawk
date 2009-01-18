@@ -24,10 +24,9 @@
 #define DEBUG__HPP
 
 #define NOMINMAX
-#define NTDDI_VERSION NTDDI_LONGHORN
+#define NTDDI_VERSION NTDDI_VISTA
 #define STRICT
-#pragma warning(disable:4995)
-#pragma warning(disable:4996)
+
 #include <windows.h>
 
 #define DBGHELP_TRANSLATE_TCHAR
@@ -285,7 +284,7 @@ void print_caller_info(std::basic_ostream<T>& os, void* address, void* address_o
 		::SymSetOptions(symbolOptions);
 		SymbolInfo<T> globalSymbols(::GetCurrentProcess(), reinterpret_cast<void*>(stackFrame.AddrPC.Offset));
 		ImageLine<T> lineInfo(::GetCurrentProcess(), reinterpret_cast<void*>(stackFrame.AddrPC.Offset));
-		os << module_name<T>(reinterpret_cast<void*>(publicSymbols.ModBase())) << T('!') << lineInfo.FileName() << T('(') << lineInfo.LineNumber() << T(')') << T('!');
+		os << module_name<T>(reinterpret_cast<void*>(publicSymbols.ModBase())) << T('!') << lineInfo.FileName() << T('(') << std::dec << lineInfo.LineNumber() << T(')') << T('!');
 		os << (publicSymbols.Name()[0] == L'?' ? publicSymbols.UndecoratedName() : globalSymbols.Name()) << T('@') << std::hex << publicSymbols.Displacement() << std::dec;
 	}
 }

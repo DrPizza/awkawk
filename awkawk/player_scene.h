@@ -74,9 +74,19 @@ struct player_scene : direct3d_object, component_owner, boost::noncopyable
 		controls->set_volume(vol_);
 	}
 
+	void set_linear_volume(float linear_vol_)
+	{
+		controls->set_linear_volume(linear_vol_);
+	}
+
 	void set_playback_position(float pos_)
 	{
 		controls->set_playback_position(pos_);
+	}
+
+	void set_play_time(float play_time_)
+	{
+		controls->set_play_time(play_time_);
 	}
 
 protected:

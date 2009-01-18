@@ -56,15 +56,16 @@ struct awkawk : boost::noncopyable
 		switch(st)
 		{
 		case unloaded:
-			return "unloaded";
+			return "awkawk::unloaded";
 		case stopped:
-			return "stopped";
+			return "awkawk::stopped";
 		case paused:
-			return "paused";
+			return "awkawk::paused";
 		case playing:
-			return "playing";
+			return "awkawk::playing";
 		}
-		return "error";
+		::DebugBreak();
+		return "awkawk::error";
 	}
 
 	enum awkawk_event
@@ -113,21 +114,19 @@ struct awkawk : boost::noncopyable
 	typedef transition<awkawk, awkawk_state> transition_type;
 	typedef event_handler<awkawk, awkawk_state, awkawk_event> event_handler_type;
 
-	static const transition_type transitions[max_awkawk_states][max_awkawk_events];
-
-	awkawk_state send_message(awkawk_event evt)
+	const transition_type* get_transition(awkawk_event evt)
 	{
-		return handler->send_message(evt);
+		return &(transitions[get_current_state()][evt]);
 	}
 
-	void post_message(awkawk_event evt)
+	awkawk_state send_event(awkawk_event evt)
 	{
-		return handler->post_message(evt);
+		return handler->send_event(evt);
 	}
 
-	awkawk_state process_message(DWORD message)
+	void post_event(awkawk_event evt)
 	{
-		return handler->process_message(message);
+		return handler->post_event(evt);
 	}
 
 	bool permitted(awkawk_event evt) const
@@ -135,30 +134,10 @@ struct awkawk : boost::noncopyable
 		return handler->permitted(evt);
 	}
 
-	size_t do_load();
-	size_t do_stop();
-	size_t do_pause();
-	size_t do_resume();
-	size_t do_play();
-	size_t do_unload();
-	size_t do_transition();
-	size_t do_previous();
-	size_t do_next();
-	size_t do_rwnd();
-	size_t do_ffwd();
-
 	void create_ui(int cmdShow);
 	int run_ui();
 	void render();
 	void reset();
-
-	// D3D methods
-	void create_d3d();
-	void destroy_d3d();
-	void create_device();
-	void destroy_device();
-	void reset_device();
-	bool needs_display_change() const;
 
 	void set_cursor_position(const POINT& pos)
 	{
@@ -557,8 +536,13 @@ struct awkawk : boost::noncopyable
 
 	void schedule_render() const
 	{
+		schedule_render(1.0f);
+	}
+
+	void schedule_render(float frames_ahead) const
+	{
 		LARGE_INTEGER dueTime = { 0 };
-		dueTime.QuadPart = -10000000 / static_cast<LONGLONG>(get_render_fps());
+		dueTime.QuadPart = static_cast<LONGLONG>(frames_ahead * (-10000000.0f / static_cast<float>(get_render_fps())));
 		::SetWaitableTimer(render_timer, &dueTime, 0, NULL, NULL, FALSE);
 	}
 
@@ -580,6 +564,13 @@ struct awkawk : boost::noncopyable
 	void signal_new_frame() const
 	{
 		::SetEvent(render_event);
+	}
+
+	void signal_new_frame_and_wait() const
+	{
+		//::SetEvent(render_and_wait_event);
+		//::WaitForSingleObject(render_and_wait_event, INFINITE);
+		::SignalObjectAndWait(render_and_wait_event, render_finished_event, INFINITE, FALSE);
 	}
 
 	void stop_rendering();
@@ -624,24 +615,44 @@ struct awkawk : boost::noncopyable
 		{
 			if(get_current_state() != stopped)
 			{
-				send_message(stop);
+				send_event(stop);
 			}
-			send_message(unload);
+			send_event(unload);
 			plist->clear_files();
 		}
 		plist->add_file(path);
 		plist->do_next();
-		post_message(load);
-		post_message(play);
+		post_event(load);
+		post_event(play);
 	}
 
-	float get_volume() const;
 	void set_linear_volume(float vol);
 	void set_playback_position(float pos);
-	float get_play_time() const;
-	std::vector<CAdapt<IBaseFilterPtr> > get_filters() const;
+	std::vector<ATL::CAdapt<IBaseFilterPtr> > get_filters() const;
 
 private:
+	// D3D methods
+	void create_d3d();
+	void destroy_d3d();
+	void create_device();
+	void destroy_device();
+	void reset_device();
+	bool needs_display_change() const;
+
+	static const transition_type transitions[max_awkawk_states][max_awkawk_events];
+
+	size_t do_load();
+	size_t do_stop();
+	size_t do_pause();
+	size_t do_resume();
+	size_t do_play();
+	size_t do_unload();
+	size_t do_transition();
+	size_t do_previous();
+	size_t do_next();
+	size_t do_rwnd();
+	size_t do_ffwd();
+
 	awkawk_state current_state;
 	std::auto_ptr<event_handler_type> handler;
 
@@ -651,6 +662,8 @@ private:
 	// rendering
 	HANDLE render_timer;
 	HANDLE render_event;
+	HANDLE render_and_wait_event;
+	HANDLE render_finished_event;
 	HANDLE cancel_render;
 	HANDLE render_thread;
 	DWORD render_thread_proc(void*);
@@ -659,9 +672,11 @@ private:
 	std::auto_ptr<player_window> ui;
 
 	// direct3d gubbins
-	direct3d9 d3d9;
+	std::auto_ptr<direct3d9> d3d9;
 
 	IDirect3DDevice9Ptr scene_device;
+	IDirect3DDevice9ExPtr scene_device_ex;
+
 	D3DPRESENT_PARAMETERS presentation_parameters;
 	void set_device_state();
 

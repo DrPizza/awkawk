@@ -95,7 +95,7 @@ namespace
 		utility::locking_ostream locked_dout;
 		utility::wlocking_ostream locked_wdout;
 
-		DebugStreamsImpl() : locked_dout(dout), locked_wdout(wdout)
+		DebugStreamsImpl() : locked_dout(dout), locked_wdout(wdout, locked_dout)
 		{
 		}
 	};

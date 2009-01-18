@@ -104,7 +104,7 @@ protected:
 	virtual HRESULT do_on_device_lost()
 	{
 		device = NULL;
-		surfaces.clear();
+		vmr9_surfaces.clear();
 		video_textures.clear();
 		texture_locks.clear();
 		return S_OK;
@@ -123,8 +123,8 @@ private:
 
 	IDirect3DDevice9Ptr device;
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
-	std::map<DWORD_PTR, std::vector<CAdapt<IDirect3DSurface9Ptr> > > surfaces;
-	std::map<DWORD_PTR, CAdapt<IDirect3DTexture9Ptr> > video_textures;
+	std::map<DWORD_PTR, std::vector<ATL::CAdapt<IDirect3DSurface9Ptr> > > vmr9_surfaces;
+	std::map<DWORD_PTR, ATL::CAdapt<IDirect3DTexture9Ptr> > video_textures;
 	std::map<DWORD_PTR, boost::shared_ptr<utility::critical_section> > texture_locks;
 
 	awkawk* player;

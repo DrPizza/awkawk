@@ -25,200 +25,47 @@
 
 const player_direct_show::transition_type player_direct_show::transitions[player_direct_show::max_graph_states][player_direct_show::max_graph_events] =
 {
-/* state    | event         | handler                         | exit states */
+/* state    | event         | handler                       | exit states */
 /* ------------------- */ {
-/* unloaded | load     */   { &player_direct_show::do_load      , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
-/*          | stop     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | pause    */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | play     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | unload   */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | rwnd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ffwd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               }
+/* unloaded | load     */   { &player_direct_show::do_load  , player_direct_show::transition_type::state_array() << player_direct_show::stopped },
+/*          | stop     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | pause    */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | play     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | unload   */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | rwnd     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | ffwd     */   { NULL                          , player_direct_show::transition_type::state_array()                                }
                           },
                           {
-/* stopped  | load     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | stop     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | pause    */   { &player_direct_show::do_play      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | play     */   { &player_direct_show::do_play      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | unload   */   { &player_direct_show::do_unload    , player_direct_show::transition_type::state_array() << player_direct_show::unloaded                                                               },
-/*          | rwnd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ffwd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               }
+/* stopped  | load     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | stop     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | pause    */   { &player_direct_show::do_play  , player_direct_show::transition_type::state_array() << player_direct_show::playing },
+/*          | play     */   { &player_direct_show::do_play  , player_direct_show::transition_type::state_array() << player_direct_show::playing },
+/*          | unload   */   { &player_direct_show::do_unload, player_direct_show::transition_type::state_array() << player_direct_show::unloaded},
+/*          | rwnd     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | ffwd     */   { NULL                          , player_direct_show::transition_type::state_array()                                }
                           },
                           {
-/* paused   | load     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | stop     */   { &player_direct_show::do_stop      , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
-/*          | pause    */   { &player_direct_show::do_resume    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | play     */   { &player_direct_show::do_resume    , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | unload   */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | rwnd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | ffwd     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               }
+/* paused   | load     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | stop     */   { &player_direct_show::do_stop  , player_direct_show::transition_type::state_array() << player_direct_show::stopped },
+/*          | pause    */   { &player_direct_show::do_resume, player_direct_show::transition_type::state_array() << player_direct_show::playing },
+/*          | play     */   { &player_direct_show::do_resume, player_direct_show::transition_type::state_array() << player_direct_show::playing },
+/*          | unload   */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | rwnd     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | ffwd     */   { NULL                          , player_direct_show::transition_type::state_array()                                }
                           },
                           {
-/* playing  | load     */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | stop     */   { &player_direct_show::do_stop      , player_direct_show::transition_type::state_array() << player_direct_show::stopped                                                                },
-/*          | pause    */   { &player_direct_show::do_pause     , player_direct_show::transition_type::state_array() << player_direct_show::paused                                                                 },
-/*          | play     */   { &player_direct_show::do_pause     , player_direct_show::transition_type::state_array() << player_direct_show::paused                                                                 },
-/*          | unload   */   { NULL                              , player_direct_show::transition_type::state_array()                                                                                               },
-/*          | rwnd     */   { &player_direct_show::do_rwnd      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                },
-/*          | ffwd     */   { &player_direct_show::do_ffwd      , player_direct_show::transition_type::state_array() << player_direct_show::playing                                                                }
+/* playing  | load     */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | stop     */   { &player_direct_show::do_stop  , player_direct_show::transition_type::state_array() << player_direct_show::stopped },
+/*          | pause    */   { &player_direct_show::do_pause , player_direct_show::transition_type::state_array() << player_direct_show::paused  },
+/*          | play     */   { &player_direct_show::do_pause , player_direct_show::transition_type::state_array() << player_direct_show::paused  },
+/*          | unload   */   { NULL                          , player_direct_show::transition_type::state_array()                                },
+/*          | rwnd     */   { &player_direct_show::do_rwnd  , player_direct_show::transition_type::state_array() << player_direct_show::playing },
+/*          | ffwd     */   { &player_direct_show::do_ffwd  , player_direct_show::transition_type::state_array() << player_direct_show::playing }
                           }
 };
 
-size_t player_direct_show::do_stop()
-try
-{
-	dout << __FUNCSIG__ << std::endl;
-	LOCK(graph_cs);
-	OAFilterState movie_state;
-	media_control->GetState(0, &movie_state);
-	while(movie_state != State_Stopped)
-	{
-		FAIL_THROW(media_control->Stop());
-		media_control->GetState(0, &movie_state);
-	}
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_play()
-try
-{
-	LOCK(graph_cs);
-	FAIL_THROW(media_control->Run());
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_pause()
-try
-{
-	dout << __FUNCSIG__ << std::endl;
-	LOCK(graph_cs);
-	OAFilterState movie_state;
-	media_control->GetState(0, &movie_state);
-	while(movie_state != State_Paused)
-	{
-		FAIL_THROW(media_control->Pause());
-		media_control->GetState(0, &movie_state);
-	}
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_resume()
-try
-{
-	LOCK(graph_cs);
-	FAIL_THROW(media_control->Run());
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_ffwd()
-try
-{
-	LOCK(graph_cs);
-	// TODO write ffwd code
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_rwnd()
-try
-{
-	LOCK(graph_cs);
-	// TODO write rwnd code
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_load()
-try
-{
-	dout << __FUNCSIG__ << std::endl;
-	LOCK(graph_cs);
-	create_graph();
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-size_t player_direct_show::do_unload()
-try
-{
-	LOCK(graph_cs);
-	LONGLONG current(0);
-	seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-	destroy_graph();
-	has_video = false;
-	return 0;
-}
-catch(_com_error& ce)
-{
-	derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-	return ~0;
-}
-
-void player_direct_show::destroy_graph()
-{
-	LOCK(graph_cs);
-	unregister_graph();
-
-	IEnumFiltersPtr filtEn;
-	graph->EnumFilters(&filtEn);
-	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL); graph->EnumFilters(&filtEn))
-	{
-		//FILTER_INFO fi = {0};
-		//flt->QueryFilterInfo(&fi);
-		//IFilterGraphPtr ptr(fi.pGraph, false);
-		//wdout << L"Removing " << fi.achName << std::endl;
-		graph->RemoveFilter(flt);
-	}
-
-	vmr_surface_allocator = NULL;
-	allocator = NULL;
-	media_control = NULL;
-	seeking = NULL;
-	vmr9 = NULL;
-	audio = NULL;
-	video = NULL;
-	has_video = false;
-
-	player->set_render_fps(25);
-	player->schedule_render();
-
-}
-
 void player_direct_show::set_allocator_presenter(IBaseFilterPtr filter, HWND window)
 {
-	LOCK(graph_cs);
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
 	FAIL_THROW(filter->QueryInterface(&surface_allocator_notify));
 
@@ -321,30 +168,57 @@ SIZE player_direct_show::get_video_size() const
 	return player->get_video_dimensions();
 }
 
-void player_direct_show::create_graph()
+void player_direct_show::register_graph(IUnknownPtr unknown)
 {
+	IRunningObjectTablePtr rot;
+	FAIL_THROW(::GetRunningObjectTable(0, &rot));
+
+	std::wstringstream wss;
+	// graphedit looks for ROT objects named "FilterGraph".
+	wss << L"FilterGraph " << reinterpret_cast<void*>(unknown.GetInterfacePtr()) << L" pid " << std::hex << ::GetCurrentProcessId() << std::endl;
+
+	IMonikerPtr moniker;
+	FAIL_THROW(::CreateItemMoniker(L"!", wss.str().c_str(), &moniker));
+	FAIL_THROW(rot->Register(ROTFLAGS_REGISTRATIONKEEPSALIVE, unknown, moniker, &rot_key));
+}
+
+void player_direct_show::unregister_graph(void)
+{
+	IRunningObjectTablePtr rot;
+	FAIL_THROW(::GetRunningObjectTable(0, &rot));
+	rot->Revoke(rot_key);
+}
+
+void* player_direct_show::do_msg_initialize_filter_graph(void*)
+{
+	LOCK(cs);
+	//::OleInitialize(NULL);
+	FAIL_THROW(::CoInitializeEx(NULL, COINIT_MULTITHREADED));
+	//FAIL_THROW(graph.CreateInstance(CLSID_FilterGraph));
+	FAIL_THROW(graph.CreateInstance(CLSID_FilterGraphNoThread));
+	//FAIL_THROW(graph.CreateInstance(CLSID_FilterGraphPrivateThread));
+	FAIL_THROW(graph->QueryInterface(&events));
+	HANDLE evt(0);
+	FAIL_THROW(events->GetEventHandle(reinterpret_cast<OAEVENT*>(&evt)));
+	::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &media_event, 0, FALSE, DUPLICATE_SAME_ACCESS);
+	cancel_media_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
+	media_event_thread = utility::CreateThread(NULL, 0, this, &player_direct_show::media_event_thread_proc, static_cast<void*>(0), "Media Event thread", 0, 0);
+	return NULL;
+}
+
+void* player_direct_show::do_msg_create_graph(void*)
+{
+	LOCK(cs);
 	FAIL_THROW(vmr9.CreateInstance(CLSID_VideoMixingRenderer9, NULL, CLSCTX_INPROC_SERVER));
 	IVMRFilterConfig9Ptr filter_config;
 	FAIL_THROW(vmr9->QueryInterface(&filter_config));
 	FAIL_THROW(filter_config->SetRenderingMode(VMR9Mode_Renderless));
 	set_allocator_presenter(vmr9, player->get_ui()->get_window());
 
-	// Note that we MUST use YUV mixing mode (or no mixing mode at all)
-	// because if we don't, VMR9 can change the state of the D3D device
-	// part-way through our render (and it doesn't tell us it's going to,
-	// so we have no opportunity to protect ourselves from its stupidity)
-	// when it performs colour space conversions.
-	// This is because we do not perform rendering in the VMR thread (why
-	// not? Because then we can't reset the device from the right thread;
-	// the whole thing seems like a mess).
-	// The real solution is for the AP to have its own private device,
-	// so that video decoding is decoupled from on-screen rendering. But this
-	// means making cross-thread calls which means that D3D will still barf
-	// when resetting the device.
-	// Further, if we do not use mixing mode then we cannot use VMR deinterlacing.
+	// If we do not use mixing mode then we cannot use VMR deinterlacing.
 	// It's all rather sad.
 #define USE_MIXING_MODE
-#define USE_YUV_MIXING_MODE
+//#define USE_YUV_MIXING_MODE
 #ifdef USE_MIXING_MODE
 	FAIL_THROW(filter_config->SetNumberOfStreams(1));
 	IVMRMixerControl9Ptr mixer_control;
@@ -442,27 +316,372 @@ void player_direct_show::create_graph()
 
 	float frame_rate(0 == average_frame_time ? 25 : 10000000 / static_cast<float>(average_frame_time));
 	player->set_render_fps(static_cast<unsigned int>(frame_rate));
+
+	return NULL;
 }
 
-void player_direct_show::register_graph(IUnknownPtr unknown)
+void* player_direct_show::do_msg_destroy_graph(void*)
 {
-	IRunningObjectTablePtr rot;
-	FAIL_THROW(::GetRunningObjectTable(0, &rot));
+	LOCK(cs);
 
-	std::wstringstream wss;
-	// graphedit looks for ROT objects named "FilterGraph".
-	wss << L"FilterGraph " << reinterpret_cast<void*>(unknown.GetInterfacePtr()) << L" pid " << std::hex << ::GetCurrentProcessId() << std::endl;
+	unregister_graph();
 
-	IMonikerPtr moniker;
-	FAIL_THROW(::CreateItemMoniker(L"!", wss.str().c_str(), &moniker));
-	FAIL_THROW(rot->Register(ROTFLAGS_REGISTRATIONKEEPSALIVE, unknown, moniker, &rot_key));
+	IEnumFiltersPtr filtEn;
+	graph->EnumFilters(&filtEn);
+	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL); graph->EnumFilters(&filtEn))
+	{
+		//FILTER_INFO fi = {0};
+		//flt->QueryFilterInfo(&fi);
+		//IFilterGraphPtr ptr(fi.pGraph, false);
+		//wdout << L"Removing " << fi.achName << std::endl;
+		graph->RemoveFilter(flt);
+	}
+
+	vmr_surface_allocator = NULL;
+	allocator = NULL;
+	media_control = NULL;
+	seeking = NULL;
+	vmr9 = NULL;
+	audio = NULL;
+	video = NULL;
+	has_video = false;
+
+	player->set_render_fps(25);
+	player->schedule_render();
+
+	return NULL;
 }
 
-void player_direct_show::unregister_graph(void)
+void* player_direct_show::do_msg_destroy_filter_graph(void*)
 {
-	IRunningObjectTablePtr rot;
-	FAIL_THROW(::GetRunningObjectTable(0, &rot));
-	rot->Revoke(rot_key);
+	LOCK(cs);
+	
+	if(get_graph_state() != unloaded)
+	{
+		if(get_graph_state() != stopped)
+		{
+			player->send_event(awkawk::stop);
+		}
+		player->send_event(awkawk::unload);
+	}
+	{
+		::SetEvent(cancel_media_event);
+		::WaitForSingleObject(media_event_thread, INFINITE);
+		::CloseHandle(media_event_thread);
+		::CloseHandle(cancel_media_event);
+		::CloseHandle(media_event);
+	}
+	events = NULL;
+	graph = NULL;
+
+	//::OleUninitialize();
+	::CoUninitialize();
+
+	return NULL;
+}
+
+void* player_direct_show::do_msg_load(void* arg)
+{
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		create_graph();
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_unload(void* arg)
+{
+	size_t* next_state(static_cast<size_t*>(arg));
+	LOCK(cs);
+	try
+	{
+		LONGLONG current(0);
+		seeking->SetPositions(&current, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
+		destroy_graph();
+		has_video = false;
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_ffwd(void* arg)
+{
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		// TODO write ffwd code
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_rwnd(void* arg)
+{
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		// TODO write rwnd code
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_pause(void* arg)
+{
+	LOCK(cs);
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		OAFilterState movie_state;
+		media_control->GetState(0, &movie_state);
+		while(movie_state != State_Paused)
+		{
+			FAIL_THROW(media_control->Pause());
+			media_control->GetState(0, &movie_state);
+		}
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_play(void* arg)
+{
+	LOCK(cs);
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		FAIL_THROW(media_control->Run());
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_resume(void* arg)
+{
+	LOCK(cs);
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		FAIL_THROW(media_control->Run());
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_stop(void* arg)
+{
+	LOCK(cs);
+	size_t* next_state(static_cast<size_t*>(arg));
+	try
+	{
+		OAFilterState movie_state;
+		media_control->GetState(0, &movie_state);
+		while(movie_state != State_Stopped)
+		{
+			FAIL_THROW(media_control->Stop());
+			media_control->GetState(0, &movie_state);
+		}
+		*next_state = 0UL;
+	}
+	catch(_com_error& ce)
+	{
+		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
+		*next_state = ~0UL;
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_get_filters(void* arg)
+{
+	std::vector<ATL::CAdapt<IBaseFilterPtr> >* filter_list(static_cast<std::vector<ATL::CAdapt<IBaseFilterPtr> >*>(arg));
+	IEnumFiltersPtr filtEn;
+	graph->EnumFilters(&filtEn);
+	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
+	{
+		filter_list->push_back(flt);
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_get_volume(void* arg)
+{
+	float* result(static_cast<float*>(arg));
+	if(get_graph_state() != unloaded)
+	{
+		LONG volume(0);
+		audio->get_Volume(&volume);
+		*result = (static_cast<float>(volume) / 100.0f);
+	}
+	else
+	{
+		*result = -std::numeric_limits<float>::infinity();
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_set_volume(void* arg)
+{
+	float* vol(static_cast<float*>(arg));
+	if(get_graph_state() != unloaded)
+	{
+		LONG volume(static_cast<LONG>(*vol * 100.0f));
+		audio->put_Volume(volume);
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_get_movie_state(void* arg)
+{
+	OAFilterState* state(static_cast<OAFilterState*>(arg));
+	FAIL_THROW(media_control->GetState(0, state));
+	return arg;
+}
+
+void* player_direct_show::do_msg_get_play_time(void* arg)
+{
+	float* time(static_cast<float*>(arg));
+	static const REFERENCE_TIME ticks_in_one_second(10000000);
+	try
+	{
+		if(get_graph_state() != unloaded)
+		{
+			REFERENCE_TIME current(0);
+			FAIL_THROW(seeking->GetCurrentPosition(&current));
+			*time = static_cast<float>(current) / ticks_in_one_second;
+		}
+		else
+		{
+			*time = 1.0f;
+		}
+	}
+	catch(_com_error& ce)
+	{
+		switch(ce.Error())
+		{
+		case E_NOTIMPL:
+		case E_FAIL:
+			*time = -1.0f;
+			break;
+		default:
+			throw;
+		}
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_get_playback_position(void* arg)
+{
+	float* position(static_cast<float*>(arg));
+	try
+	{
+		if(get_graph_state() != unloaded)
+		{
+			LONGLONG current(0), duration(0);
+			FAIL_THROW(seeking->GetCurrentPosition(&current));
+			FAIL_THROW(seeking->GetDuration(&duration));
+			*position = 100.0f * static_cast<float>(current) / static_cast<float>(duration);
+		}
+		else
+		{
+			*position = -1.0f;
+		}
+	}
+	catch(_com_error& ce)
+	{
+		switch(ce.Error())
+		{
+		case E_NOTIMPL:
+		case E_FAIL:
+			*position = -1.0f;
+			break;
+		default:
+			throw;
+		}
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_set_playback_position(void* arg)
+{
+	LOCK(cs);
+	float* percentage(static_cast<float*>(arg));
+	if(get_graph_state() != unloaded)
+	{
+		LONGLONG end(0);
+		seeking->GetStopPosition(&end);
+		LONGLONG position(static_cast<LONGLONG>(*percentage * static_cast<float>(end) / 100.0));
+		seeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
+	}
+	return arg;
+}
+
+void* player_direct_show::do_msg_get_total_time(void* arg)
+{
+	float* time(static_cast<float*>(arg));
+	static const REFERENCE_TIME ticks_in_one_second(10000000);
+	try
+	{
+		if(get_graph_state() != unloaded)
+		{
+			REFERENCE_TIME duration(0);
+			FAIL_THROW(seeking->GetDuration(&duration));
+			*time = static_cast<float>(duration) / ticks_in_one_second;
+		}
+		else
+		{
+			*time = -1.0f;
+		}
+	}
+	catch(_com_error& ce)
+	{
+		switch(ce.Error())
+		{
+		case E_NOTIMPL:
+		case E_FAIL:
+			*time = -1.0f;
+			break;
+		default:
+			throw;
+		}
+	}
+	return arg;
 }
 
 DWORD player_direct_show::media_event_thread_proc(void*)
@@ -482,7 +701,7 @@ DWORD player_direct_show::media_event_thread_proc(void*)
 			case EC_COMPLETE:
 				{
 					dout << "EC_COMPLETE" << std::endl;
-					player->post_message(awkawk::transitioning);
+					player->post_event(awkawk::transitioning);
 				}
 				break;
 			// ( HRESULT, void ) : defaulted (special)
@@ -563,7 +782,26 @@ DWORD player_direct_show::media_event_thread_proc(void*)
 			// Sent by filter to notify interesting graph changes
 			case EC_CLOCK_UNSET: dout << "EC_CLOCK_UNSET" << std::endl; break;
 			// ( void, void ) : application
-			case EC_VMR_RENDERDEVICE_SET: dout << "EC_VMR_RENDERDEVICE_SET" << std::endl; break;
+			case EC_VMR_RENDERDEVICE_SET:
+				{
+					dout << "EC_VMR_RENDERDEVICE_SET" << std::endl;
+					switch(param1)
+					{
+					case VMR_RENDER_DEVICE_OVERLAY:
+						dout << "VMR_RENDER_DEVICE_OVERLAY" << std::endl;
+						break;
+					case VMR_RENDER_DEVICE_VIDMEM:
+						dout << "VMR_RENDER_DEVICE_VIDMEM" << std::endl;
+						break;
+					case VMR_RENDER_DEVICE_SYSMEM:
+						dout << "VMR_RENDER_DEVICE_SYSMEM" << std::endl;
+						break;
+					default:
+						dout << "unknown render device: " << std::hex << param1 << std::endl;
+						break;
+					}
+				}
+				break;
 			// (Render_Device type, void)
 			case EC_VMR_SURFACE_FLIPPED: dout << "EC_VMR_SURFACE_FLIPPED" << std::endl; break;
 			// (hr - Flip return code, void)

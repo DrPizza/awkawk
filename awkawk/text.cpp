@@ -396,7 +396,6 @@ HRESULT CreateTextMesh(IDirect3DDevice9* device, HDC dc, const wchar_t* text, fl
 		vertices[i].tv       = static_cast<float>(extruder.vertices[i].tv);
 	}
 
-
 	D3DXVECTOR3 bottomLeft(FLT_MIN, FLT_MIN, FLT_MIN), topRight(FLT_MAX, FLT_MAX, FLT_MAX);
 	FAIL_RET(D3DXComputeBoundingBox(reinterpret_cast<D3DXVECTOR3*>(vertices), msh->GetNumVertices(), D3DXGetFVFVertexSize(mesh_fvf), &bottomLeft, &topRight));
 

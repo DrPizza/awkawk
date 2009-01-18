@@ -24,10 +24,9 @@
 #define WINDOW_HOOK__H
 
 #define NOMINMAX
-#define NTDDI_VERSION NTDDI_LONGHORN
+#define NTDDI_VERSION NTDDI_VISTA
 #define STRICT
-#pragma warning(disable:4995)
-#pragma warning(disable:4996)
+
 #include <windows.h>
 
 template<typename T>

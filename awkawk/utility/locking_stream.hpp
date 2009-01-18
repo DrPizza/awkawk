@@ -24,6 +24,7 @@
 #define LOCKING_STREAM__HPP
 
 #include <iosfwd>
+#include <typeinfo>
 #include "locks.hpp"
 
 namespace utility
@@ -31,10 +32,15 @@ namespace utility
 template<typename E, typename T = std::char_traits<E> >
 struct basic_locking_ostream
 {
-	utility::critical_section cs;
+	boost::shared_ptr<utility::critical_section> cs;
 	std::basic_ostream<E, T>* s;
 
-	basic_locking_ostream(std::basic_ostream<E, T>& os) : s(&os)
+	basic_locking_ostream(std::basic_ostream<E, T>& os) : s(&os), cs(new utility::critical_section(std::string("basic_locking_ostream<>")))
+	{
+	}
+
+	template<typename E2, typename T2>
+	basic_locking_ostream(std::basic_ostream<E, T>& os, basic_locking_ostream<E2, T2>& other_stream) : s(&os), cs(other_stream.cs)
 	{
 	}
 
@@ -44,38 +50,38 @@ struct basic_locking_ostream
 
 		basic_locking_ostream_helper(basic_locking_ostream<E, T>* l) : ls(l)
 		{
-			ls->cs.enter();
+			ls->cs->enter();
 		}
 		basic_locking_ostream_helper(const basic_locking_ostream_helper& rhs) : ls(rhs.ls)
 		{
-			ls->cs.enter();
+			ls->cs->enter();
 		}
 		~basic_locking_ostream_helper()
 		{
-			ls->cs.leave();
+			ls->cs->leave();
 		}
 
-		template<typename T>
-		basic_locking_ostream_helper& operator<<(const T& rhs)
+		template<typename TT>
+		basic_locking_ostream_helper& operator<<(const TT& rhs)
 		{
 			*(ls->s) << rhs;
 			return *this;
 		}
-		basic_locking_ostream_helper& operator<<(std::ostream& (*manip)(std::ostream&))
+		basic_locking_ostream_helper& operator<<(std::basic_ostream<E, T>& (*manip)(std::basic_ostream<E, T>&))
 		{
 			*(ls->s) << manip;
 			return *this;
 		}
 	};
 
-	template<typename T>
-	basic_locking_ostream_helper operator<<(const T& rhs)
+	template<typename TT>
+	basic_locking_ostream_helper operator<<(const TT& rhs)
 	{
 		basic_locking_ostream_helper hlp(this);
 		*s << rhs;
 		return hlp;
 	}
-	basic_locking_ostream_helper operator<<(std::ostream& (*manip)(std::ostream&))
+	basic_locking_ostream_helper operator<<(std::basic_ostream<E, T>& (*manip)(std::basic_ostream<E, T>&))
 	{
 		basic_locking_ostream_helper hlp(this);
 		*s << manip;

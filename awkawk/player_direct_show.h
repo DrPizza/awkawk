@@ -95,68 +95,117 @@ struct player_direct_show : direct3d_object, boost::noncopyable
 	typedef transition<player_direct_show, graph_state> transition_type;
 	typedef event_handler<player_direct_show, graph_state, graph_event> event_handler_type;
 
-	static const transition_type transitions[max_graph_states][max_graph_events];
+	const transition_type* get_transition(graph_event evt)
+	{
+		return &(transitions[get_current_state()][evt]);
+	}
 
 	bool permitted(graph_event evt) const
 	{
 		return handler->permitted(evt);
 	}
+	typedef message_pump<player_direct_show> message_pump_type;
+
+	enum graph_message
+	{
+		msg_initialize_filter_graph,
+		msg_create_graph,
+		msg_destroy_graph,
+		msg_destroy_filter_graph,
+		msg_load,
+		msg_unload,
+		msg_ffwd,
+		msg_rwnd,
+		msg_pause,
+		msg_play,
+		msg_resume,
+		msg_stop,
+		msg_get_filters,
+		msg_get_volume,
+		msg_set_volume,
+		msg_get_movie_state,
+		msg_get_play_time,
+		msg_get_playback_position,
+		msg_set_playback_position,
+		msg_get_total_time,
+	};
+
+	const message_pump_type::message_callback_type get_callback(ULONG_PTR message) const
+	{
+		switch(message)
+		{
+		case msg_initialize_filter_graph:
+			return &player_direct_show::do_msg_initialize_filter_graph;
+		case msg_create_graph:
+			return &player_direct_show::do_msg_create_graph;
+		case msg_destroy_graph:
+			return &player_direct_show::do_msg_destroy_graph;
+		case msg_destroy_filter_graph:
+			return &player_direct_show::do_msg_destroy_filter_graph;
+		case msg_load:
+			return &player_direct_show::do_msg_load;
+		case msg_unload:
+			return &player_direct_show::do_msg_unload;
+		case msg_ffwd:
+			return &player_direct_show::do_msg_ffwd;
+		case msg_rwnd:
+			return &player_direct_show::do_msg_rwnd;
+		case msg_pause:
+			return &player_direct_show::do_msg_pause;
+		case msg_play:
+			return &player_direct_show::do_msg_play;
+		case msg_resume:
+			return &player_direct_show::do_msg_resume;
+		case msg_stop:
+			return &player_direct_show::do_msg_stop;
+		case msg_get_filters:
+			return &player_direct_show::do_msg_get_filters;
+		case msg_get_volume:
+			return &player_direct_show::do_msg_get_volume;
+		case msg_set_volume:
+			return &player_direct_show::do_msg_set_volume;
+		case msg_get_movie_state:
+			return &player_direct_show::do_msg_get_movie_state;
+		case msg_get_play_time:
+			return &player_direct_show::do_msg_get_play_time;
+		case msg_get_playback_position:
+			return &player_direct_show::do_msg_get_playback_position;
+		case msg_set_playback_position:
+			return &player_direct_show::do_msg_set_playback_position;
+		case msg_get_total_time:
+			return &player_direct_show::do_msg_get_total_time;
+		}
+		return NULL;
+	}
 
 	player_direct_show(awkawk* player_) : player(player_),
+	                                      pump(new message_pump_type(this)),
 	                                      handler(new event_handler_type(this)),
 	                                      current_state(unloaded),
 	                                      user_id(0xabcd),
 	                                      has_video(false),
+	                                      cs("graph"),
 	                                      allocator(NULL),
 	                                      media_event(NULL),
 	                                      cancel_media_event(NULL),
 	                                      media_event_thread(NULL)
 	{
-		LOCK(graph_cs);
-		FAIL_THROW(graph.CreateInstance(CLSID_FilterGraph));
-		FAIL_THROW(graph->QueryInterface(&events));
-		HANDLE evt(0);
-		FAIL_THROW(events->GetEventHandle(reinterpret_cast<OAEVENT*>(&evt)));
-		::DuplicateHandle(::GetCurrentProcess(), evt, ::GetCurrentProcess(), &media_event, 0, FALSE, DUPLICATE_SAME_ACCESS);
-		cancel_media_event = ::CreateEventW(NULL, TRUE, FALSE, NULL);
-		media_event_thread = utility::CreateThread(NULL, 0, this, &player_direct_show::media_event_thread_proc, static_cast<void*>(0), "Media Event thread", 0, 0);
+		pump->send_message(msg_initialize_filter_graph, NULL);
 	}
 
 	~player_direct_show()
 	{
-		if(get_graph_state() != unloaded)
-		{
-			if(get_graph_state() != stopped)
-			{
-				player->send_message(awkawk::stop);
-			}
-			player->send_message(awkawk::unload);
-		}
-		{
-			::SetEvent(cancel_media_event);
-			::WaitForSingleObject(media_event_thread, INFINITE);
-			::CloseHandle(media_event_thread);
-			::CloseHandle(cancel_media_event);
-			::CloseHandle(media_event);
-		}
-		LOCK(graph_cs);
-		events = NULL;
-		graph = NULL;
+		pump->send_message(msg_destroy_filter_graph, NULL);
 	}
 
-	graph_state send_message(graph_event evt)
+	graph_state send_event(graph_event evt)
 	{
-		return handler->send_message(evt);
+		return handler->send_event(evt);
 	}
 
-	void post_message(graph_event evt)
+	void post_event(graph_event evt)
 	{
-		return handler->post_message(evt);
-	}
-
-	graph_state process_message(DWORD message)
-	{
-		return handler->process_message(message);
+		return handler->post_event(evt);
 	}
 
 	graph_state get_graph_state() const { return current_state; }
@@ -168,150 +217,71 @@ struct player_direct_show : direct3d_object, boost::noncopyable
 		switch(st)
 		{
 		case unloaded:
-			return "unloaded";
+			return "player_direct_show::unloaded";
 		case stopped:
-			return "stopped";
+			return "player_direct_show::stopped";
 		case paused:
-			return "paused";
+			return "player_direct_show::paused";
 		case playing:
-			return "playing";
+			return "player_direct_show::playing";
 		}
-		return "error";
+		::DebugBreak();
+		return "player_direct_show::error";
 	}
 
 	OAFilterState get_movie_state() const
 	{
 		OAFilterState state;
-		FAIL_THROW(media_control->GetState(0, &state));
+		pump->execute_directly(msg_get_movie_state, &state);
 		return state;
 	}
 
-	std::vector<CAdapt<IBaseFilterPtr> > get_filters() const
+	std::vector<ATL::CAdapt<IBaseFilterPtr> > get_filters() const
 	{
-		std::vector<CAdapt<IBaseFilterPtr> > rv;
-		IEnumFiltersPtr filtEn;
-		graph->EnumFilters(&filtEn);
-		for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, NULL);)
-		{
-			rv.push_back(flt);
-		}
-		return rv;
-	}
-
-	void set_playback_position(float percentage)
-	{
-		if(get_graph_state() != unloaded)
-		{
-			LOCK(graph_cs);
-			LONGLONG end(0);
-			seeking->GetStopPosition(&end);
-			LONGLONG position(static_cast<LONGLONG>(percentage * static_cast<float>(end) / 100.0));
-			seeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
-		}
+		std::vector<ATL::CAdapt<IBaseFilterPtr> > result;
+		pump->execute_directly(msg_get_filters, &result);
+		return result;
 	}
 
 	float get_play_time() const
 	{
-		static const REFERENCE_TIME ticks_in_one_second(10000000);
-		try
-		{
-			LOCK(graph_cs);
-			if(get_graph_state() != unloaded)
-			{
-				REFERENCE_TIME current(0);
-				FAIL_THROW(seeking->GetCurrentPosition(&current));
-				return static_cast<float>(current) / ticks_in_one_second;
-			}
-		}
-		catch(_com_error& ce)
-		{
-			switch(ce.Error())
-			{
-			case E_NOTIMPL:
-			case E_FAIL:
-				return -1.0f;
-			default:
-				throw;
-			}
-		}
-		return -1.0f;
+		float result;
+		pump->execute_directly(msg_get_play_time, &result);
+		return result;
 	}
 
 	float get_total_time() const
 	{
-		static const REFERENCE_TIME ticks_in_one_second(10000000);
-		try
-		{
-			LOCK(graph_cs);
-			if(get_graph_state() != unloaded)
-			{
-				REFERENCE_TIME duration(0);
-				FAIL_THROW(seeking->GetDuration(&duration));
-				return static_cast<float>(duration) / ticks_in_one_second;
-			}
-		}
-		catch(_com_error& ce)
-		{
-			switch(ce.Error())
-			{
-			case E_NOTIMPL:
-			case E_FAIL:
-				return -1.0f;
-			default:
-				throw;
-			}
-		}
-		return -1.0f;
+		float result;
+		pump->execute_directly(msg_get_total_time, &result);
+		return result;
 	}
 
 	float get_playback_position() const
 	{
-		try
-		{
-			LOCK(graph_cs);
-			if(get_graph_state() != unloaded)
-			{
-				LONGLONG current(0), duration(0);
-				FAIL_THROW(seeking->GetCurrentPosition(&current));
-				FAIL_THROW(seeking->GetDuration(&duration));
-				return 100.0f * static_cast<float>(current) / static_cast<float>(duration);
-			}
-		}
-		catch(_com_error& ce)
-		{
-			switch(ce.Error())
-			{
-			case E_NOTIMPL:
-			case E_FAIL:
-				return -1.0f;
-			default:
-				throw;
-			}
-		}
-		return -1.0f;
+		float result;
+		pump->execute_directly(msg_get_playback_position, &result);
+		return result;
+	}
+
+	void set_playback_position(float percentage)
+	{
+		std::auto_ptr<float> pcnt(new float(percentage));
+		pump->post_message_callback(msg_set_playback_position, pcnt.release(), this, &player_direct_show::async_callback, NULL);
 	}
 
 	// in dB, from -100.0 to 0.0
 	float get_volume() const
 	{
-		if(get_graph_state() != unloaded)
-		{
-			LOCK(graph_cs);
-			LONG volume(0);
-			audio->get_Volume(&volume);
-			return (static_cast<float>(volume) / 100.0f);
-		}
-		return -std::numeric_limits<float>::infinity();
+		float result;
+		pump->execute_directly(msg_get_volume, &result);
+		return result;
 	}
 
 	void set_volume(float vol)
 	{
-		if(get_graph_state() != unloaded)
-		{
-			LOCK(graph_cs);
-			LONG volume(static_cast<LONG>(vol * 100.0f));
-			audio->put_Volume(volume);
-		}
+		std::auto_ptr<float> volume(new float(vol));
+		pump->post_message_callback(msg_set_volume, volume.release(), this, &player_direct_show::async_callback, NULL);
 	}
 
 	// linearized such that 0 dB = 1, -6 dB ~= 0.5, -inf dB = 0.0 (except directshow is annoying, and doesn't go to -inf, only -100)
@@ -322,7 +292,7 @@ struct player_direct_show : direct3d_object, boost::noncopyable
 		{
 			return 0;
 		}
-		return std::pow(10.0f, get_volume() / 20.0f);
+		return std::pow(10.0f, raw_volume / 20.0f);
 	}
 
 	void set_linear_volume(float vol)
@@ -346,10 +316,13 @@ struct player_direct_show : direct3d_object, boost::noncopyable
 		return has_video;
 	}
 
+	boost::shared_ptr<utility::critical_section::attempt_lock> attempt_lock()
+	{
+		return boost::shared_ptr<utility::critical_section::attempt_lock>(new utility::critical_section::attempt_lock(cs));
+	}
+
 	// TODO make allocator non-public
 	allocator_presenter* allocator;
-	// TODO make graph_cs non-public
-	mutable utility::critical_section graph_cs;
 
 protected:
 	// create D3DPOOL_MANAGED resources
@@ -392,23 +365,115 @@ protected:
 	}
 
 private:
+	void async_callback(ULONG_PTR msg, void* arg, void* context, void* result)
+	{
+		switch(msg)
+		{
+		case msg_set_playback_position:
+			{
+				std::auto_ptr<float> pos(static_cast<float*>(arg));
+			}
+			break;
+		case msg_set_volume:
+			{
+				std::auto_ptr<float> vol(static_cast<float*>(arg));
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	void set_allocator_presenter(IBaseFilterPtr filter, HWND window);
-	void create_graph();
-	void destroy_graph();
+	void create_graph()
+	{
+		pump->send_message(msg_create_graph, NULL);
+	}
+
+	void destroy_graph()
+	{
+		pump->send_message(msg_destroy_graph, NULL);
+	}
 
 	void register_graph(IUnknownPtr unknown);
 	void unregister_graph();
 
+	std::auto_ptr<message_pump_type> pump;
 	std::auto_ptr<event_handler_type> handler;
 
-	size_t do_load();
-	size_t do_stop();
-	size_t do_pause();
-	size_t do_resume();
-	size_t do_play();
-	size_t do_unload();
-	size_t do_rwnd();
-	size_t do_ffwd();
+	void* do_msg_initialize_filter_graph(void*);
+	void* do_msg_create_graph(void*);
+	void* do_msg_destroy_graph(void*);
+	void* do_msg_destroy_filter_graph(void*);
+	void* do_msg_load(void*);
+	void* do_msg_unload(void*);
+	void* do_msg_ffwd(void*);
+	void* do_msg_rwnd(void*);
+	void* do_msg_pause(void*);
+	void* do_msg_play(void*);
+	void* do_msg_resume(void*);
+	void* do_msg_stop(void*);
+	void* do_msg_get_filters(void*);
+	void* do_msg_get_linear_volume(void*);
+	void* do_msg_set_linear_volume(void*);
+	void* do_msg_get_volume(void*);
+	void* do_msg_set_volume(void*);
+	void* do_msg_get_movie_state(void*);
+	void* do_msg_get_play_time(void*);
+	void* do_msg_get_playback_position(void*);
+	void* do_msg_set_playback_position(void*);
+	void* do_msg_get_total_time(void*);
+
+	static const transition_type transitions[max_graph_states][max_graph_events];
+
+	size_t do_load()
+	{
+		size_t next_state;
+		pump->send_message(msg_load, &next_state);
+		return next_state;
+	}
+	size_t do_stop()
+	{
+		size_t next_state;
+		pump->send_message(msg_stop, &next_state);
+		return next_state;
+	}
+	size_t do_pause()
+	{
+		size_t next_state;
+		pump->send_message(msg_pause, &next_state);
+		return next_state;
+	}
+	size_t do_resume()
+	{
+		size_t next_state;
+		pump->send_message(msg_resume, &next_state);
+		return next_state;
+	}
+	size_t do_play()
+	{
+		size_t next_state;
+		pump->send_message(msg_play, &next_state);
+		return next_state;
+	}
+	size_t do_unload()
+	{
+		size_t next_state;
+		pump->send_message(msg_unload, &next_state);
+		return next_state;
+	}
+	size_t do_rwnd()
+	{
+		size_t next_state;
+		pump->send_message(msg_rwnd, &next_state);
+		return next_state;
+	}
+	size_t do_ffwd()
+	{
+		size_t next_state;
+		pump->send_message(msg_ffwd, &next_state);
+		return next_state;
+	}
 
 	awkawk* player;
 
@@ -434,6 +499,8 @@ private:
 	IMediaEventExPtr events;
 
 	bool has_video;
+
+	utility::critical_section cs;
 
 	IVMRSurfaceAllocator9Ptr vmr_surface_allocator;
 };

@@ -24,10 +24,10 @@
 #define LOCKS_HPP
 
 #define NOMINMAX
-#define NTDDI_VERSION NTDDI_LONGHORN
+#define NTDDI_VERSION NTDDI_VISTA
 #define STRICT
-#pragma warning(disable:4995)
-#pragma warning(disable:4996)
+#pragma warning(disable:4189) // local initialized but not referenced
+
 #include <windows.h>
 
 #include <list>
@@ -47,6 +47,8 @@
 namespace utility
 {
 
+struct critical_section;
+
 struct lock_tracker
 {
 	struct lock_manipulation
@@ -54,7 +56,7 @@ struct lock_tracker
 		void* return_address;
 		void* address_of_return_address;
 
-		const CRITICAL_SECTION* section;
+		const critical_section* section;
 		enum lock_operation
 		{
 			attempt,
@@ -65,7 +67,7 @@ struct lock_tracker
 		lock_operation operation;
 		long depth;
 
-		lock_manipulation(void* return_address_, void* address_of_return_address_, const CRITICAL_SECTION* section_, lock_operation operation_, long depth_) : return_address(return_address_),
+		lock_manipulation(void* return_address_, void* address_of_return_address_, const critical_section* section_, lock_operation operation_, long depth_) : return_address(return_address_),
 		                                                                                                                                                       address_of_return_address(address_of_return_address_),
 		                                                                                                                                                       section(section_),
 		                                                                                                                                                       operation(operation_),
@@ -98,30 +100,30 @@ struct lock_tracker
 		{
 			::DeleteCriticalSection(&cs);
 		}
-		void add_entry(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section, lock_manipulation::lock_operation operation)
+		void add_entry(void* return_address, void* address_of_return_address, const critical_section* section, lock_manipulation::lock_operation operation)
 		{
 			current_sequence.push_back(lock_manipulation(return_address, address_of_return_address, section, operation, outstanding_locks));
 		}
-		void add_attempt(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		void add_attempt(void* return_address, void* address_of_return_address, const critical_section* section)
 		{
 			::EnterCriticalSection(&cs);
 			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
 			add_entry(return_address, address_of_return_address, section, lock_manipulation::attempt);
 		}
-		void add_fail(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		void add_fail(void* return_address, void* address_of_return_address, const critical_section* section)
 		{
 			::EnterCriticalSection(&cs);
 			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
 			add_entry(return_address, address_of_return_address, section, lock_manipulation::fail);
 		}
-		void add_acquire(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		void add_acquire(void* return_address, void* address_of_return_address, const critical_section* section)
 		{
 			::EnterCriticalSection(&cs);
 			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
 			add_entry(return_address, address_of_return_address, section, lock_manipulation::acquire);
 			::InterlockedIncrement(&outstanding_locks);
 		}
-		void add_release(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+		void add_release(void* return_address, void* address_of_return_address, const critical_section* section)
 		{
 			::EnterCriticalSection(&cs);
 			ON_BLOCK_EXIT(::LeaveCriticalSection, &cs);
@@ -152,22 +154,22 @@ struct lock_tracker
 		return *info[::GetCurrentThreadId()];
 	}
 
-	void attempt(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	void attempt(void* return_address, void* address_of_return_address, const critical_section* section)
 	{
 		get_lock_info().add_attempt(return_address, address_of_return_address, section);
 	}
 
-	void fail(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	void fail(void* return_address, void* address_of_return_address, const critical_section* section)
 	{
 		get_lock_info().add_fail(return_address, address_of_return_address, section);
 	}
 
-	void acquire(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	void acquire(void* return_address, void* address_of_return_address, const critical_section* section)
 	{
 		get_lock_info().add_acquire(return_address, address_of_return_address, section);
 	}
 
-	void release(void* return_address, void* address_of_return_address, const CRITICAL_SECTION* section)
+	void release(void* return_address, void* address_of_return_address, const critical_section* section)
 	{
 		get_lock_info().add_release(return_address, address_of_return_address, section);
 	}
@@ -287,7 +289,7 @@ extern utility::lock_tracker tracker;
 
 struct critical_section
 {
-	critical_section() : count(0)
+	critical_section(const std::string& name_) : count(0), name(name_)
 	{
 		::InitializeCriticalSection(&cs);
 	}
@@ -300,7 +302,7 @@ struct critical_section
 	void enter(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
 	{
 #ifdef TRACK_LOCKS
-		tracker.attempt(return_address, address_of_return_address, &cs);
+		tracker.attempt(return_address, address_of_return_address, this);
 #else
 		UNREFERENCED_PARAMETER(return_address);
 		UNREFERENCED_PARAMETER(address_of_return_address);
@@ -308,14 +310,14 @@ struct critical_section
 		::EnterCriticalSection(&cs);
 		::InterlockedIncrement(&count);
 #ifdef TRACK_LOCKS
-		tracker.acquire(return_address, address_of_return_address, &cs);
+		tracker.acquire(return_address, address_of_return_address, this);
 #endif
 	}
 
 	bool attempt_enter(void* return_address = _ReturnAddress(), void* address_of_return_address = _AddressOfReturnAddress())
 	{
 #ifdef TRACK_LOCKS
-		tracker.attempt(return_address, address_of_return_address, &cs);
+		tracker.attempt(return_address, address_of_return_address, this);
 #else
 		UNREFERENCED_PARAMETER(return_address);
 		UNREFERENCED_PARAMETER(address_of_return_address);
@@ -324,12 +326,12 @@ struct critical_section
 		{
 			::InterlockedIncrement(&count);
 #ifdef TRACK_LOCKS
-			tracker.acquire(return_address, address_of_return_address, &cs);
+			tracker.acquire(return_address, address_of_return_address, this);
 #endif
 			return true;
 		}
 #ifdef TRACK_LOCKS
-		tracker.fail(return_address, address_of_return_address, &cs);
+		tracker.fail(return_address, address_of_return_address, this);
 #endif
 		return false;
 	}
@@ -339,7 +341,7 @@ struct critical_section
 		::InterlockedDecrement(&count);
 		::LeaveCriticalSection(&cs);
 #ifdef TRACK_LOCKS
-		tracker.release(return_address, address_of_return_address, &cs);
+		tracker.release(return_address, address_of_return_address, this);
 #else
 		UNREFERENCED_PARAMETER(return_address);
 		UNREFERENCED_PARAMETER(address_of_return_address);
@@ -398,8 +400,10 @@ struct critical_section
 
 	volatile LONG count;
 	CRITICAL_SECTION cs;
+	const std::string name;
 private:
 	critical_section(const critical_section&);
+	critical_section& operator=(const critical_section&);
 };
 
 #define LOCK(cs) utility::critical_section::lock CREATE_NAME(lck)((cs))

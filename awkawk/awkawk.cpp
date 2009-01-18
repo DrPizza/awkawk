@@ -86,7 +86,8 @@ awkawk::awkawk() : ui(new player_window(this)),
                    fullscreen(false),
                    chosen_ar(0),
                    chosen_lb(0),
-                   wnd_size_mode(one_hundred_percent)
+                   wnd_size_mode(one_hundred_percent),
+                   player_cs("awkawk")
 {
 	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new natural_aspect_ratio(this)));
 	available_ratios.push_back(boost::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(4, 3)));
@@ -115,12 +116,12 @@ awkawk::~awkawk()
 
 void awkawk::create_d3d()
 {
-	d3d9.create_d3d();
+	d3d9.reset(new direct3d9());
 }
 
 void awkawk::destroy_d3d()
 {
-	d3d9.destroy_d3d();
+	d3d9.reset();
 }
 
 void awkawk::create_ui(int cmd_show)
@@ -151,9 +152,9 @@ void awkawk::create_device()
 #endif
 
 	UINT device_ordinal(0);
-	for(UINT ord(0); ord < d3d9.get_d3d9()->GetAdapterCount(); ++ord)
+	for(UINT ord(0); ord < d3d9->get_d3d9()->GetAdapterCount(); ++ord)
 	{
-		if(d3d9.get_d3d9()->GetAdapterMonitor(ord) == ::MonitorFromWindow(get_ui()->get_window(), MONITOR_DEFAULTTONEAREST))
+		if(d3d9->get_d3d9()->GetAdapterMonitor(ord) == ::MonitorFromWindow(get_ui()->get_window(), MONITOR_DEFAULTTONEAREST))
 		{
 			device_ordinal = ord;
 			break;
@@ -161,10 +162,10 @@ void awkawk::create_device()
 	}
 
 	D3DDISPLAYMODE dm;
-	FAIL_THROW(d3d9.get_d3d9()->GetAdapterDisplayMode(device_ordinal, &dm));
+	FAIL_THROW(d3d9->get_d3d9()->GetAdapterDisplayMode(device_ordinal, &dm));
 
 	D3DCAPS9 caps;
-	FAIL_THROW(d3d9.get_d3d9()->GetDeviceCaps(device_ordinal, dev_type, &caps));
+	FAIL_THROW(d3d9->get_d3d9()->GetDeviceCaps(device_ordinal, dev_type, &caps));
 	if((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL))
 	{
 		::MessageBoxW(get_ui()->get_window(), L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
@@ -202,14 +203,13 @@ void awkawk::create_device()
 	presentation_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
-	FAIL_THROW(d3d9.get_d3d9()->CreateDevice(device_ordinal, dev_type, get_ui()->get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE, &parameters, &scene_device));
+	FAIL_THROW(d3d9->get_d3d9()->CreateDevice(device_ordinal, dev_type, get_ui()->get_window(), vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE, &parameters, &scene_device));
+	scene_device_ex = scene_device;
 
 	set_device_state();
 
-	FAIL_THROW(dshow->on_device_created(scene_device));
 	FAIL_THROW(scene->on_device_created(scene_device));
 	FAIL_THROW(overlay->on_device_created(scene_device));
-	FAIL_THROW(dshow->on_device_reset());
 	FAIL_THROW(scene->on_device_reset());
 	FAIL_THROW(overlay->on_device_reset());
 }
@@ -236,13 +236,13 @@ void awkawk::destroy_device()
 	dshow->on_device_destroyed();
 	scene->on_device_destroyed();
 	overlay->on_device_destroyed();
+	scene_device_ex = NULL;
 	scene_device = NULL;
 }
 
 void awkawk::reset_device()
 {
 	// TODO This was locked for a reason
-	LOCK(dshow->graph_cs);
 	FAIL_THROW(dshow->on_device_lost());
 	FAIL_THROW(scene->on_device_lost());
 	FAIL_THROW(overlay->on_device_lost());
@@ -282,6 +282,8 @@ int awkawk::run_ui()
 	render_timer = ::CreateWaitableTimerW(NULL, TRUE, NULL);
 	set_render_fps(25);
 	render_event = ::CreateEventW(NULL, FALSE, FALSE, NULL);
+	render_and_wait_event = ::CreateEventW(NULL, FALSE, FALSE, NULL);
+	render_finished_event = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	cancel_render = ::CreateEventW(NULL, FALSE, FALSE, NULL);
 	render_thread = utility::CreateThread(NULL, 0, this, &awkawk::render_thread_proc, static_cast<void*>(0), "Render Thread", 0, 0);
 	schedule_render();
@@ -292,6 +294,9 @@ void awkawk::stop_rendering()
 {
 	::SetEvent(cancel_render);
 	::WaitForSingleObject(render_thread, INFINITE);
+	::CloseHandle(render_finished_event);
+	::CloseHandle(render_and_wait_event);
+	::CloseHandle(render_event);
 	::CloseHandle(cancel_render);
 	::CloseHandle(render_thread);
 	::CloseHandle(render_timer);
@@ -301,27 +306,60 @@ bool awkawk::needs_display_change() const
 {
 	D3DDEVICE_CREATION_PARAMETERS parameters;
 	scene_device->GetCreationParameters(&parameters);
-	HMONITOR device_monitor(d3d9.get_d3d9()->GetAdapterMonitor(parameters.AdapterOrdinal));
+	HMONITOR device_monitor(d3d9->get_d3d9()->GetAdapterMonitor(parameters.AdapterOrdinal));
 	HMONITOR window_monitor(::MonitorFromWindow(get_ui()->get_window(), MONITOR_DEFAULTTONEAREST));
 	return device_monitor != window_monitor;
 }
 
 void awkawk::reset()
 {
-	switch(scene_device->TestCooperativeLevel())
+	if(scene_device_ex == NULL)
 	{
-	case D3DERR_DRIVERINTERNALERROR:
-		dout << "D3DERR_DRIVERINTERNALERROR" << std::endl;
-		return;
-	case D3DERR_DEVICELOST:
-		dout << "D3DERR_DEVICELOST" << std::endl;
-		return;
-	case D3DERR_DEVICENOTRESET:
-		dout << "D3DERR_DEVICENOTRESET" << std::endl;
-		reset_device();
-		return;
-	case D3D_OK:
-		return;
+		switch(scene_device->TestCooperativeLevel())
+		{
+		case D3DERR_DRIVERINTERNALERROR:
+			dout << "D3DERR_DRIVERINTERNALERROR" << std::endl;
+			return;
+		case D3DERR_DEVICELOST:
+			dout << "D3DERR_DEVICELOST" << std::endl;
+			return;
+		case D3DERR_DEVICENOTRESET:
+			dout << "D3DERR_DEVICENOTRESET" << std::endl;
+			reset_device();
+			return;
+		case D3D_OK:
+			return;
+		}
+	}
+	else
+	{
+		switch(scene_device_ex->CheckDeviceState(get_ui()->get_window()))
+		{
+		case S_PRESENT_MODE_CHANGED:
+			dout << "S_PRESENT_MODE_CHANGED" << std::endl;
+			// I can continue rendering if I need to, but it's better to reset and create
+			// a new swap chain
+			reset_device();
+			return;
+		case S_PRESENT_OCCLUDED:
+			dout << "S_PRESENT_OCCLUDED" << std::endl;
+			// I could pause rendering as the window is invisible
+			return;
+		case D3DERR_DEVICELOST:
+			dout << "D3DERR_DEVICELOST" << std::endl;
+			reset_device();
+			return;
+		case D3DERR_DEVICEHUNG:
+			dout << "D3DERR_DEVICEHUNG" << std::endl;
+			reset_device();
+			return;
+		case D3DERR_DEVICEREMOVED:
+			dout << "D3DERR_DEVICEREMOVED" << std::endl;
+			reset_device();
+			return;
+		case S_OK:
+			return;
+		}
 	}
 }
 
@@ -329,11 +367,6 @@ void awkawk::render()
 {
 	try
 	{
-		// TODO This was locked for a reason
-		LOCK(dshow->graph_cs);
-		scene->set_volume(dshow->get_linear_volume());
-		scene->set_playback_position(dshow->get_playback_position());
-
 		IDirect3DSurface9Ptr back_buffer;
 		scene_device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
 		scene_device->SetRenderTarget(0, back_buffer);
@@ -353,16 +386,41 @@ void awkawk::render()
 			FAIL_THROW(scene_device->SetTransform(D3DTS_PROJECTION, &ortho2D));
 			boost::shared_ptr<utility::critical_section> stream_cs;
 			std::auto_ptr<utility::critical_section::lock> l;
-			if(dshow->get_has_video() && dshow->allocator->rendering(dshow->get_user_id()))
+
+			if(dshow->get_graph_state() != player_direct_show::unloaded)
 			{
-				stream_cs = dshow->allocator->get_cs(dshow->get_user_id());
-				l.reset(new utility::critical_section::lock(*stream_cs));
-				scene->set_video_texture(dshow->allocator->get_video_texture(dshow->get_user_id()));
+				boost::shared_ptr<utility::critical_section::attempt_lock> lck(dshow->attempt_lock());
+				if(lck->succeeded)
+				{
+					scene->set_volume(dshow->get_volume());
+					scene->set_linear_volume(dshow->get_linear_volume());
+					scene->set_playback_position(dshow->get_playback_position());
+					scene->set_play_time(dshow->get_play_time());
+					if(dshow->get_has_video() && dshow->allocator->rendering(dshow->get_user_id()))
+					{
+						stream_cs = dshow->allocator->get_cs(dshow->get_user_id());
+						l.reset(new utility::critical_section::lock(*stream_cs));
+						scene->set_video_texture(dshow->allocator->get_video_texture(dshow->get_user_id()));
+					}
+					else
+					{
+						scene->set_video_texture(NULL);
+					}
+				}
+				else
+				{
+					dout << "skipping due to graph transition" << std::endl;
+				}
 			}
 			else
 			{
+				scene->set_volume(0.0f);
+				scene->set_linear_volume(1.0f);
+				scene->set_playback_position(0.0f);
+				scene->set_play_time(0.0f);
 				scene->set_video_texture(NULL);
 			}
+
 			scene->render();
 			overlay->render();
 		}
@@ -378,45 +436,61 @@ DWORD awkawk::render_thread_proc(void*)
 {
 	try
 	{
-		//get_ui()->send_message(player_window::create_d3d_msg, 0, 0);
 		create_d3d();
-		//get_ui()->send_message(player_window::create_device_msg, 0, 0);
 		create_device();
-		HANDLE evts[] = { render_event, render_timer, cancel_render };
+
+		LARGE_INTEGER previous_render_time = {0};
+		LARGE_INTEGER current_time = {0};
+		LARGE_INTEGER frequency = {0};
+		::QueryPerformanceFrequency(&frequency);
 		bool continue_rendering(true);
 		while(continue_rendering)
 		{
+			float frame_delay(1.0f);
+			bool is_waiting(false);
+			bool delayed(dshow->get_graph_state() == player_direct_show::playing);
+			HANDLE evts[] = { render_and_wait_event, render_event, render_timer, cancel_render };
 			switch(::WaitForMultipleObjects(ARRAY_SIZE(evts), evts, FALSE, INFINITE))
 			{
 			case WAIT_OBJECT_0:
+				is_waiting = true;
 			case WAIT_OBJECT_0 + 1:
-				schedule_render();
+				frame_delay = 2.0f;
+				delayed = false;
+			case WAIT_OBJECT_0 + 2:
+				if(delayed)
+				{
+					dout << "WARN: rendered due to timeout" << std::endl;
+				}
+				::QueryPerformanceCounter(&current_time);
+				//dout << (static_cast<double>(frequency.QuadPart) / static_cast<double>(current_time.QuadPart - previous_render_time.QuadPart)) << std::endl;
+				schedule_render(frame_delay);
 				try
 				{
 					if(needs_display_change())
 					{
-						//get_ui()->post_message(player_window::reset_device_msg, 0, 0);
 						reset_device();
 					}
-					//get_ui()->post_message(player_window::reset_msg, 0, 0);
 					reset();
-					//get_ui()->post_message(player_window::render_msg, 0, 0);
 					render();
 				}
 				catch(_com_error& ce)
 				{
 					derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 				}
+				if(is_waiting)
+				{
+					::SetEvent(render_finished_event);
+				}
+				previous_render_time = current_time;
 				break;
-			case WAIT_OBJECT_0 + 2:
+			case WAIT_OBJECT_0 + 3:
 			default:
 				continue_rendering = false;
 				break;
 			}
 		}
-		//get_ui()->post_message(player_window::destroy_device_msg, 0, 0);
 		destroy_device();
-		//get_ui()->post_message(player_window::destroy_d3d_msg, 0, 0);
 		destroy_d3d();
 	}
 	catch(_com_error& ce)
@@ -433,40 +507,40 @@ DWORD awkawk::render_thread_proc(void*)
 size_t awkawk::do_load()
 {
 	scene->set_filename(plist->get_file_name());
-	dshow->send_message(player_direct_show::load);
+	dshow->send_event(player_direct_show::load);
 	return 0;
 }
 
 size_t awkawk::do_stop()
 {
 	get_ui()->set_on_top(false);
-	dshow->send_message(player_direct_show::stop);
+	dshow->send_event(player_direct_show::stop);
 	return 0;
 }
 
 size_t awkawk::do_pause()
 {
-	dshow->send_message(player_direct_show::pause);
+	dshow->send_event(player_direct_show::pause);
 	return 0;
 }
 
 size_t awkawk::do_resume()
 {
-	dshow->send_message(player_direct_show::pause);
+	dshow->send_event(player_direct_show::pause);
 	return 0;
 }
 
 size_t awkawk::do_play()
 {
 	get_ui()->set_on_top(true);
-	dshow->send_message(player_direct_show::play);
+	dshow->send_event(player_direct_show::play);
 	return 0;
 }
 
 size_t awkawk::do_unload()
 {
 	scene->set_filename(L"");
-	dshow->send_message(player_direct_show::unload);
+	dshow->send_event(player_direct_show::unload);
 	return 0;
 }
 
@@ -481,18 +555,18 @@ size_t awkawk::do_transition()
 	{
 		if(stopped != initial_state)
 		{
-			process_message(stop);
+			send_event(stop);
 		}
-		process_message(unload);
+		send_event(unload);
 	}
 	plist->do_transition();
 
 	if(!plist->after_end())
 	{
-		process_message(load);
+		send_event(load);
 		if(initial_state == playing)
 		{
-			process_message(play);
+			send_event(play);
 			return 2;
 		}
 		return 1;
@@ -511,18 +585,18 @@ size_t awkawk::do_previous()
 	{
 		if(stopped != initial_state)
 		{
-			process_message(stop);
+			send_event(stop);
 		}
-		process_message(unload);
+		send_event(unload);
 	}
 	plist->do_previous();
 
 	if(!plist->after_end())
 	{
-		process_message(load);
+		send_event(load);
 		if(initial_state == playing)
 		{
-			process_message(play);
+			send_event(play);
 			return 2;
 		}
 		return 1;
@@ -541,18 +615,18 @@ size_t awkawk::do_next()
 	{
 		if(stopped != initial_state)
 		{
-			process_message(stop);
+			send_event(stop);
 		}
-		process_message(unload);
+		send_event(unload);
 	}
 	plist->do_next();
 
 	if(!plist->after_end())
 	{
-		process_message(load);
+		send_event(load);
 		if(initial_state == playing)
 		{
-			process_message(play);
+			send_event(play);
 			return 2;
 		}
 		return 1;
@@ -562,19 +636,14 @@ size_t awkawk::do_next()
 
 size_t awkawk::do_rwnd()
 {
-	dshow->send_message(player_direct_show::rwnd);
+	dshow->send_event(player_direct_show::rwnd);
 	return 0;
 }
 
 size_t awkawk::do_ffwd()
 {
-	dshow->send_message(player_direct_show::ffwd);
+	dshow->send_event(player_direct_show::ffwd);
 	return 0;
-}
-
-float awkawk::get_volume() const
-{
-	return dshow->get_volume();
 }
 
 void awkawk::set_linear_volume(float vol)
@@ -587,12 +656,7 @@ void awkawk::set_playback_position(float pos)
 	dshow->set_playback_position(pos);
 }
 
-float awkawk::get_play_time() const
-{
-	return dshow->get_play_time();
-}
-
-std::vector<CAdapt<IBaseFilterPtr> > awkawk::get_filters() const
+std::vector<ATL::CAdapt<IBaseFilterPtr> > awkawk::get_filters() const
 {
 	return dshow->get_filters();
 }
