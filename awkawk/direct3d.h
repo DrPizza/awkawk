@@ -32,18 +32,12 @@ struct direct3d9
 {
 	direct3d9()
 	{
+		create_d3d();
 	}
 
 	~direct3d9()
 	{
-	}
-
-	void create_d3d();
-
-	void destroy_d3d()
-	{
-		d3d9 = NULL;
-		d3d9ex = NULL;
+		destroy_d3d();
 	}
 
 	IDirect3D9Ptr get_d3d9() const
@@ -64,6 +58,14 @@ struct direct3d9
 private:
 	IDirect3D9Ptr d3d9;
 	IDirect3D9ExPtr d3d9ex;
+
+	void create_d3d();
+
+	void destroy_d3d()
+	{
+		d3d9 = NULL;
+		d3d9ex = NULL;
+	}
 };
 
 #endif

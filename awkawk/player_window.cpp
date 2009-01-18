@@ -26,7 +26,7 @@
 #include "player_direct_show.h"
 #include "resource.h"
 
-player_window::player_window(awkawk* player_) : window(L"awkawk class", CS_DBLCLKS, ::LoadIconW(instance, MAKEINTRESOURCEW(IDI_PLAYER)), ::LoadCursorW(NULL, MAKEINTRESOURCEW(IDC_ARROW)), static_cast<HBRUSH>(::GetStockObject(BLACK_BRUSH)), NULL, MAKEINTRESOURCEW(IDR_ACCELERATORS)),
+player_window::player_window(awkawk* player_) : window(L"awkawk class", CS_DBLCLKS, ::LoadIconW(::GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDI_PLAYER)), ::LoadCursorW(NULL, MAKEINTRESOURCEW(IDC_ARROW)), static_cast<HBRUSH>(::GetStockObject(BLACK_BRUSH)), NULL, MAKEINTRESOURCEW(IDR_ACCELERATORS)),
                                                 player(player_),
                                                 tracking(false),
                                                 dragging(false),
@@ -47,7 +47,7 @@ std::wstring player_window::get_local_path() const
 	boost::scoped_array<wchar_t> buffer(new wchar_t[0xffff]);
 	buffer[0] = L'\0';
 
-	static const wchar_t filter[] = L"Video Files (.asf, .avi, .mpg, .mpeg, .vob, .qt, .wmv, .mp4)\0*.ASF;*.AVI;*.MPG;*.MPEG;*.VOB;*.QT;*.WMV;*.MP4\0"
+	static const wchar_t filter[] = L"Video Files (.asf, .avi, .mpg, .mpeg, .vob, .qt, .wmv, .mp4, .m2v)\0*.ASF;*.AVI;*.MPG;*.MPEG;*.VOB;*.QT;*.WMV;*.MP4;*.M2V\0"
 	                                L"All Files (*.*)\0*.*\0";
 	ofn.lStructSize = sizeof(OPENFILENAMEW);
 	ofn.hwndOwner = get_window();
@@ -192,44 +192,6 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_SYSCOMMAND, onSysCommand);
 	HANDLE_MSG(window, WM_TIMER, onTimer);
 
-	case create_d3d_msg:
-	case create_device_msg:
-	case reset_device_msg:
-	case render_msg:
-	case reset_msg:
-	case destroy_device_msg:
-	case destroy_d3d_msg:
-		try
-		{
-			switch(message)
-			{
-			case create_d3d_msg:
-				player->create_d3d();
-				break;
-			case create_device_msg:
-				player->create_device();
-				break;
-			case reset_device_msg:
-				player->reset_device();
-				break;
-			case reset_msg:
-				player->reset();
-				break;
-			case render_msg:
-				player->render();
-				break;
-			case destroy_device_msg:
-				player->destroy_device();
-				break;
-			case destroy_d3d_msg:
-				player->destroy_d3d();
-				break;
-			}
-		}
-		catch(_com_error& ce)
-		{
-			derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
-		}
 	default:
 		handled = false;
 	}
@@ -340,8 +302,8 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 		case IDM_CLOSE_FILE:
 			{
 				set_window_text(app_title.c_str());
-				player->send_message(awkawk::stop);
-				player->send_message(awkawk::unload);
+				player->send_event(awkawk::stop);
+				player->send_event(awkawk::unload);
 				player->clear_files();
 			}
 			break;
@@ -350,13 +312,13 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			break;
 			// play menu
 		case IDM_PLAY:
-			player->post_message(awkawk::play);
+			player->post_event(awkawk::play);
 			break;
 		case IDM_PAUSE:
-			player->post_message(awkawk::pause);
+			player->post_event(awkawk::pause);
 			break;
 		case IDM_STOP:
-			player->post_message(awkawk::stop);
+			player->post_event(awkawk::stop);
 			break;
 			// mode menu
 		case IDM_PLAYMODE_NORMAL:
@@ -386,10 +348,10 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 			break;
 			// miscellaneous
 		case IDM_NEXT:
-			player->post_message(awkawk::next);
+			player->post_event(awkawk::next);
 			break;
 		case IDM_PREV:
-			player->post_message(awkawk::previous);
+			player->post_event(awkawk::previous);
 			break;
 		default:
 			if(id < WM_USER)
@@ -416,9 +378,9 @@ void player_window::onDestroy(HWND)
 	{
 		if(player->get_current_state() != awkawk::stopped)
 		{
-			player->send_message(awkawk::stop);
+			player->send_event(awkawk::stop);
 		}
-		player->send_message(awkawk::unload);
+		player->send_event(awkawk::unload);
 		player->clear_files();
 	}
 	player->stop_rendering();

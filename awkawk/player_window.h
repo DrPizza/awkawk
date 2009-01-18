@@ -42,16 +42,6 @@ struct player_window : window, boost::noncopyable
 
 	std::wstring get_local_path() const;
 	std::wstring get_remote_path() const;
-	enum
-	{
-		create_d3d_msg = WM_USER + 1,
-		create_device_msg,
-		reset_device_msg,
-		reset_msg,
-		render_msg,
-		destroy_device_msg,
-		destroy_d3d_msg
-	};
 
 	void open_single_file(const std::wstring& path);
 

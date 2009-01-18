@@ -175,9 +175,19 @@ struct player_controls : control, direct3d_object, component_owner, boost::nonco
 		vol = vol_;
 	}
 
+	void set_linear_volume(float linear_vol_)
+	{
+		linear_vol = linear_vol_;
+	}
+
 	void set_playback_position(float pos_)
 	{
 		playback_pos = pos_;
+	}
+
+	void set_play_time(float play_time_)
+	{
+		play_time = play_time_;
 	}
 
 protected:
@@ -315,7 +325,9 @@ private:
 	SIZE caption_dimensions;
 
 	float vol;
+	float linear_vol;
 	float playback_pos;
+	float play_time;
 
 	// I really ought to make these draggable things into a class or something, because there's a lot of duplication between the 
 	// position handle and the volume handle

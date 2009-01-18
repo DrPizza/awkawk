@@ -51,7 +51,7 @@ struct overlay_text : component
 		bottom = DT_BOTTOM
 	};
 
-	overlay_text(const std::wstring& text_, horizontal_alignment ha, vertical_alignment va, bool visible_) : text(text_), halign(ha), valign(va), visible(visible_)
+	overlay_text(const std::wstring& text_, horizontal_alignment ha, vertical_alignment va, bool visible_) : text(text_), halign(ha), valign(va), visible(visible_), cs("overlay_text")
 	{
 		::QueryPerformanceFrequency(&frequency);
 		::QueryPerformanceCounter(&last_update);

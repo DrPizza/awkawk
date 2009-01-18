@@ -25,7 +25,8 @@
 
 allocator_presenter::allocator_presenter(awkawk* player_, IDirect3DDevice9Ptr device_) : ref_count(0),
                                                                                          player(player_),
-                                                                                         device(device_)
+                                                                                         device(device_),
+                                                                                         cs("allocator_presenter")
 {
 }
 
@@ -51,6 +52,11 @@ STDMETHODIMP allocator_presenter::InitializeDevice(DWORD_PTR id, VMR9AllocationI
 		return E_POINTER;
 	}
 
+	if(*buffer_count == 0)
+	{
+		return E_INVALIDARG;
+	}
+
 	if(surface_allocator_notify == NULL)
 	{
 		return E_FAIL;
@@ -58,36 +64,51 @@ STDMETHODIMP allocator_presenter::InitializeDevice(DWORD_PTR id, VMR9AllocationI
 
 	try
 	{
-		LOCK(cs);
-
-dout << "requesting format                         " << std::hex << allocation_info->Format << std::endl;
-dout << "requesting VMR9AllocFlag_3DRenderTarget   " << !!(VMR9AllocFlag_3DRenderTarget & allocation_info->dwFlags) << std::endl;
-dout << "requesting VMR9AllocFlag_DXVATarget       " << !!(VMR9AllocFlag_DXVATarget & allocation_info->dwFlags) << std::endl;
-dout << "requesting VMR9AllocFlag_TextureSurface   " << !!(VMR9AllocFlag_TextureSurface & allocation_info->dwFlags) << std::endl;
-dout << "requesting VMR9AllocFlag_OffscreenSurface " << !!(VMR9AllocFlag_OffscreenSurface & allocation_info->dwFlags) << std::endl;
-dout << "requesting VMR9AllocFlag_RGBDynamicSwitch " << !!(VMR9AllocFlag_RGBDynamicSwitch & allocation_info->dwFlags) << std::endl;
+		if(allocation_info->Format > '0000')
+		{
+			char tmp[5];
+			memcpy(tmp, &(allocation_info->Format), 4);
+			tmp[4] = 0;
+			dout << "requesting format                         " << tmp << std::endl;
+		}
+		else
+		{
+			dout << "requesting format                         " << std::hex << allocation_info->Format << std::endl;
+		}
+		dout << "requesting VMR9AllocFlag_3DRenderTarget   " << !!(VMR9AllocFlag_3DRenderTarget & allocation_info->dwFlags) << std::endl;
+		dout << "requesting VMR9AllocFlag_DXVATarget       " << !!(VMR9AllocFlag_DXVATarget & allocation_info->dwFlags) << std::endl;
+		dout << "requesting VMR9AllocFlag_TextureSurface   " << !!(VMR9AllocFlag_TextureSurface & allocation_info->dwFlags) << std::endl;
+		dout << "requesting VMR9AllocFlag_OffscreenSurface " << !!(VMR9AllocFlag_OffscreenSurface & allocation_info->dwFlags) << std::endl;
+		dout << "requesting VMR9AllocFlag_RGBDynamicSwitch " << !!(VMR9AllocFlag_RGBDynamicSwitch & allocation_info->dwFlags) << std::endl;
 
 		if(allocation_info->dwFlags & VMR9AllocFlag_3DRenderTarget)
 		{
 			allocation_info->dwFlags |= VMR9AllocFlag_TextureSurface;
 		}
 
-		std::vector<IDirect3DSurface9*> raw_surfaces;
-		raw_surfaces.resize(*buffer_count);
-
+		std::vector<IDirect3DSurface9*> raw_surfaces(*buffer_count);
 		FAIL_THROW(surface_allocator_notify->AllocateSurfaceHelper(allocation_info, buffer_count, &raw_surfaces[0]));
-		texture_locks[id].reset(new utility::critical_section());
+
+		{
+			LOCK(cs);
+			texture_locks[id].reset(new utility::critical_section(std::string("allocator_presenter[") + boost::lexical_cast<std::string>(id) + std::string("]")));
+		}
 		boost::shared_ptr<utility::critical_section> stream_cs(get_cs(id));
 		LOCK(*stream_cs);
-		surfaces[id].clear();
-		surfaces[id].resize(raw_surfaces.size());
+		LOCK(cs);
+		vmr9_surfaces[id].clear();
+		vmr9_surfaces[id].resize(raw_surfaces.size());
 		for(size_t i(0); i < raw_surfaces.size(); ++i)
 		{
-			static_cast<IDirect3DSurface9Ptr&>(surfaces[id][i]).Attach(raw_surfaces[i], false);
+			static_cast<IDirect3DSurface9Ptr&>(vmr9_surfaces[id][i]).Attach(raw_surfaces[i], false);
 		}
-		IDirect3DTexture9Ptr txtr;
-		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8/*D3DFMT_A8R8G8B8*/, D3DPOOL_DEFAULT, &txtr, NULL));
 
+		D3DDISPLAYMODE dm; 
+		FAIL_THROW(device->GetDisplayMode(NULL, &dm));
+		const D3DFORMAT texture_format(allocation_info->Format > '0000' ? dm.Format : allocation_info->Format);
+
+		IDirect3DTexture9Ptr txtr;
+		FAIL_THROW(device->CreateTexture(allocation_info->dwWidth, allocation_info->dwHeight, 1, D3DUSAGE_RENDERTARGET, texture_format, D3DPOOL_DEFAULT, &txtr, NULL));
 		video_textures[id] = txtr;
 	}
 	catch(_com_error& ce)
@@ -101,11 +122,11 @@ dout << "requesting VMR9AllocFlag_RGBDynamicSwitch " << !!(VMR9AllocFlag_RGBDyna
 STDMETHODIMP allocator_presenter::TerminateDevice(DWORD_PTR id)
 {
 	LOCK(cs);
-	if(surfaces.find(id) == surfaces.end())
+	if(vmr9_surfaces.find(id) == vmr9_surfaces.end())
 	{
 		return E_FAIL;
 	}
-	surfaces.erase(id);
+	vmr9_surfaces.erase(id);
 	video_textures.erase(id);
 	texture_locks.erase(id);
 	return S_OK;
@@ -119,16 +140,16 @@ STDMETHODIMP allocator_presenter::GetSurface(DWORD_PTR id, DWORD surface_index, 
 	}
 
 	LOCK(cs);
-	if(surfaces.find(id) == surfaces.end())
+	if(vmr9_surfaces.find(id) == vmr9_surfaces.end())
 	{
 		return E_FAIL;
 	}
-	if(surface_index >= surfaces[id].size())
+	if(surface_index >= vmr9_surfaces[id].size())
 	{
 		return E_FAIL;
 	}
 
-	return static_cast<IDirect3DSurface9Ptr&>(surfaces[id][surface_index]).QueryInterface(__uuidof(IDirect3DSurface9), surface);
+	return static_cast<IDirect3DSurface9Ptr&>(vmr9_surfaces[id][surface_index]).QueryInterface(__uuidof(IDirect3DSurface9), surface);
 }
 
 STDMETHODIMP allocator_presenter::AdviseNotify(IVMRSurfaceAllocatorNotify9* surface_allocator_notify_)
@@ -145,7 +166,7 @@ STDMETHODIMP allocator_presenter::StartPresenting(DWORD_PTR id)
 	{
 		return E_FAIL;
 	}
-	if(surfaces.find(id) == surfaces.end())
+	if(vmr9_surfaces.find(id) == vmr9_surfaces.end())
 	{
 		return E_FAIL;
 	}
@@ -155,7 +176,7 @@ STDMETHODIMP allocator_presenter::StartPresenting(DWORD_PTR id)
 STDMETHODIMP allocator_presenter::StopPresenting(DWORD_PTR id)
 {
 	LOCK(cs);
-	if(surfaces.find(id) == surfaces.end())
+	if(vmr9_surfaces.find(id) == vmr9_surfaces.end())
 	{
 		return E_FAIL;
 	}
@@ -176,10 +197,12 @@ STDMETHODIMP allocator_presenter::PresentImage(DWORD_PTR id, VMR9PresentationInf
 	{
 		return E_POINTER;
 	}
-	LOCK(cs);
-	if(surfaces.find(id) == surfaces.end())
 	{
-		return E_FAIL;
+		LOCK(cs);
+		if(!rendering(id))
+		{
+			return E_FAIL;
+		}
 	}
 
 	try
@@ -194,18 +217,23 @@ STDMETHODIMP allocator_presenter::PresentImage(DWORD_PTR id, VMR9PresentationInf
 		}
 
 		IDirect3DSurface9Ptr surf;
-		FAIL_THROW(static_cast<IDirect3DTexture9Ptr&>(video_textures[id])->GetSurfaceLevel(0, &surf));
-		boost::shared_ptr<utility::critical_section> stream_cs(get_cs(id));
+		boost::shared_ptr<utility::critical_section> stream_cs;
+		{
+			LOCK(cs);
+			FAIL_THROW(static_cast<IDirect3DTexture9Ptr&>(video_textures[id])->GetSurfaceLevel(0, &surf));
+			stream_cs = get_cs(id);
+		}
 		LOCK(*stream_cs);
 		FAIL_THROW(device->StretchRect(presentation_info->lpSurf, NULL, surf, NULL, D3DTEXF_NONE));
-		player->signal_new_frame();
-		return S_OK;
 	}
 	catch(_com_error& ce)
 	{
 		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 		return ce.Error();
 	}
+	// no locks held. This is important, because we do some vile cross-thread synchronization here.
+	player->signal_new_frame_and_wait();
+	return S_OK;
 }
 
 STDMETHODIMP allocator_presenter::QueryInterface(const IID& iid, void** target)

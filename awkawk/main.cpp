@@ -88,7 +88,9 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS* exception_pointers)
 	MINIDUMP_EXCEPTION_INFORMATION minidump_info = {0};
 	minidump_info.ThreadId = ::GetCurrentThreadId();
 	minidump_info.ExceptionPointers = exception_pointers;
+	wdout << L"**************************" << std::endl;
 	wdout << L"Writing crash dump to: " << temp_file_name.str() << std::endl;
+	wdout << L"**************************" << std::endl;
 	mini_dump_write_dump(::GetCurrentProcess(), ::GetCurrentProcessId(), dump_file, MiniDumpWithFullMemory, &minidump_info, NULL, NULL);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -157,7 +159,7 @@ void show_locks()
 				dout << "-";
 				break;
 			}
-			dout << " " << lit->section << " ";
+			dout << " " << lit->section->name << " (" << std::hex << lit->section << ") ";
 			utility::print_caller_info(utility::dout, lit->return_address, lit->address_of_return_address);
 			dout << std::endl;
 		}

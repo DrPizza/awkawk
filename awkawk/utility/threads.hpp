@@ -24,10 +24,9 @@
 #define THREADS__H
 
 #define NOMINMAX
-#define NTDDI_VERSION NTDDI_LONGHORN
+#define NTDDI_VERSION NTDDI_VISTA
 #define STRICT
-#pragma warning(disable:4995)
-#pragma warning(disable:4996)
+
 #include <windows.h>
 
 #include <memory>
@@ -75,7 +74,9 @@ private:
 template <typename T, typename P, typename F>
 DWORD WINAPI ThreadDispatchMemberFn(void* data)
 {
+#ifndef _DEBUG
 	try
+#endif
 	{
 		std::auto_ptr<utility::ThreadInfoMemberFn<T, P, F> > ti(static_cast<utility::ThreadInfoMemberFn<T, P, F>*>(data));
 		if(ti->name != 0)
@@ -84,10 +85,12 @@ DWORD WINAPI ThreadDispatchMemberFn(void* data)
 		}
 		return ((ti->obj)->*(ti->function))(ti->data);
 	}
+#ifndef _DEBUG
 	catch(...)
 	{
 		return 0;
 	}
+#endif
 }
 
 template <typename T, typename P, typename P2>
@@ -127,7 +130,9 @@ private:
 template <typename P, typename F>
 DWORD WINAPI ThreadDispatchNonMemberFn(void* data)
 {
+#ifndef _DEBUG
 	try
+#endif
 	{
 		std::auto_ptr<utility::ThreadInfoNonMemberFn<P, F> > ti(static_cast<utility::ThreadInfoNonMemberFn<P, F>*>(data));
 		if(ti->name != NULL)
@@ -136,10 +141,12 @@ DWORD WINAPI ThreadDispatchNonMemberFn(void* data)
 		}
 		return (ti->function)(ti->data);
 	}
+#ifndef _DEBUG
 	catch(...)
 	{
 		return 0;
 	}
+#endif
 }
 
 template <typename P, typename P2>

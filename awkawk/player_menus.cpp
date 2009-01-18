@@ -143,9 +143,9 @@ void awkawk_filter_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL w
 {
 	if(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop))
 	{
-		std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
+		std::vector<ATL::CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 		UINT flt_id(filter_menu_base);
-		for(std::vector<CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
+		for(std::vector<ATL::CAdapt<IBaseFilterPtr> >::iterator it(filters.begin()), end(filters.end()); it != end; ++it)
 		{
 			IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(*it));
 			FILTER_INFO fi = {0};
@@ -185,7 +185,7 @@ void awkawk_filter_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
 void awkawk_filter_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
 {
 	size_t chosen(id - filter_menu_base);
-	std::vector<CAdapt<IBaseFilterPtr> > filters(player->get_filters());
+	std::vector<ATL::CAdapt<IBaseFilterPtr> > filters(player->get_filters());
 	IBaseFilterPtr& filter(static_cast<IBaseFilterPtr&>(filters[chosen]));
 	FILTER_INFO fi = {0};
 	filter->QueryFilterInfo(&fi);

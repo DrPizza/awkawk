@@ -18,11 +18,6 @@
 //  
 //  Peter Bright <drpizza@quiscalusmexicanus.org>
 
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
-
 #pragma once
 
 #pragma comment(lib, "delayimp.lib")
@@ -31,8 +26,13 @@
 #define NTDDI_VERSION NTDDI_VISTA
 #define STRICT
 #define ISOLATION_AWARE_ENABLED 1
-#pragma warning(disable:4995)
-#pragma warning(disable:4996)
+#pragma warning(disable:4127) // conditional is constant
+#pragma warning(disable:4189) // local initialized but not referenced
+#pragma warning(disable:4345) // new T() default initializes
+#pragma warning(disable:4995) // deprecated functions
+
+#define _CRT_SECURE_NO_WARNINGS
+#define _SCL_SECURE_NO_WARNINGS
 
 #include <objbase.h>
 #include <windows.h>
@@ -98,6 +98,9 @@
 
 // ATL
 
+#define _ATL_ALL_WARNINGS
+#define _AFX_SECURE_NO_WARNINGS
+#define _ATL_SECURE_NO_WARNINGS
 #define _ATL_APARTMENT_THREADED
 #define _ATL_NO_AUTOMATIC_NAMESPACE
 
@@ -110,7 +113,7 @@
 #include <atlctl.h>
 #include <atlhost.h>
 
-using namespace ATL;
+//using namespace ATL;
 
 #include <boost/scoped_array.hpp>
 #include <boost/lexical_cast.hpp>
