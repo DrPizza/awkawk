@@ -65,16 +65,16 @@ const awkawk::transition_type awkawk::transitions[awkawk::max_awkawk_states][awk
 /*          | ffwd          */   { nullptr                /*                                */}
                           },
                           {
-/* playing  | load          */   { nullptr                /*                               */},
-/*          | stop          */   { &awkawk::do_stop       /* stopped                       */},
-/*          | pause         */   { &awkawk::do_pause      /* paused                        */},
-/*          | play          */   { &awkawk::do_pause      /* paused                        */},
-/*          | unload        */   { nullptr                /*                               */},
-/*          | transitioning */   { &awkawk::do_transition /* unloaded <<stopped << playing */},
-/*          | previous      */   { &awkawk::do_previous   /* unloaded <<stopped << playing */},
-/*          | next          */   { &awkawk::do_next       /* unloaded <<stopped << playing */},
-/*          | rwnd          */   { &awkawk::do_rwnd       /* playing                       */},
-/*          | ffwd          */   { &awkawk::do_ffwd       /* playing                       */}
+/* playing  | load          */   { nullptr                /*                                */},
+/*          | stop          */   { &awkawk::do_stop       /* stopped                        */},
+/*          | pause         */   { &awkawk::do_pause      /* paused                         */},
+/*          | play          */   { &awkawk::do_pause      /* paused                         */},
+/*          | unload        */   { nullptr                /*                                */},
+/*          | transitioning */   { &awkawk::do_transition /* unloaded << stopped << playing */},
+/*          | previous      */   { &awkawk::do_previous   /* unloaded << stopped << playing */},
+/*          | next          */   { &awkawk::do_next       /* unloaded << stopped << playing */},
+/*          | rwnd          */   { &awkawk::do_rwnd       /* playing                        */},
+/*          | ffwd          */   { &awkawk::do_ffwd       /* playing                        */}
                           }
 };
 
