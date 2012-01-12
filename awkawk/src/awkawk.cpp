@@ -119,7 +119,7 @@ awkawk::~awkawk()
 void awkawk::create_ui(int cmd_show)
 {
 	ui->create_window(cmd_show);
-	texture_queue.reset(new shared_texture_queue());
+	texture_queue.reset(new texture_queue_type());
 	renderer.reset(new d3d_renderer      (this,              texture_queue.get(),                 get_ui()->get_window()                                                 ));
 	dshow.reset   (new player_direct_show(this,              texture_queue.get(), renderer.get(), get_ui()->get_window()                                                 ));
 	scene.reset   (new player_scene      (this, dshow.get(), texture_queue.get(),                 get_ui(),               dynamic_cast<direct3d_manager*>(renderer.get())));

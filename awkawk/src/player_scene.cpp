@@ -29,7 +29,7 @@
 
 player_scene::player_scene(awkawk* player_,
                            player_direct_show* dshow_,
-                           shared_texture_queue* texture_queue_,
+                           texture_queue_type* texture_queue_,
                            window* parent_,
                            direct3d_manager* manager_) : direct3d_renderable(manager_),
                                                          player(player_),
@@ -121,19 +121,12 @@ void player_scene::do_emit_scene()
 			previous_texture = nullptr;
 		}
 	}
+#if 0
 	if(current_texture) {
-		//static const GUID texture_number_guid = { 0xfad31a05, 0x1099, 0x4eb5, 0x9e, 0x30, 0x71, 0x78, 0x18, 0xfa, 0xf1, 0xe2 };
-		//static const GUID timestamp_guid      = { 0x6af09a08, 0x5e5b, 0x40e7, 0x99, 0x0c, 0xa4, 0x21, 0x12, 0x4b, 0x97, 0xa6 };
-		//DWORD texture_count(0);
-		//DWORD size(sizeof(texture_count));
-		//current_texture.first->GetPrivateData(texture_number_guid, &texture_count, &size);
-
-		//REFERENCE_TIME timestamp(0);
-		//size = sizeof(timestamp);
-		//current_texture.first->GetPrivateData(timestamp_guid, &timestamp, &size);
-
-		//dout << timestamp << " " << texture_count << std::endl;
+		REFERENCE_TIME timestamp(texture_queue->get_metadata(current_texture).timestamp);
+		dout << timestamp << std::endl;
 	}
+#endif
 	set_video_texture(current_texture);
 	try
 	{

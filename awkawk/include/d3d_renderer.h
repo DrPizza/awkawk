@@ -32,10 +32,13 @@ _COM_SMARTPTR_TYPEDEF(IDirect3DDeviceManager9, __uuidof(IDirect3DDeviceManager9)
 
 struct awkawk;
 struct player_direct_show;
-struct shared_texture_queue;
+
+#include "shared_texture_queue.h"
+
+typedef shared_texture_queue<shared_texture_data> texture_queue_type;
 
 struct d3d_renderer : direct3d_manager, boost::noncopyable {
-	d3d_renderer(awkawk* player_, shared_texture_queue* texture_queue_, HWND window_);
+	d3d_renderer(awkawk* player_, texture_queue_type* texture_queue_, HWND window_);
 	~d3d_renderer();
 
 	void start_rendering();
@@ -115,7 +118,7 @@ private:
 	mutable utility::critical_section cs;
 
 	awkawk* player;
-	shared_texture_queue* texture_queue;
+	texture_queue_type* texture_queue;
 	HWND window;
 
 	// D3D methods

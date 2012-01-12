@@ -11,7 +11,13 @@
 
 static const GUID shared_handle_guid = { 0xfad31a05, 0x1099, 0x4eb5, 0x9e, 0x30, 0x71, 0x78, 0x18, 0xfa, 0xf1, 0xe2 };
 
+struct empty_t {
+};
+
+template<typename T = empty_t>
 struct shared_texture_queue : boost::noncopyable {
+	typedef T metadata_type;
+
 	struct shared_texture_queue_desc {
 		D3DFORMAT format;
 		DWORD width;
@@ -63,6 +69,11 @@ struct shared_texture_queue : boost::noncopyable {
 		return next_texture.second;
 	}
 
+	metadata_type& get_metadata(IDirect3DTexture9Ptr txtr) {
+		std::pair<bool, std::shared_ptr<metadata_type> > md(metadata->find(get_handle(txtr)));
+		return *(md.second);
+	}
+
 	void consumer_enqueue(IDirect3DTexture9Ptr txtr) {
 		consumed->push(get_handle(txtr));
 	}
@@ -94,6 +105,8 @@ private:
 		txtr->SetPrivateData(shared_handle_guid, &h, sizeof(h), 0);
 		consumer_lookup->insert(h, txtr);
 
+		metadata->insert(h, std::shared_ptr<metadata_type>(new metadata_type()));
+
 		consumed->push(h);
 	}
 
@@ -102,6 +115,7 @@ private:
 		consumed.reset(new utility::interlocked_queue<HANDLE>());
 		producer_lookup.reset(new utility::interlocked_kv_list<HANDLE, IDirect3DTexture9Ptr>());
 		consumer_lookup.reset(new utility::interlocked_kv_list<HANDLE, IDirect3DTexture9Ptr>());
+		metadata.reset(new utility::interlocked_kv_list<HANDLE, std::shared_ptr<metadata_type> >());
 
 		if(producer && consumer && description) {
 			for(DWORD i(0); i < description->minimum_textures; ++i) {
@@ -117,8 +131,13 @@ private:
 	std::shared_ptr<utility::interlocked_kv_list<HANDLE, IDirect3DTexture9Ptr> > producer_lookup;
 	std::shared_ptr<utility::interlocked_queue<HANDLE> > consumed;
 	std::shared_ptr<utility::interlocked_kv_list<HANDLE, IDirect3DTexture9Ptr> > consumer_lookup;
+	std::shared_ptr<utility::interlocked_kv_list<HANDLE, std::shared_ptr<metadata_type> > > metadata;
 
 	std::unique_ptr<shared_texture_queue_desc> description;
+};
+
+struct shared_texture_data {
+	REFERENCE_TIME timestamp;
 };
 
 #endif

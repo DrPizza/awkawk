@@ -38,7 +38,10 @@
 
 struct player_direct_show;
 struct d3d_renderer;
-struct shared_texture_queue;
+
+#include "shared_texture_queue.h"
+
+typedef shared_texture_queue<shared_texture_data> texture_queue_type;
 
 _COM_SMARTPTR_TYPEDEF(IBaseFilter, __uuidof(IBaseFilter));
 _COM_SMARTPTR_TYPEDEF(IDirect3DDeviceManager9, __uuidof(IDirect3DDeviceManager9));
@@ -436,7 +439,7 @@ private:
 	std::unique_ptr<player_playlist> plist;
 	std::unique_ptr<player_direct_show> dshow;
 
-	std::unique_ptr<shared_texture_queue> texture_queue;
+	std::unique_ptr<texture_queue_type> texture_queue;
 
 	std::unique_ptr<player_window> ui;
 

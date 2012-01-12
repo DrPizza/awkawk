@@ -27,12 +27,13 @@
 #include "resource.h"
 #include "util.h"
 
-#include "utility/interlocked_containers.hpp"
+#include "shared_texture_queue.h"
 
 struct awkawk;
 struct d3d_renderer;
-struct shared_texture_queue;
 struct direct3d9;
+
+typedef shared_texture_queue<shared_texture_data> texture_queue_type;
 
 _COM_SMARTPTR_TYPEDEF(IVMRSurfaceAllocatorNotify9, __uuidof(IVMRSurfaceAllocatorNotify9));
 _COM_SMARTPTR_TYPEDEF(IDirect3DDeviceManager9, __uuidof(IDirect3DDeviceManager9));
@@ -43,7 +44,7 @@ _COM_SMARTPTR_TYPEDEF(IDirect3DDeviceManager9, __uuidof(IDirect3DDeviceManager9)
 // IVMRSurfaceAllocatorEx9
 struct vmr9_allocator_presenter : IVMRSurfaceAllocator9, IVMRImagePresenter9, IVMRImagePresenterConfig9, direct3d_manager, boost::noncopyable
 {
-	vmr9_allocator_presenter(awkawk* player_, shared_texture_queue* texture_queue_, d3d_renderer* renderer_, HWND window_);
+	vmr9_allocator_presenter(awkawk* player_, texture_queue_type* texture_queue_, d3d_renderer* renderer_, HWND window_);
 	virtual ~vmr9_allocator_presenter();
 
 	// IVMRSurfaceAllocator9
@@ -108,7 +109,7 @@ private:
 	IDirect3DSurface9Ptr staging_surface;
 
 	awkawk* player;
-	shared_texture_queue* texture_queue;
+	texture_queue_type* texture_queue;
 	d3d_renderer* renderer;
 	HWND window;
 

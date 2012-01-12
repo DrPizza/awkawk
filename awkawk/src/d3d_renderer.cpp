@@ -26,7 +26,7 @@
 #include "shared_texture_queue.h"
 
 d3d_renderer::d3d_renderer(awkawk* player_,
-                           shared_texture_queue* texture_queue_,
+                           texture_queue_type* texture_queue_,
                            HWND window_) : direct3d_manager(nullptr),
                                            cs("d3d_renderer"),
                                            player(player_),
