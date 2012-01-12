@@ -88,20 +88,16 @@ private:
 		HANDLE h(NULL);
 		FAIL_THROW(producer->CreateTexture(description->width, description->height, 1, D3DUSAGE_DYNAMIC, description->format, D3DPOOL_DEFAULT, &txtr, &h));
 		txtr->SetPrivateData(shared_handle_guid, &h, sizeof(h), 0);
-		producer_textures.push_back(txtr);
 		producer_lookup->insert(h, txtr);
 
 		FAIL_THROW(consumer->CreateTexture(description->width, description->height, 1, D3DUSAGE_DYNAMIC, description->format, D3DPOOL_DEFAULT, &txtr, &h));
 		txtr->SetPrivateData(shared_handle_guid, &h, sizeof(h), 0);
-		consumer_textures.push_back(txtr);
 		consumer_lookup->insert(h, txtr);
 
 		consumed->push(h);
 	}
 
 	void reset() {
-		producer_textures.clear();
-		consumer_textures.clear();
 		produced.reset(new utility::interlocked_queue<HANDLE>());
 		consumed.reset(new utility::interlocked_queue<HANDLE>());
 		producer_lookup.reset(new utility::interlocked_kv_list<HANDLE, IDirect3DTexture9Ptr>());
@@ -116,9 +112,6 @@ private:
 
 	IDirect3DDevice9Ptr producer;
 	IDirect3DDevice9Ptr consumer;
-
-	std::vector<ATL::CAdapt<IDirect3DTexture9Ptr> > producer_textures;
-	std::vector<ATL::CAdapt<IDirect3DTexture9Ptr> > consumer_textures;
 
 	std::shared_ptr<utility::interlocked_queue<HANDLE> > produced;
 	std::shared_ptr<utility::interlocked_kv_list<HANDLE, IDirect3DTexture9Ptr> > producer_lookup;
