@@ -387,6 +387,9 @@ void player_direct_show::create_graph()
 	if(has_video)
 	{
 		player->set_video_dimensions(get_video_size());
+		// ensure the first frame is visible.
+		do_pause();
+		do_stop();
 	}
 
 	REFERENCE_TIME average_frame_time(get_average_frame_time(graph));

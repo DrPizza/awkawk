@@ -46,6 +46,7 @@ player_scene::~player_scene()
 {
 	if(previous_texture) {
 		texture_queue->consumer_enqueue(previous_texture);
+		previous_texture = nullptr;
 	}
 }
 
@@ -94,9 +95,6 @@ void player_scene::do_emit_scene()
 			IDirect3DTexture9Ptr result(texture_queue->consumer_dequeue());
 
 			if(!result) {
-				if(dshow->get_graph_state() == player_direct_show::playing) {
-					dout << "WARN: no texture available" << std::endl;
-				}
 				current_texture = previous_texture;
 			} else {
 				if(previous_texture) {
