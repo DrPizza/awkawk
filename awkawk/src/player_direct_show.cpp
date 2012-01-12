@@ -67,7 +67,7 @@ const player_direct_show::transition_type player_direct_show::transitions[player
 };
 
 player_direct_show::player_direct_show(awkawk* player_,
-                                       shared_texture_queue* texture_queue_,
+                                       texture_queue_type* texture_queue_,
                                        d3d_renderer* renderer_,
                                        HWND window_) : player(player_),
                                                        texture_queue(texture_queue_),

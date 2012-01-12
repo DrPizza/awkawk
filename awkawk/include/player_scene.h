@@ -36,11 +36,14 @@ _COM_SMARTPTR_TYPEDEF(ID3DXMesh, IID_ID3DXMesh);
 
 struct awkawk;
 struct player_direct_show;
-struct shared_texture_queue;
+
+#include "shared_texture_queue.h"
+
+typedef shared_texture_queue<shared_texture_data> texture_queue_type;
 
 struct player_scene : direct3d_renderable, boost::noncopyable
 {
-	player_scene(awkawk* player_, player_direct_show* dshow_, shared_texture_queue* texture_queue_, window* parent_, direct3d_manager* manager_);
+	player_scene(awkawk* player_, player_direct_show* dshow_, texture_queue_type* texture_queue_, window* parent_, direct3d_manager* manager_);
 	virtual ~player_scene();
 
 	void set_cursor_position(POINT pt)
@@ -115,7 +118,7 @@ private:
 
 	awkawk* player;
 	player_direct_show* dshow;
-	shared_texture_queue* texture_queue;
+	texture_queue_type* texture_queue;
 
 	std::unique_ptr<player_controls> controls;
 };

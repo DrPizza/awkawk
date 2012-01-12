@@ -47,7 +47,9 @@ _COM_SMARTPTR_TYPEDEF(IPin, __uuidof(IPin));
 _COM_SMARTPTR_TYPEDEF(IMediaEventEx, __uuidof(IMediaEventEx));
 _COM_SMARTPTR_TYPEDEF(IVMRDeinterlaceControl9, __uuidof(IVMRDeinterlaceControl9));
 
-struct shared_texture_queue;
+#include "shared_texture_queue.h"
+
+typedef shared_texture_queue<shared_texture_data> texture_queue_type;
 
 struct player_direct_show : boost::noncopyable
 {
@@ -103,7 +105,7 @@ struct player_direct_show : boost::noncopyable
 	}
 
 	player_direct_show(awkawk* player_,
-	                   shared_texture_queue* texture_queue_,
+	                   texture_queue_type* texture_queue_,
 	                   d3d_renderer* renderer_,
 	                   HWND window_);
 
@@ -288,7 +290,7 @@ private:
 
 	awkawk* player;
 	d3d_renderer* renderer;
-	shared_texture_queue* texture_queue;
+	texture_queue_type* texture_queue;
 	HWND window;
 
 	// graph state

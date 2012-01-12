@@ -27,7 +27,7 @@
 #include "direct3d.h"
 
 vmr9_allocator_presenter::vmr9_allocator_presenter(awkawk* player_,
-                                                   shared_texture_queue* texture_queue_,
+                                                   texture_queue_type* texture_queue_,
                                                    d3d_renderer* renderer_,
                                                    HWND window_) : direct3d_manager(nullptr), ref_count(0),
                                                                    cs("allocator_presenter"),
@@ -171,7 +171,7 @@ STDMETHODIMP vmr9_allocator_presenter::InitializeDevice(DWORD_PTR, VMR9Allocatio
 		FAIL_THROW(device->GetDisplayMode(NULL, &dm));
 		D3DFORMAT format(allocation_info->Format > '0000' ? dm.Format : allocation_info->Format);
 
-		shared_texture_queue::shared_texture_queue_desc texture_desc = {
+		texture_queue_type::shared_texture_queue_desc texture_desc = {
 			format,
 			allocation_info->dwWidth,
 			allocation_info->dwHeight,
@@ -299,11 +299,7 @@ STDMETHODIMP vmr9_allocator_presenter::PresentImage(DWORD_PTR, VMR9PresentationI
 
 		texture_queue->producer_enqueue(destination_texture);
 
-		//static const GUID timestamp_guid      = { 0x6af09a08, 0x5e5b, 0x40e7, 0x99, 0x0c, 0xa4, 0x21, 0x12, 0x4b, 0x97, 0xa6 };
-		//textures.first ->SetPrivateData(timestamp_guid, &presentation_info->rtStart, sizeof(&presentation_info->rtStart), 0);
-		//textures.second->SetPrivateData(timestamp_guid, &presentation_info->rtStart, sizeof(&presentation_info->rtStart), 0);
-
-		//renderer->publish_texture(textures);
+		texture_queue->get_metadata(destination_texture).timestamp = presentation_info->rtStart;
 	}
 	catch(_com_error& ce)
 	{
