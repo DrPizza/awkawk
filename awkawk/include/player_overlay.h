@@ -35,37 +35,15 @@ _COM_SMARTPTR_TYPEDEF(ID3DXSprite, IID_ID3DXSprite);
 
 struct awkawk;
 
-struct overlay_text : component
+struct overlay_text : text_component
 {
-	enum horizontal_alignment
-	{
-		left = DT_LEFT,
-		centre = DT_CENTER,
-		right = DT_RIGHT
-	};
-
-	enum vertical_alignment
-	{
-		top = DT_TOP,
-		middle = DT_VCENTER,
-		bottom = DT_BOTTOM
-	};
-
-	overlay_text(const std::wstring& text_, horizontal_alignment ha, vertical_alignment va, bool visible_) : text(text_), halign(ha), valign(va), visible(visible_), cs("overlay_text")
+	overlay_text(const std::wstring& text_, horizontal_alignment ha, vertical_alignment va, bool shadowed_) : text_component(text_, ha, va), visible(false), shadowed(shadowed_), cs("overlay_text")
 	{
 		::QueryPerformanceFrequency(&frequency);
 		::QueryPerformanceCounter(&last_update);
 	}
 
-	virtual RECT get_rectangle(ID3DXSpritePtr sprite, ID3DXFontPtr font, SIZE size) const
-	{
-		LOCK(cs);
-		RECT r = { 1, 12 + 1, size.cx + 1, size.cy - 40 + 1 };
-		font->DrawTextW(sprite, text.c_str(), -1, &r, DT_CALCRECT | DT_WORDBREAK | halign | valign, D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f));
-		return r;
-	}
-
-	void render(ID3DXSpritePtr sprite, ID3DXFontPtr font, SIZE size)
+	void render(ID3DXSpritePtr sprite)
 	{
 		LOCK(cs);
 		if(!visible)
@@ -89,28 +67,17 @@ struct overlay_text : component
 			visible = false;
 			return;
 		}
-		RECT r = { 1, 12 + 1, size.cx + 1, size.cy - 40 + 1 };
-		font->DrawTextW(sprite, text.c_str(), -1, &r, DT_WORDBREAK | halign | valign, D3DXCOLOR(0.0f, 0.0f, 0.0f, opacity * 0.75f));
-		::SetRect(&r, 0, 12, size.cx, size.cy - 40);
-		font->DrawTextW(sprite, text.c_str(), -1, &r, DT_WORDBREAK | halign | valign, D3DXCOLOR(1.0f, 1.0f, 1.0f, opacity));
-	}
 
-	void set_text(const std::wstring& text_)
-	{
-		LOCK(cs);
-		text = text_;
-	}
-
-	void set_horizontal_alignment(horizontal_alignment halign_)
-	{
-		LOCK(cs);
-		halign = halign_;
-	}
-
-	void set_vertical_alignment(vertical_alignment valign_)
-	{
-		LOCK(cs);
-		valign = valign_;
+		if(shadowed) {
+			RECT r(get_bounds());
+			::OffsetRect(&r, 1, 1);
+			get_font()->DrawTextW(sprite, get_text().c_str(), -1, &r, DT_WORDBREAK | get_horizontal_alignment() | get_vertical_alignment(), D3DXCOLOR(0.0f, 0.0f, 0.0f, opacity * 0.75f));
+			::OffsetRect(&r, -1, -1);
+			get_font()->DrawTextW(sprite, get_text().c_str(), -1, &r, DT_WORDBREAK | get_horizontal_alignment() | get_vertical_alignment(), D3DXCOLOR(1.0f, 1.0f, 1.0f, opacity));
+		} else {
+			RECT r(get_bounds());
+			get_font()->DrawTextW(sprite, get_text().c_str(), -1, &r, DT_WORDBREAK | get_horizontal_alignment() | get_vertical_alignment(), D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f));
+		}
 	}
 
 	void set_visible(bool visible_)
@@ -125,17 +92,15 @@ struct overlay_text : component
 
 private:
 	mutable utility::critical_section cs;
-	std::wstring text;
-	horizontal_alignment halign;
-	vertical_alignment valign;
 	bool visible;
+	bool shadowed;
 	LARGE_INTEGER last_update;
 	LARGE_INTEGER frequency;
 };
 
 struct player_overlay : direct3d_renderable, layout, boost::noncopyable
 {
-	player_overlay(awkawk* player_, window* parent_, direct3d_manager* manager_);
+	player_overlay(awkawk* player_, direct3d_manager* manager_);
 	virtual ~player_overlay();
 
 	enum active_area
@@ -155,15 +120,7 @@ struct player_overlay : direct3d_renderable, layout, boost::noncopyable
 		open
 	};
 
-	active_area get_active_area() const
-	{
-		return active;
-	}
-
-	void set_active_area(active_area area)
-	{
-		active = area;
-	}
+	void update(float vol, float play_time, active_area active, std::wstring caption_text, RECT caption_position);
 
 protected:
 	// create D3DPOOL_MANAGED resources
@@ -177,13 +134,16 @@ protected:
 	{
 		NONCLIENTMETRICSW metrics = { sizeof(NONCLIENTMETRICSW) };
 		::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &metrics, 0);
-		::D3DXCreateFontW(device, static_cast<INT>(metrics.lfCaptionFont.lfHeight * 1.5f), 0, FW_NORMAL, 0, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, PROOF_QUALITY, DEFAULT_PITCH, metrics.lfCaptionFont.lfFaceName, &font);
+		::D3DXCreateFontW(device, static_cast<INT>(metrics.lfCaptionFont.lfHeight * 1.5f), 0, FW_NORMAL, 0, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, PROOF_QUALITY, DEFAULT_PITCH, metrics.lfCaptionFont.lfFaceName, &overlay_font);
+		::D3DXCreateFontW(device, -12, 0, FW_NORMAL, 0, FALSE, DEFAULT_CHARSET, OUT_TT_ONLY_PRECIS, PROOF_QUALITY, DEFAULT_PITCH, metrics.lfCaptionFont.lfFaceName, &caption_font);
+
 		return S_OK;
 	}
 	// destroy D3DPOOL_DEFAULT resources
 	virtual HRESULT do_on_device_lost()
 	{
-		font = nullptr;
+		overlay_font = nullptr;
+		caption_font = nullptr;
 		return S_OK;
 	}
 	// destroy D3DPOOL_MANAGED resources
@@ -199,9 +159,13 @@ private:
 
 	utility::critical_section cs;
 
-	ID3DXFontPtr font;
+	std::shared_ptr<overlay_text> caption_overlay;
+	std::shared_ptr<overlay_text> volume_overlay;
+	std::shared_ptr<overlay_text> button_overlay;
+	std::shared_ptr<overlay_text> position_overlay;
 
-	active_area active;
+	ID3DXFontPtr overlay_font;
+	ID3DXFontPtr caption_font;
 
 	awkawk* player;
 };

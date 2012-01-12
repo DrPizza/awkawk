@@ -52,7 +52,13 @@ struct d3d_renderer : direct3d_manager, boost::noncopyable {
 	void set_render_fps(unsigned int fps_)
 	{
 		LOCK(cs);
-		fps = clamp(fps_, 25u, 60u);
+		if(fps_ == 0) {
+			D3DDISPLAYMODE dm; 
+			FAIL_THROW(device->GetDisplayMode(NULL, &dm));
+			fps_ = dm.RefreshRate;
+		}
+		fps = fps_;
+		//fps = clamp(fps_, 25u, 60u);
 	}
 
 	void schedule_render() const

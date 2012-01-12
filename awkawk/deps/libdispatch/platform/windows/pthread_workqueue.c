@@ -46,19 +46,27 @@ static size_t default_stack_commit = 0;
 static size_t default_stack_reserve = 0;
 static INIT_ONCE stacksizes_set = {0};
 
+
 BOOL CALLBACK get_default_stacksizes(INIT_ONCE* init_once, void* context, void** result)
 {
-	TP_POOL* pool = CreateThreadpool(NULL);
-	TP_POOL_STACK_INFORMATION psi;
+	typedef BOOL (*QueryThreadpoolStackInformationFn)(TP_POOL*, TP_POOL_STACK_INFORMATION*);
+	QueryThreadpoolStackInformationFn queryThreadpoolStackInformation = (QueryThreadpoolStackInformationFn)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "QueryThreadpoolStackInformation");
 
 	UNREFERENCED_PARAMETER(init_once);
 	UNREFERENCED_PARAMETER(context);
 	UNREFERENCED_PARAMETER(result);
 
-	QueryThreadpoolStackInformation(pool, &psi);
-	default_stack_commit = psi.StackCommit;
-	default_stack_reserve = psi.StackReserve;
-	CloseThreadpool(pool);
+	if(queryThreadpoolStackInformation) {
+		TP_POOL* pool = CreateThreadpool(NULL);
+		TP_POOL_STACK_INFORMATION psi;
+		queryThreadpoolStackInformation(pool, &psi);
+		default_stack_commit = psi.StackCommit;
+		default_stack_reserve = psi.StackReserve;
+		CloseThreadpool(pool);
+	} else {
+		default_stack_commit = 1024 * 1024;
+		default_stack_reserve = 1024 * 1024;
+	}
 	return TRUE;
 }
 

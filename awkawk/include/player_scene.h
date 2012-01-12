@@ -38,15 +38,10 @@ struct awkawk;
 struct player_direct_show;
 struct shared_texture_queue;
 
-struct player_scene : direct3d_renderable, component_owner, boost::noncopyable
+struct player_scene : direct3d_renderable, boost::noncopyable
 {
 	player_scene(awkawk* player_, player_direct_show* dshow_, shared_texture_queue* texture_queue_, window* parent_, direct3d_manager* manager_);
 	virtual ~player_scene();
-
-	void add_components(layout* lay)
-	{
-		controls->add_components(lay);
-	}
 
 	void set_cursor_position(POINT pt)
 	{

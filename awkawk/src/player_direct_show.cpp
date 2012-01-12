@@ -27,42 +27,42 @@
 
 const player_direct_show::transition_type player_direct_show::transitions[player_direct_show::max_graph_states][player_direct_show::max_graph_events] =
 {
-/* state    | event         | handler                       | exit states */
+/* state    | event         | handler                        | exit states */
 /* ------------------- */ {
-/* unloaded | load     */   { &player_direct_show::do_load  , player_direct_show::transition_type::state_array() << player_direct_show::stopped },
-/*          | stop     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | pause    */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | play     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | unload   */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | rwnd     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | ffwd     */   { nullptr                       , player_direct_show::transition_type::state_array()                                }
+/* unloaded | load     */   { &player_direct_show::do_load   /* stopped    */},
+/*          | stop     */   { nullptr                        /*            */},
+/*          | pause    */   { nullptr                        /*            */},
+/*          | play     */   { nullptr                        /*            */},
+/*          | unload   */   { nullptr                        /*            */},
+/*          | rwnd     */   { nullptr                        /*            */},
+/*          | ffwd     */   { nullptr                        /*            */}
                           },
                           {
-/* stopped  | load     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | stop     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | pause    */   { &player_direct_show::do_play  , player_direct_show::transition_type::state_array() << player_direct_show::playing },
-/*          | play     */   { &player_direct_show::do_play  , player_direct_show::transition_type::state_array() << player_direct_show::playing },
-/*          | unload   */   { &player_direct_show::do_unload, player_direct_show::transition_type::state_array() << player_direct_show::unloaded},
-/*          | rwnd     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | ffwd     */   { nullptr                       , player_direct_show::transition_type::state_array()                                }
+/* stopped  | load     */   { nullptr                        /*            */},
+/*          | stop     */   { nullptr                        /*            */},
+/*          | pause    */   { &player_direct_show::do_play   /* playing    */},
+/*          | play     */   { &player_direct_show::do_play   /* playing    */},
+/*          | unload   */   { &player_direct_show::do_unload /* unloaded   */},
+/*          | rwnd     */   { nullptr                        /*            */},
+/*          | ffwd     */   { nullptr                        /*            */}
                           },
                           {
-/* paused   | load     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | stop     */   { &player_direct_show::do_stop  , player_direct_show::transition_type::state_array() << player_direct_show::stopped },
-/*          | pause    */   { &player_direct_show::do_resume, player_direct_show::transition_type::state_array() << player_direct_show::playing },
-/*          | play     */   { &player_direct_show::do_resume, player_direct_show::transition_type::state_array() << player_direct_show::playing },
-/*          | unload   */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | rwnd     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | ffwd     */   { nullptr                       , player_direct_show::transition_type::state_array()                                }
+/* paused   | load     */   { nullptr                        /*            */},
+/*          | stop     */   { &player_direct_show::do_stop   /* stopped    */},
+/*          | pause    */   { &player_direct_show::do_resume /* playing    */},
+/*          | play     */   { &player_direct_show::do_resume /* playing    */},
+/*          | unload   */   { nullptr                        /*            */},
+/*          | rwnd     */   { nullptr                        /*            */},
+/*          | ffwd     */   { nullptr                        /*            */}
                           },
                           {
-/* playing  | load     */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | stop     */   { &player_direct_show::do_stop  , player_direct_show::transition_type::state_array() << player_direct_show::stopped },
-/*          | pause    */   { &player_direct_show::do_pause , player_direct_show::transition_type::state_array() << player_direct_show::paused  },
-/*          | play     */   { &player_direct_show::do_pause , player_direct_show::transition_type::state_array() << player_direct_show::paused  },
-/*          | unload   */   { nullptr                       , player_direct_show::transition_type::state_array()                                },
-/*          | rwnd     */   { &player_direct_show::do_rwnd  , player_direct_show::transition_type::state_array() << player_direct_show::playing },
-/*          | ffwd     */   { &player_direct_show::do_ffwd  , player_direct_show::transition_type::state_array() << player_direct_show::playing }
+/* playing  | load     */   { nullptr                        /*            */},
+/*          | stop     */   { &player_direct_show::do_stop   /* stopped    */},
+/*          | pause    */   { &player_direct_show::do_pause  /* paused     */},
+/*          | play     */   { &player_direct_show::do_pause  /* paused     */},
+/*          | unload   */   { nullptr                        /*            */},
+/*          | rwnd     */   { &player_direct_show::do_rwnd   /* playing    */},
+/*          | ffwd     */   { &player_direct_show::do_ffwd   /* playing    */}
                           }
 };
 

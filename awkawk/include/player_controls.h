@@ -38,16 +38,9 @@ _COM_SMARTPTR_TYPEDEF(ID3DXBuffer, IID_ID3DXBuffer);
 
 struct awkawk;
 
-struct player_controls : control, direct3d_renderable, component_owner, boost::noncopyable
+struct player_controls : control, direct3d_renderable, boost::noncopyable
 {
 	player_controls(awkawk* player_, direct3d_manager* manager, window* parent_);
-
-	void add_components(layout* lay)
-	{
-		lay->add_component("volume overlay", volume_overlay);
-		lay->add_component("button overlay", button_overlay);
-		lay->add_component("position overlay", position_overlay);
-	}
 
 	virtual LRESULT CALLBACK message_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam, bool& handled);
 	void onLeftButtonDown(HWND wnd, BOOL doubleClick, int x, int y, UINT keyFlags);
@@ -156,7 +149,6 @@ struct player_controls : control, direct3d_renderable, component_owner, boost::n
 
 	void notify_window_size_change()
 	{
-		set_compact_filename();
 	}
 
 	void set_cursor_position(POINT pt)
@@ -243,8 +235,6 @@ protected:
 		white_texture = nullptr;
 		black_texture = nullptr;
 
-		caption_mesh = nullptr;
-
 		return S_OK;
 	}
 	// destroy D3DPOOL_MANAGED resources
@@ -256,7 +246,6 @@ protected:
 		shadowed_position_tracker->on_device_destroyed();
 		volume_tracker->on_device_destroyed();
 		caption->on_device_destroyed();
-		caption_mesh = NULL;
 
 		device = NULL;
 	}
@@ -264,14 +253,8 @@ protected:
 	virtual void do_emit_scene();
 
 private:
-	void set_compact_filename();
-
 	void calculate_positions();
 	void calculate_colours();
-
-	void calculate_caption();
-
-	void update_overlay();
 
 	utility::critical_section cs;
 
@@ -307,9 +290,7 @@ private:
 	IDirect3DTexture9Ptr black_texture;
 	D3DXIMAGE_INFO black_texture_info;
 
-	std::shared_ptr<overlay_text> volume_overlay;
-	std::shared_ptr<overlay_text> button_overlay;
-	std::shared_ptr<overlay_text> position_overlay;
+	std::shared_ptr<player_overlay> overlay;
 
 	skin_definition skin;
 
@@ -319,10 +300,6 @@ private:
 
 	float text_size;
 	std::wstring caption_text;
-	std::wstring compact_caption_text;
-	ID3DXMeshPtr caption_mesh;
-	D3DXMATRIX caption_transform;
-	SIZE caption_dimensions;
 
 	float vol;
 	float linear_vol;

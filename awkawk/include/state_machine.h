@@ -819,10 +819,8 @@ struct transition
 	typedef S state_type;
 
 	typedef state_type (handler_type::*state_fun)();
-	typedef array<state_type> state_array;
-		
+
 	state_fun fun;
-	state_array next_states;
 
 	state_type execute(handler_type* hnd) const
 	{

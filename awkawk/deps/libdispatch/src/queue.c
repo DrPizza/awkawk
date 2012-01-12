@@ -528,9 +528,24 @@ _dispatch_queue_set_width_init(void)
 	    _dispatch_hw_config.cc_max_physical =
 	    _dispatch_hw_config.cc_max_active = (ret < 0) ? 1 : ret;
 #elif TARGET_OS_WIN32
-	_dispatch_hw_config.cc_max_logical = (uint32_t)GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
-	_dispatch_hw_config.cc_max_physical = (uint32_t)GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
-	_dispatch_hw_config.cc_max_active = (uint32_t)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+	typedef DWORD(__stdcall *GetProcessorCountFn)(WORD);
+	typedef VOID(__stdcall *GetCurrentProcessorNumberExFn)(PROCESSOR_NUMBER*);
+	GetProcessorCountFn getMaximumProcessorCount = (GetProcessorCountFn)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetMaximumProcessorCount");
+	GetProcessorCountFn getActiveProcessorCount = (GetProcessorCountFn)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetActiveProcessorCount");
+	GetCurrentProcessorNumberExFn getCurrentProcessorNumberEx = (GetCurrentProcessorNumberExFn)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentProcessorNumberEx");
+	if(getMaximumProcessorCount && getActiveProcessorCount && getCurrentProcessorNumberEx) {
+		PROCESSOR_NUMBER pn = {0};
+		getCurrentProcessorNumberEx(&pn);
+		_dispatch_hw_config.cc_max_logical = (uint32_t)getMaximumProcessorCount(pn.Group);
+		_dispatch_hw_config.cc_max_physical = (uint32_t)getMaximumProcessorCount(pn.Group);
+		_dispatch_hw_config.cc_max_active = (uint32_t)getActiveProcessorCount(pn.Group);
+	} else {
+		SYSTEM_INFO si = {0};
+		GetSystemInfo(&si);
+		_dispatch_hw_config.cc_max_logical = si.dwNumberOfProcessors;
+		_dispatch_hw_config.cc_max_physical = si.dwNumberOfProcessors;
+		_dispatch_hw_config.cc_max_active = si.dwNumberOfProcessors;
+	}
 #else
 #warning "_dispatch_queue_set_width_init: no supported way to query CPU count"
 	_dispatch_hw_config.cc_max_logical =
