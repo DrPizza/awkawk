@@ -441,7 +441,6 @@ private:
 	std::unique_ptr<player_window> ui;
 
 	std::unique_ptr<player_scene> scene;
-	std::unique_ptr<player_overlay> overlay;
 
 	// video stats needed for controlling the window
 	mutable utility::critical_section player_cs;

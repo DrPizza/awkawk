@@ -497,7 +497,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DLLRelease|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='StaticRelease|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="src\text.cpp" />
     <ClCompile Include="src\util.cpp" />
     <ClCompile Include="include\utility\debugstream.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DLLDebug|Win32'">
@@ -627,7 +626,6 @@
     <ClInclude Include="include\state_machine.h" />
     <ClInclude Include="include\stdafx.h" />
     <ClInclude Include="include\strip.h" />
-    <ClInclude Include="include\text.h" />
     <ClInclude Include="include\util.h" />
     <ClInclude Include="include\utility\scopeguard.hpp" />
     <ClInclude Include="src\version.h" />

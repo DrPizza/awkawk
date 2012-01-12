@@ -21,61 +21,60 @@
 #include "stdafx.h"
 
 #include "awkawk.h"
-#include "text.h"
 #include "shared_texture_queue.h"
 #include "player_direct_show.h"
 #include "d3d_renderer.h"
 
 const awkawk::transition_type awkawk::transitions[awkawk::max_awkawk_states][awkawk::max_awkawk_events] =
 {
-/* state    | event              | handler               | exit states */
+/* state    | event              | handler                | exit states                     */
 /* ------------------------ */ {
-/* unloaded | load          */   { &awkawk::do_load      , awkawk::transition_type::state_array() << awkawk::stopped                                        },
-/*          | stop          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | pause         */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | play          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | unload        */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | transitioning */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | next          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | rwnd          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | ffwd          */   { nullptr               , awkawk::transition_type::state_array()                                                           }
+/* unloaded | load          */   { &awkawk::do_load       /* stopped                        */},
+/*          | stop          */   { nullptr                /*                                */},
+/*          | pause         */   { nullptr                /*                                */},
+/*          | play          */   { nullptr                /*                                */},
+/*          | unload        */   { nullptr                /*                                */},
+/*          | transitioning */   { nullptr                /*                                */},
+/*          | previous      */   { &awkawk::do_previous   /* unloaded << stopped << playing */},
+/*          | next          */   { nullptr                /*                                */},
+/*          | rwnd          */   { nullptr                /*                                */},
+/*          | ffwd          */   { nullptr                /*                                */}
                           },
                           {
-/* stopped  | load          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | stop          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | pause         */   { &awkawk::do_play      , awkawk::transition_type::state_array() << awkawk::playing                                        },
-/*          | play          */   { &awkawk::do_play      , awkawk::transition_type::state_array() << awkawk::playing                                        },
-/*          | unload        */   { &awkawk::do_unload    , awkawk::transition_type::state_array() << awkawk::unloaded                                       },
-/*          | transitioning */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | next          */   { &awkawk::do_next      , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | rwnd          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | ffwd          */   { nullptr               , awkawk::transition_type::state_array()                                                           }
+/* stopped  | load          */   { nullptr                /*                                */},
+/*          | stop          */   { nullptr                /*                                */},
+/*          | pause         */   { &awkawk::do_play       /* playing                        */},
+/*          | play          */   { &awkawk::do_play       /* playing                        */},
+/*          | unload        */   { &awkawk::do_unload     /* unloaded                       */},
+/*          | transitioning */   { nullptr                /*                                */},
+/*          | previous      */   { &awkawk::do_previous   /* unloaded << stopped << playing */},
+/*          | next          */   { &awkawk::do_next       /* unloaded << stopped << playing */},
+/*          | rwnd          */   { nullptr                /*                                */},
+/*          | ffwd          */   { nullptr                /*                                */}
                           },
                           {
-/* paused   | load          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | stop          */   { &awkawk::do_stop      , awkawk::transition_type::state_array() << awkawk::stopped                                        },
-/*          | pause         */   { &awkawk::do_resume    , awkawk::transition_type::state_array() << awkawk::playing                                        },
-/*          | play          */   { &awkawk::do_resume    , awkawk::transition_type::state_array() << awkawk::playing                                        },
-/*          | unload        */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | transitioning */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | next          */   { &awkawk::do_next      , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | rwnd          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | ffwd          */   { nullptr               , awkawk::transition_type::state_array()                                                           }
+/* paused   | load          */   { nullptr                /*                                */},
+/*          | stop          */   { &awkawk::do_stop       /* stopped                        */},
+/*          | pause         */   { &awkawk::do_resume     /* playing                        */},
+/*          | play          */   { &awkawk::do_resume     /* playing                        */},
+/*          | unload        */   { nullptr                /*                                */},
+/*          | transitioning */   { nullptr                /*                                */},
+/*          | previous      */   { &awkawk::do_previous   /* unloaded << stopped << playing */},
+/*          | next          */   { &awkawk::do_next       /* unloaded << stopped << playing */},
+/*          | rwnd          */   { nullptr                /*                                */},
+/*          | ffwd          */   { nullptr                /*                                */}
                           },
                           {
-/* playing  | load          */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | stop          */   { &awkawk::do_stop      , awkawk::transition_type::state_array() << awkawk::stopped                                        },
-/*          | pause         */   { &awkawk::do_pause     , awkawk::transition_type::state_array() << awkawk::paused                                         },
-/*          | play          */   { &awkawk::do_pause     , awkawk::transition_type::state_array() << awkawk::paused                                         },
-/*          | unload        */   { nullptr               , awkawk::transition_type::state_array()                                                           },
-/*          | transitioning */   { &awkawk::do_transition, awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | previous      */   { &awkawk::do_previous  , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | next          */   { &awkawk::do_next      , awkawk::transition_type::state_array() << awkawk::unloaded << awkawk::stopped << awkawk::playing },
-/*          | rwnd          */   { &awkawk::do_rwnd      , awkawk::transition_type::state_array() << awkawk::playing                                        },
-/*          | ffwd          */   { &awkawk::do_ffwd      , awkawk::transition_type::state_array() << awkawk::playing                                        }
+/* playing  | load          */   { nullptr                /*                               */},
+/*          | stop          */   { &awkawk::do_stop       /* stopped                       */},
+/*          | pause         */   { &awkawk::do_pause      /* paused                        */},
+/*          | play          */   { &awkawk::do_pause      /* paused                        */},
+/*          | unload        */   { nullptr                /*                               */},
+/*          | transitioning */   { &awkawk::do_transition /* unloaded <<stopped << playing */},
+/*          | previous      */   { &awkawk::do_previous   /* unloaded <<stopped << playing */},
+/*          | next          */   { &awkawk::do_next       /* unloaded <<stopped << playing */},
+/*          | rwnd          */   { &awkawk::do_rwnd       /* playing                       */},
+/*          | ffwd          */   { &awkawk::do_ffwd       /* playing                       */}
                           }
 };
 
@@ -124,8 +123,6 @@ void awkawk::create_ui(int cmd_show)
 	renderer.reset(new d3d_renderer      (this,              texture_queue.get(),                 get_ui()->get_window()                                                 ));
 	dshow.reset   (new player_direct_show(this,              texture_queue.get(), renderer.get(), get_ui()->get_window()                                                 ));
 	scene.reset   (new player_scene      (this, dshow.get(), texture_queue.get(),                 get_ui(),               dynamic_cast<direct3d_manager*>(renderer.get())));
-	overlay.reset (new player_overlay    (this,                                                   get_ui(),               dynamic_cast<direct3d_manager*>(renderer.get())));
-	scene->add_components(overlay.get());
 }
 
 int awkawk::run_ui()

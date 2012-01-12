@@ -30,11 +30,87 @@ _COM_SMARTPTR_TYPEDEF(ID3DXSprite, IID_ID3DXSprite);
 
 struct component
 {
-	virtual void render(ID3DXSpritePtr sprite, ID3DXFontPtr font, SIZE size) = 0;
-	virtual RECT get_rectangle(ID3DXSpritePtr sprite, ID3DXFontPtr font, SIZE size) const = 0;
+	virtual void render(ID3DXSpritePtr sprite) = 0;
+
+	void set_bounds(const RECT& r) {
+		bounding_rect = r;
+	}
+
+	RECT& get_bounds() {
+		return bounding_rect;
+	}
+
+	const RECT& get_bounds() const {
+		return bounding_rect;
+	}
+
 	virtual ~component()
 	{
 	}
+
+private:
+	RECT bounding_rect;
+};
+
+struct text_component : component {
+	enum horizontal_alignment
+	{
+		left = DT_LEFT,
+		centre = DT_CENTER,
+		right = DT_RIGHT
+	};
+
+	enum vertical_alignment
+	{
+		top = DT_TOP,
+		middle = DT_VCENTER,
+		bottom = DT_BOTTOM
+	};
+
+	text_component(const std::wstring& text_, horizontal_alignment ha, vertical_alignment va) : text(text_), halign(ha), valign(va) {
+	}
+
+	void set_font(ID3DXFontPtr font_) {
+		font = font_;
+	}
+
+	ID3DXFontPtr get_font() const {
+		return font;
+	}
+
+	void set_horizontal_alignment(horizontal_alignment halign_)
+	{
+		halign = halign_;
+	}
+
+	horizontal_alignment get_horizontal_alignment() const {
+		return halign;
+	}
+
+	void set_vertical_alignment(vertical_alignment valign_)
+	{
+		valign = valign_;
+	}
+
+	vertical_alignment get_vertical_alignment() const {
+		return valign;
+	}
+
+	void set_text(const std::wstring& text_)
+	{
+		text = text_;
+	}
+
+	const std::wstring& get_text() const {
+		return text;
+	}
+
+private:
+	horizontal_alignment halign;
+	vertical_alignment valign;
+
+	ID3DXFontPtr font;
+	std::wstring text;
 };
 
 struct layout
@@ -48,6 +124,13 @@ struct layout
 
 	virtual ~layout()
 	{
+	}
+
+	virtual void render(ID3DXSpritePtr sprite) {
+		for(map_type::const_iterator it(components.begin()), end(components.end()); it != end; ++it)
+		{
+			it->second->render(sprite);
+		}
 	}
 
 protected:

@@ -143,12 +143,12 @@ void d3d_renderer::create_device()
 
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
 	FAIL_THROW(d3d9->get_d3d9()->CreateDeviceEx(device_ordinal,
-	                                              dev_type,
-	                                              window,
-	                                              vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE,
-	                                              &parameters,
-	                                              nullptr,
-	                                              &device));
+	                                            dev_type,
+	                                            window,
+	                                            vertex_processing | D3DCREATE_MULTITHREADED | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE | D3DCREATE_ENABLE_PRESENTSTATS,
+	                                            &parameters,
+	                                            nullptr,
+	                                            &device));
 	
 	device_manager->ResetDevice(device, reset_token);
 
