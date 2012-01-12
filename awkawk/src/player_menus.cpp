@@ -109,11 +109,11 @@ void awkawk_size_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
 
 void awkawk_size_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
 {
-	if(id >= ar_menu_base && id < ar_menu_base + player->available_ratios.size())
+	if(static_cast<UINT>(id) >= ar_menu_base && static_cast<UINT>(id) < ar_menu_base + player->available_ratios.size())
 	{
 		player->set_aspect_ratio_mode(id - ar_menu_base);
 	}
-	if(id >= lb_menu_base && id < lb_menu_base + player->available_letterboxes.size())
+	if(static_cast<UINT>(id) >= lb_menu_base && static_cast<UINT>(id) < lb_menu_base + player->available_letterboxes.size())
 	{
 		player->set_letterbox_mode(id - lb_menu_base);
 	}

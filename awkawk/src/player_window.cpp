@@ -31,6 +31,7 @@ player_window::player_window(awkawk* player_) : window(L"awkawk class", CS_DBLCL
                                                 player(player_),
                                                 tracking(false),
                                                 dragging(false),
+                                                menu_visible(false),
                                                 main_menu(player, this),
                                                 aspect_ratio(4, 3),
                                                 thread_queue(gcd::queue::get_current_thread_queue())
@@ -194,6 +195,8 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_INITMENUPOPUP, onInitMenuPopup);
 	HANDLE_MSG(window, WM_SYSCOMMAND, onSysCommand);
 	HANDLE_MSG(window, WM_TIMER, onTimer);
+	HANDLE_MSG(window, WM_ENTERMENULOOP, onEnterMenuLoop);
+	HANDLE_MSG(window, WM_EXITMENULOOP, onExitMenuLoop);
 
 	default:
 		handled = false;
@@ -217,7 +220,7 @@ void player_window::onTimer(HWND, UINT id)
 			{
 				LARGE_INTEGER now = {0};
 				::QueryPerformanceCounter(&now);
-				if(((now.QuadPart - last_mouse_move_time.QuadPart) / freq.QuadPart) > 3)
+				if(!menu_visible && ((now.QuadPart - last_mouse_move_time.QuadPart) / freq.QuadPart) > 3)
 				{
 					hide_cursor();
 				}
@@ -236,6 +239,15 @@ void player_window::onTimer(HWND, UINT id)
 
 void player_window::onInitMenu(HWND, HMENU menu)
 {
+}
+
+void player_window::onEnterMenuLoop(HWND wnd, BOOL popup) {
+	menu_visible = true;
+	show_cursor();
+}
+
+void player_window::onExitMenuLoop(HWND wnd, BOOL popup) {
+	menu_visible = false;
 }
 
 void player_window::onInitMenuPopup(HWND, HMENU menu, UINT item, BOOL window_menu)

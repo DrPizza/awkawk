@@ -81,6 +81,8 @@ struct player_window : window, boost::noncopyable
 	void onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu);
 	void onSysCommand(HWND wnd, UINT command, int x, int y);
 	void onTimer(HWND wnd, UINT id);
+	void onEnterMenuLoop(HWND wnd, BOOL popup);
+	void onExitMenuLoop(HWND wnd, BOOL popup);
 
 	void hide_cursor() const
 	{
@@ -162,6 +164,7 @@ private:
 
 	enum { mouse_kill = 1 };
 	LARGE_INTEGER last_mouse_move_time;
+	bool menu_visible;
 
 	void update_last_mouse_move_time();
 

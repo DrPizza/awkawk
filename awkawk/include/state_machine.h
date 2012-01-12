@@ -902,12 +902,16 @@ private:
 	{
 		if(permitted(evt))
 		{
+#if 0
 			dout << "current state: " << handler->state_name(handler->get_current_state()) << std::endl;
+#endif
 			state_type next_state(handler->get_transition(evt)->execute(handler));
 			if(static_cast<int>(next_state) != -1) {
 				handler->set_current_state(next_state);
 			}
+#if 0
 			dout << "new state: " << handler->state_name(handler->get_current_state()) << std::endl;
+#endif
 		}
 		else
 		{
