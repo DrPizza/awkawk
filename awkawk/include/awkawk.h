@@ -46,13 +46,11 @@ typedef shared_texture_queue<shared_texture_data> texture_queue_type;
 _COM_SMARTPTR_TYPEDEF(IBaseFilter, __uuidof(IBaseFilter));
 _COM_SMARTPTR_TYPEDEF(IDirect3DDeviceManager9, __uuidof(IDirect3DDeviceManager9));
 
-struct awkawk : boost::noncopyable
-{
+struct awkawk : boost::noncopyable {
 	awkawk();
 	~awkawk();
 
-	enum awkawk_state
-	{
+	enum awkawk_state {
 		unloaded,
 		stopped,
 		paused,
@@ -60,10 +58,8 @@ struct awkawk : boost::noncopyable
 		max_awkawk_states
 	};
 
-	std::string state_name(awkawk_state st) const
-	{
-		switch(st)
-		{
+	std::string state_name(awkawk_state st) const {
+		switch(st) {
 		case unloaded:
 			return "awkawk::unloaded";
 		case stopped:
@@ -77,8 +73,7 @@ struct awkawk : boost::noncopyable
 		return "awkawk::error";
 	}
 
-	enum awkawk_event
-	{
+	enum awkawk_event {
 		load,
 		stop,
 		pause,
@@ -92,10 +87,8 @@ struct awkawk : boost::noncopyable
 		max_awkawk_events
 	};
 
-	std::string event_name(awkawk_event evt) const
-	{
-		switch(evt)
-		{
+	std::string event_name(awkawk_event evt) const {
+		switch(evt) {
 		case load:
 			return"load";
 		case stop:
@@ -123,52 +116,43 @@ struct awkawk : boost::noncopyable
 	typedef transition<awkawk, awkawk_state> transition_type;
 	typedef event_handler<awkawk, awkawk_state, awkawk_event> event_handler_type;
 
-	const transition_type* get_transition(awkawk_event evt)
-	{
+	const transition_type* get_transition(awkawk_event evt) {
 		return &(transitions[get_current_state()][evt]);
 	}
 
-	void send_event(awkawk_event evt)
-	{
+	void send_event(awkawk_event evt) {
 		return handler->send_event(evt);
 	}
 
-	void post_event(awkawk_event evt)
-	{
+	void post_event(awkawk_event evt) {
 		return handler->post_event(evt);
 	}
 
-	void post_callback(std::function<void()> f)
-	{
+	void post_callback(std::function<void()> f) {
 		return handler->post_callback(f);
 	}
 
-	bool permitted(awkawk_event evt) const
-	{
+	bool permitted(awkawk_event evt) const {
 		return handler->permitted(evt);
 	}
 
 	void create_ui(int cmdShow);
 	int run_ui();
 
-	void set_cursor_position(const POINT& pos)
-	{
+	void set_cursor_position(const POINT& pos) {
 		utility::critical_section::attempt_lock l(player_cs);
-		if(l.succeeded && scene.get() != nullptr)
-		{
+		if(l.succeeded && scene.get() != nullptr) {
 			scene->set_cursor_position(pos);
 		}
 	}
 
 	std::vector<std::shared_ptr<aspect_ratio> > available_ratios;
 
-	size_t get_aspect_ratio_mode() const
-	{
+	size_t get_aspect_ratio_mode() const {
 		return chosen_ar;
 	}
 
-	void set_aspect_ratio_mode(size_t new_ar)
-	{
+	void set_aspect_ratio_mode(size_t new_ar) {
 		LOCK(player_cs);
 		chosen_ar = new_ar;
 		apply_sizing_policy();
@@ -176,42 +160,35 @@ struct awkawk : boost::noncopyable
 
 	std::vector<std::shared_ptr<letterbox> > available_letterboxes;
 
-	enum window_size_mode
-	{
+	enum window_size_mode {
 		free = IDM_SIZE_FREE,
 		fifty_percent = IDM_SIZE_50,
 		one_hundred_percent = IDM_SIZE_100,
 		two_hundred_percent = IDM_SIZE_200
 	};
 
-	window_size_mode get_window_size_mode() const
-	{
+	window_size_mode get_window_size_mode() const {
 		return wnd_size_mode;
 	}
 
-	void set_window_size_mode(window_size_mode mode)
-	{
+	void set_window_size_mode(window_size_mode mode) {
 		LOCK(player_cs);
 		wnd_size_mode = mode;
 		apply_sizing_policy();
 	}
 
-	size_t get_letterbox_mode() const
-	{
+	size_t get_letterbox_mode() const {
 		return chosen_lb;
 	}
 
-	void set_letterbox_mode(size_t mode)
-	{
+	void set_letterbox_mode(size_t mode) {
 		LOCK(player_cs);
 		chosen_lb = mode;
 		apply_sizing_policy();
 	}
 
-	rational_type get_size_multiplier() const
-	{
-		switch(wnd_size_mode)
-		{
+	rational_type get_size_multiplier() const {
+		switch(wnd_size_mode) {
 		case free:
 			return rational_type(window_size.cx, video_size.cx);
 		case fifty_percent:
@@ -225,26 +202,22 @@ struct awkawk : boost::noncopyable
 		}
 	}
 
-	void set_window_dimensions(SIZE sz)
-	{
+	void set_window_dimensions(SIZE sz) {
 		LOCK(player_cs);
-		if(window_size.cx != sz.cx || window_size.cy != sz.cy)
-		{
+		if(window_size.cx != sz.cx || window_size.cy != sz.cy) {
 			window_size = sz;
 			apply_sizing_policy();
 		}
 	}
 
-	static SIZE fit_to_constraint(SIZE current_size, SIZE constraint, bool constrain_maximum_lengths)
-	{
+	static SIZE fit_to_constraint(SIZE current_size, SIZE constraint, bool constrain_maximum_lengths) {
 		rational_type current_ar(current_size.cx, current_size.cy);
 		rational_type constraint_ar(constraint.cx, constraint.cy);
 		
 		return fix_ar(constraint, constraint_ar, current_ar, constrain_maximum_lengths);
 	}
 
-	void apply_sizing_policy()
-	{
+	void apply_sizing_policy() {
 		LOCK(player_cs);
 
 		// we have several sizes:
@@ -269,8 +242,7 @@ struct awkawk : boost::noncopyable
 
 		get_ui()->set_aspect_ratio(available_letterboxes[chosen_lb]->get_multiplier());
 
-		if(is_fullscreen())
-		{
+		if(is_fullscreen()) {
 			SIZE wnd_size(get_ui()->get_window_size());
 			SIZE scaled_protected_area(fit_to_constraint(protected_area, wnd_size, true ));
 			rational_type scaling_factor(scaled_protected_area.cx, protected_area.cx);
@@ -287,8 +259,7 @@ struct awkawk : boost::noncopyable
 
 			set_scene_dimensions(scaled_video);
 		}
-		else
-		{
+		else {
 			SIZE scaled_ar_fixed(scale_size(ar_fixed_vid, get_size_multiplier()));
 			SIZE scaled_protected_area(scale_size(protected_area, get_size_multiplier()));
 
@@ -302,30 +273,25 @@ struct awkawk : boost::noncopyable
 			get_ui()->resize_window(scaled_protected_area.cx, scaled_protected_area.cy);
 		}
 
-		if(scene.get() != nullptr)
-		{
+		if(scene.get() != nullptr) {
 			scene->notify_window_size_change();
 		}
 	}
 
-	SIZE get_window_dimensions() const
-	{
+	SIZE get_window_dimensions() const {
 		return window_size;
 	}
 
-	void set_scene_dimensions(SIZE sz)
-	{
+	void set_scene_dimensions(SIZE sz) {
 		LOCK(player_cs);
 		scene_size = sz;
 	}
 
-	SIZE get_scene_dimensions() const
-	{
+	SIZE get_scene_dimensions() const {
 		return scene_size;
 	}
 
-	void set_video_dimensions(SIZE sz)
-	{
+	void set_video_dimensions(SIZE sz) {
 		LOCK(player_cs);
 		if(video_size.cx != sz.cx || video_size.cy != sz.cy)
 		{
@@ -334,34 +300,28 @@ struct awkawk : boost::noncopyable
 		}
 	}
 
-	SIZE get_video_dimensions() const
-	{
+	SIZE get_video_dimensions() const {
 		return video_size;
 	}
 
-	bool is_fullscreen() const
-	{
+	bool is_fullscreen() const {
 		return fullscreen;
 	}
 
-	void set_fullscreen(bool fullscreen_)
-	{
+	void set_fullscreen(bool fullscreen_) {
 		LOCK(player_cs);
 		fullscreen = fullscreen_;
 	}
 
-	void toggle_fullscreen()
-	{
+	void toggle_fullscreen() {
 		set_fullscreen(!is_fullscreen());
 	}
 
-	const player_window* get_ui() const
-	{
+	const player_window* get_ui() const {
 		return ui.get();
 	}
 
-	player_window* get_ui()
-	{
+	player_window* get_ui() {
 		return ui.get();
 	}
 
@@ -369,37 +329,29 @@ struct awkawk : boost::noncopyable
 	awkawk_state get_current_state() const { return current_state; }
 	void set_current_state(awkawk_state st) { current_state = st; }
 
-	void add_file(const std::wstring& path)
-	{
+	void add_file(const std::wstring& path) {
 		plist->add_file(path);
 	}
 
-	void clear_files()
-	{
+	void clear_files() {
 		plist->clear_files();
 	}
 
-	player_playlist::play_mode get_playmode() const
-	{
+	player_playlist::play_mode get_playmode() const {
 		return plist->get_playmode();
 	}
 
-	void set_playmode(player_playlist::play_mode pm)
-	{
+	void set_playmode(player_playlist::play_mode pm) {
 		plist->set_playmode(pm);
 	}
 
-	std::wstring get_file_name() const
-	{
+	std::wstring get_file_name() const {
 		return plist->get_file_name();
 	}
 
-	void open_single_file(const std::wstring& path)
-	{
-		if(get_current_state() != unloaded)
-		{
-			if(get_current_state() != stopped)
-			{
+	void open_single_file(const std::wstring& path) {
+		if(get_current_state() != unloaded) {
+			if(get_current_state() != stopped) {
 				send_event(stop);
 			}
 			send_event(unload);

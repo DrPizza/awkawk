@@ -52,8 +52,7 @@ struct d3d_renderer : direct3d_manager, boost::noncopyable {
 		::SignalObjectAndWait(render_and_wait_event, render_finished_event, INFINITE, FALSE);
 	}
 
-	void set_render_fps(unsigned int fps_)
-	{
+	void set_render_fps(unsigned int fps_) {
 		LOCK(cs);
 		if(fps_ == 0) {
 			D3DDISPLAYMODE dm; 
@@ -64,25 +63,21 @@ struct d3d_renderer : direct3d_manager, boost::noncopyable {
 		//fps = clamp(fps_, 25u, 60u);
 	}
 
-	void schedule_render() const
-	{
+	void schedule_render() const {
 		schedule_render(1.0f);
 	}
 
-	void schedule_render(float frames_ahead) const
-	{
+	void schedule_render(float frames_ahead) const {
 		LARGE_INTEGER dueTime = { 0 };
 		dueTime.QuadPart = static_cast<LONGLONG>(frames_ahead * (-10000000.0f / static_cast<float>(get_render_fps())));
 		::SetWaitableTimer(render_timer, &dueTime, 0, nullptr, nullptr, FALSE);
 	}
 
-	unsigned int get_render_fps() const
-	{
+	unsigned int get_render_fps() const {
 		return fps;
 	}
 
-	IDirect3DDevice9ExPtr get_device()
-	{
+	IDirect3DDevice9ExPtr get_device() {
 		return device;
 	}
 
@@ -98,16 +93,14 @@ protected:
 	}
 
 	// destroy D3DPOOL_DEFAULT resources
-	virtual HRESULT do_on_device_lost()
-	{
+	virtual HRESULT do_on_device_lost() {
 		direct3d_manager::do_on_device_lost();
 		// I need to do more than this, I think.
 		return S_OK;
 	}
 
 	// destroy D3DPOOL_MANAGED resources
-	virtual void do_on_device_destroyed()
-	{
+	virtual void do_on_device_destroyed() {
 		direct3d_manager::do_on_device_destroyed();
 		on_device_lost();
 	}

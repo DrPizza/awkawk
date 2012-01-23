@@ -45,19 +45,19 @@ namespace utility
 			{
 			case std::ios_base::erase_event:
 				{
-					delete [] static_cast<Elem*>(io.pword(time_format_holder<Elem>::index));
-					io.pword(time_format_holder<Elem>::index) = 0;
+					std::unique_ptr<Elem[]> buffer(static_cast<Elem*>(io.pword(time_format_holder<Elem>::index)));
+					io.pword(time_format_holder<Elem>::index) = nullptr;
 				}
 				break;
 			case std::ios_base::copyfmt_event:
 				{
 					// since the /copy/ now owns the array, I need to clone it for myself.
 					Elem* fmt(static_cast<Elem*>(io.pword(time_format_holder<Elem>::index)));
-					if(fmt != 0)
+					if(fmt != nullptr)
 					{
-						Elem* fmt_copy(new Elem[utility::string_length(fmt) + 1]);
-						std::memcpy(fmt_copy, fmt, (utility::string_length(fmt) + 1) * sizeof(Elem));
-						io.pword(time_format_holder<Elem>::index) = fmt_copy;
+						std::unique_ptr<Elem[]> buffer(new Elem[utility::string_length(fmt) + 1]);
+						std::memcpy(buffer.get(), fmt, (utility::string_length(fmt) + 1) * sizeof(Elem));
+						io.pword(time_format_holder<Elem>::index) = buffer.release();
 					}
 				}
 				break;
@@ -73,10 +73,10 @@ namespace utility
 	template<typename Elem>
 	void set_time_format(std::ios_base& io, const Elem* fmt)
 	{
-		Elem* fmt_copy(new Elem[utility::string_length(fmt) + 1]);
-		std::memcpy(fmt_copy, fmt, (utility::string_length(fmt) + 1) * sizeof(Elem));
-		delete [] static_cast<Elem*>(io.pword(time_format_holder<Elem>::index));
-		io.pword(time_format_holder<Elem>::index) = fmt_copy;
+		std::unique_ptr<Elem[]> fmt_copy(new Elem[utility::string_length(fmt) + 1]);
+		std::memcpy(fmt_copy.get(), fmt, (utility::string_length(fmt) + 1) * sizeof(Elem));
+		std::unique_ptr<Elem[]> buffer(static_cast<Elem*>(io.pword(time_format_holder<Elem>::index)));
+		io.pword(time_format_holder<Elem>::index) = fmt_copy.release();
 		if(io.iword(time_format_holder<Elem>::index) == 0)
 		{
 			io.register_callback(&time_format_holder<Elem>::io_event, time_format_holder<Elem>::index);

@@ -73,12 +73,10 @@ void d3d_renderer::destroy_d3d() {
 	d3d9.reset();
 }
 
-void d3d_renderer::create_device()
-{
+void d3d_renderer::create_device() {
 #if defined(USE_RGBRAST)
 	HMODULE rgb_rast(::LoadLibraryW(L"rgb9rast.dll"));
-	if(rgb_rast != NULL)
-	{
+	if(rgb_rast != NULL) {
 		FARPROC rgb_rast_register(::GetProcAddress(rgb_rast, "D3D9GetSWInfo"));
 		d3d9->get_d3d9()->RegisterSoftwareDevice(reinterpret_cast<void*>(rgb_rast_register));
 	}
@@ -93,10 +91,8 @@ void d3d_renderer::create_device()
 #endif
 
 	UINT device_ordinal(0);
-	for(UINT ord(0); ord < d3d9->get_d3d9()->GetAdapterCount(); ++ord)
-	{
-		if(d3d9->get_d3d9()->GetAdapterMonitor(ord) == ::MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST))
-		{
+	for(UINT ord(0); ord < d3d9->get_d3d9()->GetAdapterCount(); ++ord) {
+		if(d3d9->get_d3d9()->GetAdapterMonitor(ord) == ::MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST)) {
 			device_ordinal = ord;
 			break;
 		}
@@ -107,13 +103,11 @@ void d3d_renderer::create_device()
 
 	D3DCAPS9 caps;
 	FAIL_THROW(d3d9->get_d3d9()->GetDeviceCaps(device_ordinal, dev_type, &caps));
-	if((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL))
-	{
+	if((caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL)) {
 		::MessageBoxW(window, L"The device does not support non-power of 2 textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
 		throw std::runtime_error("The device does not support non-power of 2 textures.  awkawk cannot continue.");
 	}
-	if(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
-	{
+	if(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY) {
 		::MessageBoxW(window, L"The device does not support non-square textures.  awkawk cannot continue.", L"Fatal Error", MB_ICONERROR);
 		throw std::runtime_error("The device does not support non-square textures.  awkawk cannot continue.");
 	}
@@ -158,8 +152,7 @@ void d3d_renderer::create_device()
 	on_device_reset();
 }
 
-void d3d_renderer::set_device_state()
-{
+void d3d_renderer::set_device_state() {
 	FAIL_THROW(device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE));
 	FAIL_THROW(device->SetRenderState(D3DRS_LIGHTING, FALSE));
 	FAIL_THROW(device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE));
@@ -175,28 +168,23 @@ void d3d_renderer::set_device_state()
 	FAIL_THROW(device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE /*D3DTEXF_LINEAR*/));
 }
 
-void d3d_renderer::destroy_device()
-{
+void d3d_renderer::destroy_device() {
 	on_device_destroyed();
 	device = nullptr;
 }
 
-bool d3d_renderer::needs_display_change() const
-{
+bool d3d_renderer::needs_display_change() const {
 	D3DDEVICE_CREATION_PARAMETERS parameters;
 	device->GetCreationParameters(&parameters);
 	HMONITOR device_monitor(d3d9->get_d3d9()->GetAdapterMonitor(parameters.AdapterOrdinal));
 	HMONITOR window_monitor(::MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST));
 
-	if(device_monitor != window_monitor)
-	{
+	if(device_monitor != window_monitor) {
 		D3DADAPTER_IDENTIFIER9 created, current;
 		d3d9->get_d3d9()->GetAdapterIdentifier(parameters.AdapterOrdinal, 0, &created);
 
-		for(UINT i = 0, total = d3d9->get_d3d9()->GetAdapterCount(); i < total; ++i)
-		{
-			if(window_monitor == d3d9->get_d3d9()->GetAdapterMonitor(i))
-			{
+		for(UINT i = 0, total = d3d9->get_d3d9()->GetAdapterCount(); i < total; ++i) {
+			if(window_monitor == d3d9->get_d3d9()->GetAdapterMonitor(i)) {
 				d3d9->get_d3d9()->GetAdapterIdentifier(i, 0, &current);
 				break;
 			}
@@ -209,13 +197,11 @@ bool d3d_renderer::needs_display_change() const
 	return device_monitor != window_monitor;
 }
 
-void d3d_renderer::reset_device()
-{
+void d3d_renderer::reset_device() {
 #if 1
 	D3DPRESENT_PARAMETERS parameters(presentation_parameters);
 	HRESULT hr(device->Reset(&parameters));
-	switch(hr)
-	{
+	switch(hr) {
 	case S_OK:
 		set_device_state();
 		on_device_reset();
@@ -241,10 +227,8 @@ void d3d_renderer::reset_device()
 #endif
 }
 
-DWORD d3d_renderer::render_thread_proc(void*)
-{
-	try
-	{
+DWORD d3d_renderer::render_thread_proc(void*) {
+	try {
 		FAIL_THROW(::CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 		ON_BLOCK_EXIT(::CoUninitialize());
 
@@ -267,13 +251,11 @@ DWORD d3d_renderer::render_thread_proc(void*)
 		::QueryPerformanceFrequency(&frequency);
 
 		bool continue_rendering(true);
-		while(continue_rendering)
-		{
+		while(continue_rendering) {
 			float frame_delay(1.0f);
 			bool is_waiting(false);
 			HANDLE evts[] = { render_and_wait_event, render_event, render_timer, cancel_render };
-			switch(::WaitForMultipleObjects(ARRAY_SIZE(evts), evts, FALSE, INFINITE))
-			{
+			switch(::WaitForMultipleObjects(ARRAY_SIZE(evts), evts, FALSE, INFINITE)) {
 			case WAIT_OBJECT_0:
 				is_waiting = true;
 			case WAIT_OBJECT_0 + 1:
@@ -282,8 +264,7 @@ DWORD d3d_renderer::render_thread_proc(void*)
 				::QueryPerformanceCounter(&current_time);
 				//dout << (static_cast<double>(frequency.QuadPart) / static_cast<double>(current_time.QuadPart - previous_render_time.QuadPart)) << std::endl;
 				schedule_render(frame_delay);
-				try
-				{
+				try {
 					//if(needs_display_change())
 					//{
 					//	reset_device();
@@ -291,12 +272,10 @@ DWORD d3d_renderer::render_thread_proc(void*)
 					reset();
 					render();
 				}
-				catch(_com_error& ce)
-				{
+				catch(_com_error& ce) {
 					derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 				}
-				if(is_waiting)
-				{
+				if(is_waiting) {
 					::SetEvent(render_finished_event);
 				}
 				if(texture_queue->backlogged()) {
@@ -313,21 +292,17 @@ DWORD d3d_renderer::render_thread_proc(void*)
 		destroy_device();
 		destroy_d3d();
 	}
-	catch(_com_error& ce)
-	{
+	catch(_com_error& ce) {
 		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 	}
-	catch(std::exception& e)
-	{
+	catch(std::exception& e) {
 		derr << e.what() << std::endl;
 	}
 	return 0;
 }
 
-void d3d_renderer::reset()
-{
-	switch(device->CheckDeviceState(window))
-	{
+void d3d_renderer::reset() {
+	switch(device->CheckDeviceState(window)) {
 	case S_PRESENT_MODE_CHANGED:
 		dout << "S_PRESENT_MODE_CHANGED" << std::endl;
 		// I can continue rendering if I need to, but it's better to reset and create
@@ -365,10 +340,8 @@ void d3d_renderer::do_emit_scene() {
 	direct3d_manager::do_emit_scene();
 }
 
-void d3d_renderer::render()
-{
-	try
-	{
+void d3d_renderer::render() {
+	try {
 		IDirect3DSurface9Ptr back_buffer;
 		device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
 		device->SetRenderTarget(0, back_buffer);
@@ -390,8 +363,7 @@ void d3d_renderer::render()
 		}
 		FAIL_THROW(device->Present(nullptr, nullptr, NULL, nullptr));
 	}
-	catch(_com_error& ce)
-	{
+	catch(_com_error& ce) {
 		derr << __FUNCSIG__ << " " << std::hex << ce.Error() << std::endl;
 	}
 }
