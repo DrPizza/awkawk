@@ -86,8 +86,7 @@ awkawk::awkawk() : ui(new player_window(this)),
                    chosen_ar(0),
                    chosen_lb(0),
                    wnd_size_mode(one_hundred_percent),
-                   player_cs("awkawk")
-{
+                   player_cs("awkawk") {
 	available_ratios.push_back(std::shared_ptr<aspect_ratio>(new natural_aspect_ratio(this)));
 	available_ratios.push_back(std::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(4, 3)));
 	available_ratios.push_back(std::shared_ptr<aspect_ratio>(new fixed_aspect_ratio(14, 9)));
@@ -108,16 +107,14 @@ awkawk::awkawk() : ui(new player_window(this)),
 	scene_size = sz;
 }
 
-awkawk::~awkawk()
-{
+awkawk::~awkawk() {
 	// ensure this gets torn down first, regardless of declaration order
 	renderer->stop_rendering();
 	scene.reset();
 	dshow.reset();
 }
 
-void awkawk::create_ui(int cmd_show)
-{
+void awkawk::create_ui(int cmd_show) {
 	ui->create_window(cmd_show);
 	texture_queue.reset(new texture_queue_type());
 	renderer.reset(new d3d_renderer      (this,              texture_queue.get(),                 get_ui()->get_window()                                                 ));
@@ -125,21 +122,18 @@ void awkawk::create_ui(int cmd_show)
 	scene.reset   (new player_scene      (this, dshow.get(), texture_queue.get(),                 get_ui(),               dynamic_cast<direct3d_manager*>(renderer.get())));
 }
 
-int awkawk::run_ui()
-{
+int awkawk::run_ui() {
 	renderer->start_rendering();
 	return get_ui()->pump_messages();
 }
 
-awkawk::awkawk_state awkawk::do_load()
-{
+awkawk::awkawk_state awkawk::do_load() {
 	scene->set_filename(plist->get_file_name());
 	dshow->post_event(player_direct_show::load);
 	return stopped;
 }
 
-awkawk::awkawk_state awkawk::do_stop()
-{
+awkawk::awkawk_state awkawk::do_stop() {
 	dshow->post_event_with_callback(player_direct_show::stop, [=] {
 		get_ui()->async([=] (player_window* w) {
 			w->set_on_top(false);
@@ -149,20 +143,17 @@ awkawk::awkawk_state awkawk::do_stop()
 	return stopped;
 }
 
-awkawk::awkawk_state awkawk::do_pause()
-{
+awkawk::awkawk_state awkawk::do_pause() {
 	dshow->post_event(player_direct_show::pause);
 	return paused;
 }
 
-awkawk::awkawk_state awkawk::do_resume()
-{
+awkawk::awkawk_state awkawk::do_resume() {
 	dshow->post_event(player_direct_show::pause);
 	return playing;
 }
 
-awkawk::awkawk_state awkawk::do_play()
-{
+awkawk::awkawk_state awkawk::do_play() {
 	dshow->post_event_with_callback(player_direct_show::play, [=] {
 		get_ui()->async([=] (player_window* w) {
 			w->set_on_top(true);
@@ -172,81 +163,66 @@ awkawk::awkawk_state awkawk::do_play()
 	return playing;
 }
 
-awkawk::awkawk_state awkawk::do_unload()
-{
+awkawk::awkawk_state awkawk::do_unload() {
 	scene->set_filename(L"");
 	dshow->post_event(player_direct_show::unload);
 	return unloaded;
 }
 
-awkawk::awkawk_state awkawk::do_track_change(void (player_playlist::*change_fn)(void))
-{
-	if(plist->empty())
-	{
+awkawk::awkawk_state awkawk::do_track_change(void (player_playlist::*change_fn)(void)) {
+	if(plist->empty()) {
 		return unloaded;
 	}
 	awkawk_state initial_state(get_current_state());
-	if(stopped != initial_state)
-	{
+	if(playing == initial_state || paused == initial_state) {
 		post_event(stop);
 	}
-	if(unloaded != initial_state)
-	{
+	if(unloaded != initial_state) {
 		post_event(unload);
 	}
 	post_callback([=] {
 		(*plist.*change_fn)();
-		if(plist->after_end())
-		{
+		if(plist->after_end()) {
 			return;
 		}
 		post_event(load);
-		if(initial_state == playing)
-		{
+		if(initial_state == playing) {
 			post_event(play);
 		}
 	});
 	return static_cast<awkawk_state>(-1);
 }
 
-awkawk::awkawk_state awkawk::do_transition()
-{
+awkawk::awkawk_state awkawk::do_transition() {
 	return do_track_change(&player_playlist::do_transition);
 }
 
-awkawk::awkawk_state awkawk::do_previous()
-{
+awkawk::awkawk_state awkawk::do_previous() {
 	return do_track_change(&player_playlist::do_previous);
 }
 
-awkawk::awkawk_state awkawk::do_next()
-{
+awkawk::awkawk_state awkawk::do_next() {
 	return do_track_change(&player_playlist::do_next);
 }
 
-awkawk::awkawk_state awkawk::do_rwnd()
-{
+awkawk::awkawk_state awkawk::do_rwnd() {
 	dshow->post_event(player_direct_show::rwnd);
 	return playing;
 }
 
-awkawk::awkawk_state awkawk::do_ffwd()
-{
+awkawk::awkawk_state awkawk::do_ffwd() {
 	dshow->post_event(player_direct_show::ffwd);
 	return playing;
 }
 
-void awkawk::set_linear_volume(float vol)
-{
+void awkawk::set_linear_volume(float vol) {
 	dshow->set_linear_volume(vol);
 }
 
-void awkawk::set_playback_position(float pos)
-{
+void awkawk::set_playback_position(float pos) {
 	dshow->set_playback_position(pos);
 }
 
-std::vector<ATL::CAdapt<IBaseFilterPtr> > awkawk::get_filters() const
-{
+std::vector<ATL::CAdapt<IBaseFilterPtr> > awkawk::get_filters() const {
 	return dshow->get_filters();
 }
