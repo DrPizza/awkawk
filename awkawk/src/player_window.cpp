@@ -114,21 +114,22 @@ void player_window::create_window(int cmd_show)
 {
 	// nb: if I enable WS_EX_COMPOSITED, Vista is unable to update the window when DWM is *dis*abled.  Silent failures.  How amusing.
 	// With DWM enabled it works just fine and dandy.  I suspect the "correct" behaviour is to render offscreen and blt to my window.  Poop on that.
-	window::create_window(0, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, player->get_window_dimensions().cx, player->get_window_dimensions().cy, NULL, NULL, nullptr);
+	window::create_window(0 /* WS_EX_COMPOSITED */, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, player->get_window_dimensions().cx, player->get_window_dimensions().cy, NULL, NULL, nullptr);
 	if(!get_window())
 	{
 		throw std::runtime_error("Could not create window");
 	}
 	set_window_theme(L"", L"");
-	HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
-	if(dwmapi_dll != NULL)
-	{
-		ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
-		typedef HRESULT (STDAPICALLTYPE *DWMSETWINDOWATTRIBUTE)(HWND, DWORD, const void*, DWORD);
-		DWMSETWINDOWATTRIBUTE dwm_set_window_attribute(reinterpret_cast<DWMSETWINDOWATTRIBUTE>(::GetProcAddress(dwmapi_dll, "DwmSetWindowAttribute")));
-		DWMNCRENDERINGPOLICY policy(DWMNCRP_DISABLED);
-		dwm_set_window_attribute(get_window(), DWMWA_NCRENDERING_POLICY, &policy, sizeof(DWMNCRENDERINGPOLICY));
-	}
+
+	//HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
+	//if(dwmapi_dll != NULL) {
+	//	ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
+
+	//	typedef HRESULT (STDAPICALLTYPE *DWMSETWINDOWATTRIBUTE)(HWND, DWORD, const void*, DWORD);
+	//	DWMSETWINDOWATTRIBUTE dwm_set_window_attribute(reinterpret_cast<DWMSETWINDOWATTRIBUTE>(::GetProcAddress(dwmapi_dll, "DwmSetWindowAttribute")));
+	//	DWMNCRENDERINGPOLICY policy(DWMNCRP_DISABLED);
+	//	dwm_set_window_attribute(get_window(), DWMWA_NCRENDERING_POLICY, &policy, sizeof(DWMNCRENDERINGPOLICY));
+	//}
 
 	player->set_window_dimensions(get_window_size());
 
@@ -173,9 +174,33 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_COMMAND, onCommand);
 	HANDLE_MSG(window, WM_CONTEXTMENU, onContextMenu);
 	HANDLE_MSG(window, WM_DESTROY, onDestroy);
-	HANDLE_MSG(window, WM_NCPAINT, onNCPaint);
-	HANDLE_MSG(window, WM_NCCALCSIZE, onNCCalcSize);
-	HANDLE_MSG(window, WM_NCACTIVATE, onNCActivate);
+	//HANDLE_MSG(window, WM_NCPAINT, onNCPaint);
+	//case WM_NCPAINT:
+	case WM_WINDOWPOSCHANGING:
+		handled = false;
+	case WM_DWMCOMPOSITIONCHANGED:
+		{
+			HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
+			if(dwmapi_dll != NULL) {
+				ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
+
+				typedef HRESULT (STDAPICALLTYPE *DWMEXTENDFRAMEINTOCLIENTAREA)(HWND, MARGINS*);
+				DWMEXTENDFRAMEINTOCLIENTAREA dwm_extend_frame_into_client_area(reinterpret_cast<DWMEXTENDFRAMEINTOCLIENTAREA>(::GetProcAddress(dwmapi_dll, "DwmExtendFrameIntoClientArea")));
+				MARGINS m = { 1, 1, 1, 1 };
+				dwm_extend_frame_into_client_area(window, &m);
+			}
+		}
+		break;
+	//HANDLE_MSG(window, WM_NCCALCSIZE, onNCCalcSize);
+	case WM_NCCALCSIZE:
+		if(wParam == TRUE) {
+			break;
+		} else {
+			return ::DefWindowProcW(window, WM_NCCALCSIZE, wParam, lParam);
+		}
+	//HANDLE_MSG(window, WM_NCACTIVATE, onNCActivate);
+	case WM_NCACTIVATE:
+		return ::DefWindowProcW(window, WM_NCACTIVATE, wParam, -1);
 	HANDLE_MSG(window, WM_NCHITTEST, onNCHitTest);
 	HANDLE_MSG(window, WM_MOUSEMOVE, onMouseMove);
 	HANDLE_MSG(window, WM_MOUSELEAVE, onMouseLeave);
@@ -293,7 +318,7 @@ void player_window::onSysCommand(HWND, UINT command, int x, int y)
 		}
 		break;
 	}
-	FORWARD_WM_SYSCOMMAND(get_window(), command, x, y, &::DefWindowProcW);
+	FORWARD_WM_SYSCOMMAND(get_window(), command, x, y, ::DefWindowProcW);
 }
 
 BOOL player_window::onEraseBackground(HWND, HDC)
@@ -371,7 +396,7 @@ void player_window::onCommand(HWND, int id, HWND control, UINT event)
 		default:
 			if(id < WM_USER)
 			{
-				FORWARD_WM_COMMAND(get_window(), id, control, event, &::DefWindowProc);
+				FORWARD_WM_COMMAND(get_window(), id, control, event, ::DefWindowProc);
 			}
 		}
 	}
@@ -404,6 +429,15 @@ void player_window::onDestroy(HWND)
 
 void player_window::onNCPaint(HWND, HRGN)
 {
+	HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
+	if(dwmapi_dll != NULL) {
+		ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
+
+		typedef HRESULT (STDAPICALLTYPE *DWMEXTENDFRAMEINTOCLIENTAREA)(HWND, MARGINS*);
+		DWMEXTENDFRAMEINTOCLIENTAREA dwm_extend_frame_into_client_area(reinterpret_cast<DWMEXTENDFRAMEINTOCLIENTAREA>(::GetProcAddress(dwmapi_dll, "DwmExtendFrameIntoClientArea")));
+		MARGINS m = { 1, 1, 1, 1 };
+		dwm_extend_frame_into_client_area(get_window(), &m);
+	}
 }
 
 BOOL player_window::onNCActivate(HWND, BOOL active, HWND, BOOL)
