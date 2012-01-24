@@ -108,6 +108,12 @@
 #define FORWARD_WM_EXITMENULOOP(hwnd, popup, fn) \
     (void)(DWORD)(fn)((hwnd), WM_EXITMENULOOP, (WPARAM)(popup), 0L)
 
+// void OnDwmCompositionChanged(HWND hwnd)
+#define HANDLE_WM_DWMCOMPOSITIONCHANGED(hwnd, wParam, lParam, fn) \
+    ((fn)((hwnd)), 0L)
+#define FORWARD_WM_DWMCOMPOSITIONCHANGED(hwnd, fn) \
+    (void)(DWORD)(fn)((hwnd), WM_DWMCOMPOSITIONCHANGED, 0UL, 0L)
+
 inline void print_message(UINT message)
 {
 	switch(message)
