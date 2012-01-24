@@ -83,6 +83,8 @@ struct player_window : window, boost::noncopyable
 	void onTimer(HWND wnd, UINT id);
 	void onEnterMenuLoop(HWND wnd, BOOL popup);
 	void onExitMenuLoop(HWND wnd, BOOL popup);
+	void onDwmCompositionChanged(HWND wnd);
+	BOOL onWindowPosChanging(HWND wnd, WINDOWPOS* pos);
 
 	void hide_cursor() const
 	{
@@ -147,6 +149,8 @@ protected:
 	}
 
 private:
+	void extend_dwm_frame();
+
 	awkawk* player;
 
 	// window, message loop and associated paraphernalia

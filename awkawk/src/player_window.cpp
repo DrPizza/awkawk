@@ -114,22 +114,13 @@ void player_window::create_window(int cmd_show)
 {
 	// nb: if I enable WS_EX_COMPOSITED, Vista is unable to update the window when DWM is *dis*abled.  Silent failures.  How amusing.
 	// With DWM enabled it works just fine and dandy.  I suspect the "correct" behaviour is to render offscreen and blt to my window.  Poop on that.
-	window::create_window(0 /* WS_EX_COMPOSITED */, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, player->get_window_dimensions().cx, player->get_window_dimensions().cy, NULL, NULL, nullptr);
+	window::create_window(WS_EX_COMPOSITED, app_title.c_str(), WS_SYSMENU | WS_THICKFRAME, 100, 100, player->get_window_dimensions().cx, player->get_window_dimensions().cy, NULL, NULL, nullptr);
 	if(!get_window())
 	{
 		throw std::runtime_error("Could not create window");
 	}
-	set_window_theme(L"", L"");
-
-	//HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
-	//if(dwmapi_dll != NULL) {
-	//	ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
-
-	//	typedef HRESULT (STDAPICALLTYPE *DWMSETWINDOWATTRIBUTE)(HWND, DWORD, const void*, DWORD);
-	//	DWMSETWINDOWATTRIBUTE dwm_set_window_attribute(reinterpret_cast<DWMSETWINDOWATTRIBUTE>(::GetProcAddress(dwmapi_dll, "DwmSetWindowAttribute")));
-	//	DWMNCRENDERINGPOLICY policy(DWMNCRP_DISABLED);
-	//	dwm_set_window_attribute(get_window(), DWMWA_NCRENDERING_POLICY, &policy, sizeof(DWMNCRENDERINGPOLICY));
-	//}
+	// I can have themes || shadows--this might be a convenient way to give the option of disabling the shadow without requiring any changes elsewhere.
+	//set_window_theme(L"", L"");
 
 	player->set_window_dimensions(get_window_size());
 
@@ -143,6 +134,18 @@ void player_window::create_window(int cmd_show)
 	// unless I send a WM_NCCALCSIZE (I think).  This does the job, but I have no idea why.  When spawned from the GUI there's no
 	// problem either way.
 	::SetWindowPos(get_window(), 0, 0, 0, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+}
+
+void player_window::extend_dwm_frame() {
+	HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
+	if(dwmapi_dll != NULL) {
+		ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
+
+		typedef HRESULT (STDAPICALLTYPE *DWMEXTENDFRAMEINTOCLIENTAREA)(HWND, MARGINS*);
+		DWMEXTENDFRAMEINTOCLIENTAREA dwm_extend_frame_into_client_area(reinterpret_cast<DWMEXTENDFRAMEINTOCLIENTAREA>(::GetProcAddress(dwmapi_dll, "DwmExtendFrameIntoClientArea")));
+		MARGINS m = { 10, 10, 10, 10 };
+		dwm_extend_frame_into_client_area(get_window(), &m);
+	}
 }
 
 LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
@@ -174,33 +177,11 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 	HANDLE_MSG(window, WM_COMMAND, onCommand);
 	HANDLE_MSG(window, WM_CONTEXTMENU, onContextMenu);
 	HANDLE_MSG(window, WM_DESTROY, onDestroy);
-	//HANDLE_MSG(window, WM_NCPAINT, onNCPaint);
-	//case WM_NCPAINT:
-	case WM_WINDOWPOSCHANGING:
-		handled = false;
-	case WM_DWMCOMPOSITIONCHANGED:
-		{
-			HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
-			if(dwmapi_dll != NULL) {
-				ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
-
-				typedef HRESULT (STDAPICALLTYPE *DWMEXTENDFRAMEINTOCLIENTAREA)(HWND, MARGINS*);
-				DWMEXTENDFRAMEINTOCLIENTAREA dwm_extend_frame_into_client_area(reinterpret_cast<DWMEXTENDFRAMEINTOCLIENTAREA>(::GetProcAddress(dwmapi_dll, "DwmExtendFrameIntoClientArea")));
-				MARGINS m = { 1, 1, 1, 1 };
-				dwm_extend_frame_into_client_area(window, &m);
-			}
-		}
-		break;
-	//HANDLE_MSG(window, WM_NCCALCSIZE, onNCCalcSize);
-	case WM_NCCALCSIZE:
-		if(wParam == TRUE) {
-			break;
-		} else {
-			return ::DefWindowProcW(window, WM_NCCALCSIZE, wParam, lParam);
-		}
-	//HANDLE_MSG(window, WM_NCACTIVATE, onNCActivate);
-	case WM_NCACTIVATE:
-		return ::DefWindowProcW(window, WM_NCACTIVATE, wParam, -1);
+	HANDLE_MSG(window, WM_NCPAINT, onNCPaint);
+	HANDLE_MSG(window, WM_WINDOWPOSCHANGING, onWindowPosChanging);
+	HANDLE_MSG(window, WM_DWMCOMPOSITIONCHANGED, onDwmCompositionChanged);
+	HANDLE_MSG(window, WM_NCCALCSIZE, onNCCalcSize);
+	HANDLE_MSG(window, WM_NCACTIVATE, onNCActivate);
 	HANDLE_MSG(window, WM_NCHITTEST, onNCHitTest);
 	HANDLE_MSG(window, WM_MOUSEMOVE, onMouseMove);
 	HANDLE_MSG(window, WM_MOUSELEAVE, onMouseLeave);
@@ -227,6 +208,15 @@ LRESULT CALLBACK player_window::message_proc(HWND window, UINT message, WPARAM w
 		handled = false;
 	}
 	return 0;
+}
+
+BOOL player_window::onWindowPosChanging(HWND, WINDOWPOS* pos) {
+	extend_dwm_frame();
+	return FORWARD_WM_WINDOWPOSCHANGING(get_window(), pos, ::DefWindowProcW);
+}
+
+void player_window::onDwmCompositionChanged(HWND) {
+	extend_dwm_frame();
 }
 
 void player_window::onTimer(HWND, UINT id)
@@ -427,26 +417,17 @@ void player_window::onDestroy(HWND)
 	::PostQuitMessage(0);
 }
 
-void player_window::onNCPaint(HWND, HRGN)
+void player_window::onNCPaint(HWND, HRGN region)
 {
-	HMODULE dwmapi_dll(::LoadLibraryW(L"dwmapi.dll"));
-	if(dwmapi_dll != NULL) {
-		ON_BLOCK_EXIT(::FreeLibrary(dwmapi_dll));
-
-		typedef HRESULT (STDAPICALLTYPE *DWMEXTENDFRAMEINTOCLIENTAREA)(HWND, MARGINS*);
-		DWMEXTENDFRAMEINTOCLIENTAREA dwm_extend_frame_into_client_area(reinterpret_cast<DWMEXTENDFRAMEINTOCLIENTAREA>(::GetProcAddress(dwmapi_dll, "DwmExtendFrameIntoClientArea")));
-		MARGINS m = { 1, 1, 1, 1 };
-		dwm_extend_frame_into_client_area(get_window(), &m);
-	}
+	extend_dwm_frame();
+	FORWARD_WM_NCPAINT(get_window(), region, ::DefWindowProcW);
 }
 
-BOOL player_window::onNCActivate(HWND, BOOL active, HWND, BOOL)
-{
-	return active == FALSE ? TRUE : FALSE;
+BOOL player_window::onNCActivate(HWND, BOOL active, HWND, BOOL) {
+	return static_cast<BOOL>(::DefWindowProcW(get_window(), WM_NCACTIVATE, static_cast<WPARAM>(active), static_cast<LPARAM>(-1)));
 }
 
-UINT player_window::onNCCalcSize(HWND, BOOL calc_valid_rects, NCCALCSIZE_PARAMS* params)
-{
+UINT player_window::onNCCalcSize(HWND, BOOL calc_valid_rects, NCCALCSIZE_PARAMS* params) {
 	// we set our client area to take up the whole damn window
 	if(calc_valid_rects == TRUE)
 	{
@@ -454,8 +435,7 @@ UINT player_window::onNCCalcSize(HWND, BOOL calc_valid_rects, NCCALCSIZE_PARAMS*
 	}
 	else
 	{
-		*reinterpret_cast<RECT*>(params) = get_window_rect();
-		return 0;
+		return FORWARD_WM_NCCALCSIZE(get_window(), calc_valid_rects, params, ::DefWindowProcW);
 	}
 }
 
