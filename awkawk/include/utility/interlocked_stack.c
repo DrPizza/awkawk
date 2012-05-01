@@ -1,5 +1,9 @@
 #include "interlocked_stack.h"
 
+#pragma warning(disable : 4324) // warning C4234: structure was padded due to __declspec(align())
+#define CACHE_LINE 64
+#define CACHE_ALIGN __declspec(align(CACHE_LINE))
+
 typedef struct interlocked_stack_node
 {
 	struct interlocked_stack_node* next;
@@ -15,7 +19,7 @@ interlocked_stack_node_t* new_interlocked_stack_node()
 
 typedef struct interlocked_stack
 {
-	interlocked_stack_node_t* top;
+	CACHE_ALIGN interlocked_stack_node_t* top;
 	destructor_t value_destructor;
 } interlocked_stack_t;
 

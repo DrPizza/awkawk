@@ -1,6 +1,9 @@
 #include "smr.h"
 
 #pragma warning(disable : 4204) // warning C4204: nonstandard extension used : non-constant aggregate initializer
+#pragma warning(disable : 4324) // warning C4234: structure was padded due to __declspec(align())
+#define CACHE_LINE 64
+#define CACHE_ALIGN __declspec(align(CACHE_LINE))
 
 static DWORD thr_slot = TLS_OUT_OF_INDEXES;
 
@@ -121,9 +124,9 @@ hazard_pointer_record_t* new_hpr(LONG count)
 	return hpr;
 }
 
-hazard_pointer_record_t* volatile head_hpr = nullptr;
-volatile LONG total_hazard_pointers = 0;
-volatile LONG total_thread_records = 0;
+CACHE_ALIGN hazard_pointer_record_t* volatile head_hpr = nullptr;
+CACHE_ALIGN volatile LONG total_hazard_pointers = 0;
+CACHE_ALIGN volatile LONG total_thread_records = 0;
 
 typedef struct hpr_cache
 {
@@ -170,7 +173,7 @@ thread_hpr_record_t* new_thr()
 	return thr;
 }
 
-thread_hpr_record_t* volatile head_thr = nullptr;
+CACHE_ALIGN thread_hpr_record_t* volatile head_thr = nullptr;
 volatile LONG maximum_threads = 0;
 
 bool cas(volatile LONG* addr, LONG expected_value, LONG new_value)
@@ -379,7 +382,7 @@ void retire_node(retired_data_t node)
 
 void* smr_alloc(size_t size)
 {
-	return _aligned_malloc(size, MEMORY_ALLOCATION_ALIGNMENT);
+	return _aligned_malloc(size, CACHE_LINE);
 }
 
 void smr_free(void* ptr)
