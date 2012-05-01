@@ -1,5 +1,9 @@
 #include "interlocked_kv_list.h"
 
+#pragma warning(disable : 4324) // warning C4234: structure was padded due to __declspec(align())
+#define CACHE_LINE 64
+#define CACHE_ALIGN __declspec(align(CACHE_LINE))
+
 typedef struct interlocked_kv_list_node {
 	struct interlocked_kv_list_node* next;
 	const void* key;
@@ -19,10 +23,10 @@ interlocked_kv_list_node_t* new_interlocked_kv_list_node(const void* key, void* 
 	return n;
 }
 
-typedef struct per_thread_vars {
-	interlocked_kv_list_node_t** prev;
-	interlocked_kv_list_node_t* current;
-	interlocked_kv_list_node_t* next;
+typedef CACHE_ALIGN struct per_thread_vars {
+	CACHE_ALIGN interlocked_kv_list_node_t** prev;
+	CACHE_ALIGN interlocked_kv_list_node_t* current;
+	CACHE_ALIGN interlocked_kv_list_node_t* next;
 } per_thread_vars_t;
 
 typedef struct interlocked_kv_list {

@@ -1,5 +1,9 @@
 #include "interlocked_queue.h"
 
+#pragma warning(disable : 4324) // warning C4234: structure was padded due to __declspec(align())
+#define CACHE_LINE 64
+#define CACHE_ALIGN __declspec(align(CACHE_LINE))
+
 typedef struct interlocked_queue_node
 {
 	struct interlocked_queue_node* next;
@@ -16,8 +20,8 @@ interlocked_queue_node_t* new_interlocked_queue_node()
 
 typedef struct interlocked_queue
 {
-	interlocked_queue_node_t* head;
-	interlocked_queue_node_t* tail;
+	CACHE_ALIGN interlocked_queue_node_t* head;
+	CACHE_ALIGN interlocked_queue_node_t* tail;
 
 	destructor_t value_destructor;
 } interlocked_queue_t;

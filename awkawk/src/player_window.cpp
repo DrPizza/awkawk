@@ -143,7 +143,7 @@ void player_window::extend_dwm_frame() {
 
 		typedef HRESULT (STDAPICALLTYPE *DWMEXTENDFRAMEINTOCLIENTAREA)(HWND, MARGINS*);
 		DWMEXTENDFRAMEINTOCLIENTAREA dwm_extend_frame_into_client_area(reinterpret_cast<DWMEXTENDFRAMEINTOCLIENTAREA>(::GetProcAddress(dwmapi_dll, "DwmExtendFrameIntoClientArea")));
-		MARGINS m = { 10, 10, 10, 10 };
+		MARGINS m = { 1, 1, 1, 1 };
 		dwm_extend_frame_into_client_area(get_window(), &m);
 	}
 }

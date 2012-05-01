@@ -217,66 +217,7 @@ struct awkawk : boost::noncopyable {
 		return fix_ar(constraint, constraint_ar, current_ar, constrain_maximum_lengths);
 	}
 
-	void apply_sizing_policy() {
-		LOCK(player_cs);
-
-		// we have several sizes:
-		// the video's natural size
-		// the window's size
-		// the AR-fixed video's size (video size * available_ratios[chosen_ar])
-		// the AR-fixed, cropped video's size (video size * available_ratios[chosen_ar] * available_letterboxes[chosen_lb]
-		// the screen's size
-		// the D3D scene's size
-
-		// the video is scaled as big as it needs to be to fit the size multiplier and AR fix
-		// the scene is oversized, with letterbox black bars overflowing.
-		// in windowed mode, we do this by leaving the scene size as-is, and then making the window undersized
-		// in fullscreen mode, we do this by making the scene even bigger
-
-		// windowed modes have a final scaling applied
-
-		SIZE vid(get_video_dimensions());
-		rational_type natural_video_ar(vid.cx, vid.cy);
-		SIZE ar_fixed_vid(fix_ar(vid, natural_video_ar, available_ratios[chosen_ar]->get_multiplier(), false));
-		SIZE protected_area(fix_ar(ar_fixed_vid, available_ratios[chosen_ar]->get_multiplier(), available_letterboxes[chosen_lb]->get_multiplier(), true));
-
-		get_ui()->set_aspect_ratio(available_letterboxes[chosen_lb]->get_multiplier());
-
-		if(is_fullscreen()) {
-			SIZE wnd_size(get_ui()->get_window_size());
-			SIZE scaled_protected_area(fit_to_constraint(protected_area, wnd_size, true ));
-			rational_type scaling_factor(scaled_protected_area.cx, protected_area.cx);
-			SIZE scaled_video(scale_size(ar_fixed_vid, scaling_factor));
-
-#if 0
-			dout << "The video has a natural size of " << vid
-			     << ", a corrected size of " << ar_fixed_vid
-			     << ", with protected area of " << protected_area
-			     << ", in a fullscreen window of of " << wnd_size << std::endl;
-			dout << "The protected area needs to grow to " << scaled_protected_area
-			     << ", requiring a total movie area of " << scaled_video << std::endl;
-#endif
-
-			set_scene_dimensions(scaled_video);
-		}
-		else {
-			SIZE scaled_ar_fixed(scale_size(ar_fixed_vid, get_size_multiplier()));
-			SIZE scaled_protected_area(scale_size(protected_area, get_size_multiplier()));
-
-#if 0
-			dout << "The video has a natural size of " << vid
-			     << ", a rendered size of " << scaled_ar_fixed
-			     << ", in a windowed window of of " << scaled_protected_area << std::endl;
-#endif
-
-			set_scene_dimensions(scaled_ar_fixed);
-			get_ui()->resize_window(scaled_protected_area.cx, scaled_protected_area.cy);
-		}
-
-		if(scene.get() != nullptr) {
-			scene->notify_window_size_change();
-		}
-	}
+	void apply_sizing_policy();
 
 	SIZE get_window_dimensions() const {
 		return window_size;
