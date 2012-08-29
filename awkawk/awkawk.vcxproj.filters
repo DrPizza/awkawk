@@ -33,9 +33,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\menu.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\open_url.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -321,9 +318,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\window.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\window_hook.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\xml_playlist.h">

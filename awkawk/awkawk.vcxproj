@@ -503,7 +503,6 @@
     <ClCompile Include="src\awkawk.cpp" />
     <ClCompile Include="src\direct3d.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\menu.cpp" />
     <ClCompile Include="src\open_url.cpp" />
     <ClCompile Include="src\player_controls.cpp" />
     <ClCompile Include="src\player_direct_show.cpp" />
@@ -655,7 +654,6 @@
     <ClInclude Include="include\utility\scopeguard.hpp" />
     <ClInclude Include="src\version.h" />
     <ClInclude Include="include\window.h" />
-    <ClInclude Include="include\window_hook.h" />
     <ClInclude Include="include\xml_playlist.h" />
     <ClInclude Include="include\utility\debug.hpp" />
     <ClInclude Include="include\utility\debugstream.hpp" />
