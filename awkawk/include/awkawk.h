@@ -306,7 +306,7 @@ struct awkawk : boost::noncopyable {
 
 	void set_linear_volume(float vol);
 	void set_playback_position(float pos);
-	std::vector<ATL::CAdapt<IBaseFilterPtr> > get_filters() const;
+	std::vector<IBaseFilterPtr> get_filters() const;
 
 private:
 	static const transition_type transitions[max_awkawk_states][max_awkawk_events];

@@ -104,7 +104,7 @@ private:
 	mutable utility::critical_section cs;
 
 	IVMRSurfaceAllocatorNotify9Ptr surface_allocator_notify;
-	std::vector<ATL::CAdapt<IDirect3DSurface9Ptr> > vmr9_surfaces;
+	std::vector<IDirect3DSurface9Ptr> vmr9_surfaces;
 
 	IDirect3DSurface9Ptr staging_surface;
 

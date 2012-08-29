@@ -559,9 +559,9 @@ player_direct_show::graph_state player_direct_show::do_stop()
 	}
 }
 
-std::vector<ATL::CAdapt<IBaseFilterPtr> > player_direct_show::do_get_filters() const
+std::vector<IBaseFilterPtr> player_direct_show::do_get_filters() const
 {
-	std::vector<ATL::CAdapt<IBaseFilterPtr> > filter_list;
+	std::vector<IBaseFilterPtr> filter_list;
 	IEnumFiltersPtr filtEn;
 	graph->EnumFilters(&filtEn);
 	for(IBaseFilterPtr flt; S_OK == filtEn->Next(1, &flt, nullptr);)
