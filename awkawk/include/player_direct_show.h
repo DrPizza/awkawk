@@ -157,9 +157,9 @@ struct player_direct_show : boost::noncopyable
 		return "player_direct_show::error";
 	}
 
-	std::vector<ATL::CAdapt<IBaseFilterPtr> > get_filters() const
+	std::vector<IBaseFilterPtr> get_filters() const
 	{
-		std::vector<ATL::CAdapt<IBaseFilterPtr> > result;
+		std::vector<IBaseFilterPtr> result;
 		handler->send_callback([&] {
 			result = do_get_filters();
 		});
@@ -271,7 +271,7 @@ private:
 	void initialize();
 	void uninitialize();
 
-	std::vector<ATL::CAdapt<IBaseFilterPtr> > do_get_filters() const;
+	std::vector<IBaseFilterPtr> do_get_filters() const;
 	void do_set_linear_volume(float);
 	void do_set_volume(float);
 	void do_set_playback_position(float);

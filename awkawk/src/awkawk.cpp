@@ -223,7 +223,7 @@ void awkawk::set_playback_position(float pos) {
 	dshow->set_playback_position(pos);
 }
 
-std::vector<ATL::CAdapt<IBaseFilterPtr> > awkawk::get_filters() const {
+std::vector<IBaseFilterPtr> awkawk::get_filters() const {
 	return dshow->get_filters();
 }
 
