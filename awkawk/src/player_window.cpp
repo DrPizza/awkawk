@@ -252,20 +252,20 @@ void player_window::onTimer(HWND, UINT id)
 	}
 }
 
-void player_window::onInitMenu(HWND, HMENU menu)
+void player_window::onInitMenu(HWND, HMENU)
 {
 }
 
-void player_window::onEnterMenuLoop(HWND wnd, BOOL popup) {
+void player_window::onEnterMenuLoop(HWND, BOOL) {
 	menu_visible = true;
 	show_cursor();
 }
 
-void player_window::onExitMenuLoop(HWND wnd, BOOL popup) {
+void player_window::onExitMenuLoop(HWND, BOOL) {
 	menu_visible = false;
 }
 
-void player_window::onInitMenuPopup(HWND, HMENU menu, UINT item, BOOL window_menu)
+void player_window::onInitMenuPopup(HWND, HMENU, UINT, BOOL window_menu)
 {
 	if(TRUE == window_menu)
 	{

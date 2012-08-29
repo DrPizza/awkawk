@@ -46,6 +46,7 @@ LRESULT CALLBACK open_url_dialogue::message_proc(HWND wnd, UINT message, WPARAM 
 			::EndDialog(wnd, browse_local);
 			break;
 		}
+		handled = true;
 		return 0;
 	default:
 		return ::DefDlgProc(wnd, message, wParam, lParam);

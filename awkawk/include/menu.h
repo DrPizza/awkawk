@@ -445,6 +445,7 @@ struct edit_box_item : control, virtual menu_entry
 			{
 				if(reinterpret_cast<HMENU>(wParam) == get_parent()->get_menu())
 				{
+					handled = true;
 					return HANDLE_WM_INITMENUPOPUP(window, wParam, lParam, onInitMenuPopup);
 				}
 			}
@@ -453,6 +454,7 @@ struct edit_box_item : control, virtual menu_entry
 			{
 				if(reinterpret_cast<HMENU>(wParam) == get_parent()->get_menu())
 				{
+					handled = true;
 					return HANDLE_WM_UNINITMENUPOPUP(window, wParam, lParam, onUnInitMenuPopup);
 				}
 			}
@@ -461,6 +463,7 @@ struct edit_box_item : control, virtual menu_entry
 			{
 				if(reinterpret_cast<HMENU>(wParam) == get_parent()->get_menu())
 				{
+					handled = true;
 					return HANDLE_WM_INITMENUPOPUP(window, wParam, lParam, onPostInitMenuPopup);
 				}
 			}
@@ -469,6 +472,7 @@ struct edit_box_item : control, virtual menu_entry
 			{
 				if(reinterpret_cast<HMENU>(lParam) == get_parent()->get_menu())
 				{
+					handled = true;
 					return HANDLE_WM_MENUSELECT(window, wParam, lParam, onMenuSelect);
 				}
 			}
@@ -478,12 +482,12 @@ struct edit_box_item : control, virtual menu_entry
 		return 0;
 	}
 
-	virtual void onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+	virtual void onInitMenuPopup(HWND wnd, HMENU menu, UINT, BOOL)
 	{
 		::PostMessage(wnd, post_init_menu_popup, reinterpret_cast<WPARAM>(menu), 0);
 	}
 
-	virtual void onPostInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+	virtual void onPostInitMenuPopup(HWND, HMENU, UINT, BOOL)
 	{
 		hook_function = make_hook_proc(this, &edit_box_item::hook_proc);
 		hook = ::SetWindowsHookExW(WH_GETMESSAGE, hook_function, NULL, ::GetCurrentThreadId());
@@ -495,7 +499,7 @@ struct edit_box_item : control, virtual menu_entry
 		::PostThreadMessage(thread_id, set_focus_to_edit, FALSE, 0);
 	}
 
-	virtual void onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
+	virtual void onUnInitMenuPopup(HWND, HMENU, WORD)
 	{
 		::PostThreadMessageW(thread_id, WM_QUIT, 0, 0);
 		::WaitForSingleObject(thread, INFINITE);
@@ -642,7 +646,7 @@ struct custom_drawn_item : control, virtual menu_item
 		get_item_info().fType |= MFT_OWNERDRAW;
 	}
 
-	virtual bool handles_message(HWND window, UINT message, WPARAM wParam, LPARAM lParam) const
+	virtual bool handles_message(HWND, UINT message, WPARAM, LPARAM lParam) const
 	{
 		switch(message)
 		{
@@ -664,6 +668,7 @@ struct custom_drawn_item : control, virtual menu_item
 
 	virtual LRESULT CALLBACK message_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
 	{
+		UNREFERENCED_PARAMETER(wParam);
 		switch(message)
 		{
 		case WM_MEASUREITEM:

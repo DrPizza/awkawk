@@ -27,6 +27,7 @@
 #define NOMINMAX
 #define STRICT
 #define ISOLATION_AWARE_ENABLED 1
+
 #pragma warning(disable:4127) // conditional is constant
 #pragma warning(disable:4189) // local initialized but not referenced
 #pragma warning(disable:4345) // new T() default initializes
@@ -89,6 +90,8 @@
 
 // D3D
 #include <d3d9.h>
+#include <d3d10.h>
+#include <dxgi.h>
 #include <d3dx9.h>
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(lib, "d3dx9.lib")
@@ -110,13 +113,6 @@
 #include <evcode.h>
 #pragma comment(lib, "dxva2.lib")
 #pragma comment(lib, "evr.lib")
-
-#if defined DEBUG || defined _DEBUG
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#define DEBUG_CLIENTBLOCK new(_CLIENT_BLOCK, __FILE__, __LINE__)
-#define new DEBUG_CLIENTBLOCK
-#endif
 
 // ATL
 
@@ -150,3 +146,10 @@
 #include "utility/utility.hpp"
 
 #include "dispatch/dispatch.hpp"
+
+#if defined DEBUG || defined _DEBUG
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#define DEBUG_CLIENTBLOCK new(_CLIENT_BLOCK, __FILE__, __LINE__)
+#define new DEBUG_CLIENTBLOCK
+#endif
