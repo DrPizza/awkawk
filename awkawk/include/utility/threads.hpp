@@ -49,7 +49,7 @@ inline void SetThreadName(DWORD tid, const char* name)
 	ThreadName info = {0x1000, name, tid, 0};
 	__try
 	{
-		::RaiseException(ThreadName::MagicNumber, 0, sizeof(info) / sizeof(const ULONG_PTR*), reinterpret_cast<const ULONG_PTR*>(&info));
+		::RaiseException(ThreadName::MagicNumber, 0, sizeof(info) / sizeof(const ULONG_PTR), reinterpret_cast<const ULONG_PTR*>(&info));
 	}
 	__except(EXCEPTION_CONTINUE_EXECUTION)
 	{
@@ -80,7 +80,7 @@ DWORD WINAPI ThreadDispatchMemberFn(void* data)
 #endif
 	{
 		std::unique_ptr<utility::ThreadInfoMemberFn<T, P, F> > ti(static_cast<utility::ThreadInfoMemberFn<T, P, F>*>(data));
-		if(ti->name != 0)
+		if(ti->name != nullptr)
 		{
 			utility::SetThreadName(static_cast<DWORD>(-1), ti->name);
 		}

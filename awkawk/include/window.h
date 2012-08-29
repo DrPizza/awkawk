@@ -606,7 +606,7 @@ struct window : control
 protected:
 	HINSTANCE instance;
 
-	virtual bool prefilter_message(MSG* msg)
+	virtual bool prefilter_message(MSG*)
 	{
 		return true;
 	}
@@ -695,7 +695,7 @@ struct dialogue : control
 		return ::DialogBoxParamW(instance, template_name, parent, &dialogue::dummy_dialogue_proc, reinterpret_cast<LPARAM>(this));
 	}
 
-	static INT_PTR CALLBACK dummy_dialogue_proc(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam)
+	static INT_PTR CALLBACK dummy_dialogue_proc(HWND, UINT, WPARAM, LPARAM)
 	{
 		return FALSE;
 	}

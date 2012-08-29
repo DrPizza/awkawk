@@ -751,7 +751,7 @@ private:
 		return window_class.lpszClassName;
 	}
 
-	void create_window(void* param)
+	void create_window(void*)
 	{
 		set_window(::CreateWindowExW(0, get_class_name(), L"message-only window", 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, ::GetModuleHandle(NULL), nullptr));
 	}

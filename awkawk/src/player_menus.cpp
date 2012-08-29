@@ -32,14 +32,14 @@ awkawk_menu::awkawk_menu(awkawk* player_, window* owner, menu* parent, const std
 {
 }
 
-void awkawk_play_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+void awkawk_play_menu::onInitMenuPopup(HWND, HMENU, UINT, BOOL)
 {
 	::EnableMenuItem(get_menu(), IDM_PLAY, player->permitted(awkawk::play) ? MF_ENABLED : MF_GRAYED);
 	::EnableMenuItem(get_menu(), IDM_PAUSE, player->permitted(awkawk::pause) ? MF_ENABLED : MF_GRAYED);
 	::EnableMenuItem(get_menu(), IDM_STOP, player->permitted(awkawk::stop) ? MF_ENABLED : MF_GRAYED);
 }
 
-void awkawk_mode_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+void awkawk_mode_menu::onInitMenuPopup(HWND, HMENU, UINT, BOOL)
 {
 	::EnableMenuItem(get_menu(), IDM_PLAYMODE_NORMAL, MF_ENABLED);
 	::EnableMenuItem(get_menu(), IDM_PLAYMODE_REPEATALL, MF_ENABLED);
@@ -69,7 +69,7 @@ LRESULT CALLBACK awkawk_size_menu::message_proc(HWND window, UINT message, WPARA
 	return awkawk_menu::message_proc(window, message, wParam, lParam, handled);
 }
 
-void awkawk_size_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+void awkawk_size_menu::onInitMenuPopup(HWND, HMENU, UINT, BOOL)
 {
 	::EnableMenuItem(get_menu(), IDM_SIZE_50, MF_ENABLED);
 	::EnableMenuItem(get_menu(), IDM_SIZE_100, MF_ENABLED);
@@ -95,7 +95,7 @@ void awkawk_size_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL win
 	::CheckMenuRadioItem(get_menu(), letterbox_base, letterbox_base + player->available_letterboxes.size(), letterbox_base + player->get_letterbox_mode(), MF_BYPOSITION);
 }
 
-void awkawk_size_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
+void awkawk_size_menu::onUnInitMenuPopup(HWND, HMENU, WORD)
 {
 	for(size_t i(0); i < player->available_ratios.size(); ++i)
 	{
@@ -107,7 +107,7 @@ void awkawk_size_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
 	}
 }
 
-void awkawk_size_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
+void awkawk_size_menu::onCommand(HWND, int id, HWND, UINT)
 {
 	if(static_cast<UINT>(id) >= ar_menu_base && static_cast<UINT>(id) < ar_menu_base + player->available_ratios.size())
 	{
@@ -139,7 +139,7 @@ LRESULT CALLBACK awkawk_filter_menu::message_proc(HWND window, UINT message, WPA
 	return awkawk_menu::message_proc(window, message, wParam, lParam, handled);
 }
 
-void awkawk_filter_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+void awkawk_filter_menu::onInitMenuPopup(HWND, HMENU, UINT, BOOL)
 {
 	if(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop))
 	{
@@ -171,7 +171,7 @@ void awkawk_filter_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL w
 	::SetMenuItemInfoW(get_parent()->get_menu(), position, TRUE, &info);
 }
 
-void awkawk_filter_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
+void awkawk_filter_menu::onUnInitMenuPopup(HWND, HMENU, WORD)
 {
 	if(get_menu() != 0)
 	{
@@ -182,7 +182,7 @@ void awkawk_filter_menu::onUnInitMenuPopup(HWND wnd, HMENU menu, WORD type)
 	}
 }
 
-void awkawk_filter_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
+void awkawk_filter_menu::onCommand(HWND, int id, HWND, UINT)
 {
 	size_t chosen(id - filter_menu_base);
 	std::vector<ATL::CAdapt<IBaseFilterPtr> > filters(player->get_filters());
@@ -205,7 +205,7 @@ void awkawk_filter_menu::onCommand(HWND wnd, int id, HWND control, UINT event)
 	}
 }
 
-void awkawk_main_menu::onInitMenuPopup(HWND wnd, HMENU menu, UINT item, BOOL window_menu)
+void awkawk_main_menu::onInitMenuPopup(HWND, HMENU, UINT, BOOL)
 {
 	bool play_menu_enabled(player->permitted(awkawk::play) || player->permitted(awkawk::pause) || player->permitted(awkawk::stop));
 	::EnableMenuItem(get_menu(), IDM_OPEN_FILE, MF_ENABLED);

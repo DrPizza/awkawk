@@ -28,7 +28,7 @@ namespace
 	inline int RectHeight(const RECT &r) { return r.bottom - r.top; }
 }
 
-void themed_separator_item::onMeasureItem(HWND window, MEASUREITEMSTRUCT* measure_item)
+void themed_separator_item::onMeasureItem(HWND, MEASUREITEMSTRUCT* measure_item)
 {
 	if(::IsAppThemed() != TRUE)
 	{
@@ -165,7 +165,7 @@ void themed_separator_item::onDrawItem(HWND window, const DRAWITEMSTRUCT* draw_i
 	::DrawThemeBackground(get_metrics().theme, draw_item->hDC, MENU_POPUPSEPARATOR, 0, &dim.parts[themed_item::menu_separator], nullptr);
 }
 
-void themed_string_item::onMeasureItem(HWND window, MEASUREITEMSTRUCT* measure_item)
+void themed_string_item::onMeasureItem(HWND, MEASUREITEMSTRUCT* measure_item)
 {
 	if(::IsAppThemed() != TRUE)
 	{
@@ -230,7 +230,7 @@ void themed_string_item::onMeasureItem(HWND window, MEASUREITEMSTRUCT* measure_i
 	measure_item->itemHeight = cyMax;
 }
 
-void themed_string_item::onDrawItem(HWND window, const DRAWITEMSTRUCT* draw_item)
+void themed_string_item::onDrawItem(HWND, const DRAWITEMSTRUCT* draw_item)
 {
 	MENUITEMINFOW mii = { sizeof(MENUITEMINFOW) };
 	mii.fMask = MIIM_CHECKMARKS | MIIM_DATA | MIIM_ID | MIIM_STATE | MIIM_TYPE;
